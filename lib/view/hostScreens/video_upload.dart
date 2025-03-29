@@ -1,0 +1,281 @@
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:video_compress/video_compress.dart';
+import 'package:cotmade/model/posting_model.dart';
+import 'package:cotmade/model/app_constants.dart';
+
+class VideoUploadPage extends StatefulWidget {
+  @override
+  _VideoUploadPageState createState() => _VideoUploadPageState();
+}
+
+class _VideoUploadPageState extends State<VideoUploadPage> {
+  final ImagePicker _picker = ImagePicker();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  File? _videoFile;
+  String? _caption;
+  bool _isUploading = false;
+  String? _selectedPostingId; // To hold the selected posting ID
+  List<Map<String, String>> _postings =
+      []; // List to hold posting IDs and names
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserPostings(); // Fetch the posting IDs associated with the current user
+  }
+
+  // Fetch posting IDs from the current user's document
+  Future<void> _fetchUserPostings() async {
+    final user = _auth.currentUser;
+
+    if (user != null) {
+      try {
+        // Fetch the user's document from the 'users' collection
+        final userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
+
+        if (userDoc.exists) {
+          // Fetch the posting IDs from the user's document
+          List<dynamic> postingIDs = userDoc['myPostingIDs'] ?? [];
+
+          // Query the 'postings' collection using the posting IDs
+          List<Map<String, String>> postings = [];
+          for (String postingId in postingIDs) {
+            final postingDoc =
+                await _firestore.collection('postings').doc(postingId).get();
+            if (postingDoc.exists) {
+              postings.add({
+                'id': postingId, // Document ID (posting ID)
+                'name': postingDoc[
+                    'name'], // Assuming there's a 'name' field in the posting document
+              });
+            }
+          }
+
+          setState(() {
+            _postings = postings; // Update the postings list
+          });
+        }
+      } catch (e) {
+        print("Error fetching postings: $e");
+      }
+    }
+  }
+
+  // Pick a video from the gallery
+  Future<void> _pickVideo() async {
+    final XFile? pickedFile =
+        await _picker.pickVideo(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _videoFile = File(pickedFile.path);
+      });
+    }
+  }
+
+  // Compress the video if its size exceeds 20MB
+  Future<File?> _compressVideo(File videoFile) async {
+    try {
+      final compressedVideo = await VideoCompress.compressVideo(
+        videoFile.path,
+        quality: VideoQuality.MediumQuality, // Adjust quality as needed
+        deleteOrigin: false,
+      );
+
+      if (compressedVideo != null && compressedVideo.path != null) {
+        return File(compressedVideo.path!); // Return the compressed file
+      } else {
+        throw "Video compression failed or compressed video has no path.";
+      }
+    } catch (e) {
+      print("Compression error: $e");
+      return null;
+    }
+  }
+
+  // Upload video to Firebase Storage and store metadata in Firestore
+  Future<void> _uploadVideo() async {
+    if (_videoFile == null ||
+        _caption == null ||
+        _caption!.isEmpty ||
+        _selectedPostingId == null) {
+      return; // Ensure there's a video, caption, and selected posting ID
+    }
+
+    // Set uploading state to true
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      final videoSize = await _videoFile!.length();
+      if (videoSize > 20 * 1024 * 1024) {
+        // If video size > 20MB, compress the video
+        File? compressedVideo = await _compressVideo(_videoFile!);
+        if (compressedVideo == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text("Compression failed or video is too large.")),
+          );
+          return;
+        }
+
+        final compressedSize = await compressedVideo.length();
+        if (compressedSize > 20 * 1024 * 1024) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text("Video size still exceeds 20MB after compression")),
+          );
+          return;
+        }
+
+        // Upload the compressed video
+        await _uploadToStorage(compressedVideo);
+      } else {
+        // Upload the original video if compression is not needed
+        await _uploadToStorage(_videoFile!);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      // Reset the uploading state after upload is complete (success or failure)
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
+  // Upload the video to Firebase Storage and save metadata in Firestore
+  Future<void> _uploadToStorage(File videoFile) async {
+    try {
+      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      final ref = _storage.ref().child('reels/$fileName');
+      final uploadTask = ref.putFile(videoFile);
+
+      // Get the download URL after upload completes
+      final snapshot = await uploadTask.whenComplete(() {});
+      final videoUrl = await snapshot.ref.getDownloadURL();
+
+      // Get user data
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw FirebaseAuthException(
+            code: "user-not-logged-in", message: "User is not logged in");
+      }
+
+      // Ensure non-null email and caption (use empty string if null)
+      final email = user.email ?? ''; // Use empty string if email is null
+      final caption = _caption ?? ''; // Use empty string if caption is null
+
+      // Save video metadata in Firestore, including the selected posting ID
+      await _firestore.collection('reels').add({
+        'caption': caption, // Non-nullable string
+        'email': email, // Non-nullable string
+        'likes': 0,
+        'postId': fileName,
+        'postingId': _selectedPostingId, // Store selected posting ID
+        'reelsVideo': videoUrl,
+        'time': Timestamp.now(),
+        'uid': user.uid,
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Video uploaded successfully")));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Failed to upload video: $e")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Upload Video'),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _videoFile == null
+                ? Text("No video selected")
+                : Text("Selected video: ${_videoFile!.path.split('/').last}"),
+            SizedBox(height: 20),
+            TextField(
+              onChanged: (value) {
+                _caption = value;
+              },
+              decoration: InputDecoration(hintText: 'Enter video caption'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _pickVideo,
+              child: Text("Select Video"),
+            ),
+            SizedBox(height: 20),
+            // Dropdown to select posting ID
+            _postings.isEmpty
+                ? CircularProgressIndicator() // Show a loader if postings are still empty
+                : DropdownButton<String>(
+                    hint: Text("Select Posting"),
+                    value: _selectedPostingId,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedPostingId = newValue;
+                      });
+                    },
+                    items: _postings.map((posting) {
+                      return DropdownMenuItem<String>(
+                        value: posting['id'],
+                        child: Text(posting['name']!),
+                      );
+                    }).toList(),
+                  ),
+            SizedBox(height: 20),
+            _isUploading
+                ? Center(
+                    child:
+                        CircularProgressIndicator()) // Show loading indicator
+                : ElevatedButton(
+                    onPressed: _uploadVideo,
+                    child: Text("Upload Video"),
+                  ),
+            SizedBox(height: 20),
+            // Video upload guidelines
+            Text(
+              'Video Upload Guidelines:',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: screenWidth * 0.05), // Responsive text size
+            ),
+            SizedBox(height: 10),
+            Text(
+              '1. Ensure the video/image does not contain any offensive or inappropriate content.\n'
+              '2. Do not upload videos/image that contain phone numbers, or any personal information.\n'
+              '3. Avoid uploading videos/images that violate copyright laws.\n'
+              '4. Ensure the video/image quality is clear and not overly pixelated.\n'
+              '5. Videos/images should be related to your listing and relevant to the content.'
+              '6. If your video/image exceeds 20MB, it will be compressed automatically.',
+              style: TextStyle(
+                  fontSize: screenWidth * 0.04,
+                  color: Colors.black), // Responsive text size
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

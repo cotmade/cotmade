@@ -1,0 +1,325 @@
+import 'package:cotmade/model/booking_model.dart';
+import 'package:cotmade/model/contact_model.dart';
+import 'package:cotmade/model/review_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+
+import '../global.dart';
+import 'app_constants.dart';
+
+class PostingModel {
+  String? id;
+  String? name;
+  String? type;
+  double? price;
+  String? description;
+  String? address;
+  String? city;
+  String? country;
+  String? currency;
+  double? caution;
+  double? rating;
+  double? premium;
+  double? status = 1; // Set default value of status to 1
+  String? checkInTime; // Add this field
+  String? checkOutTime; // Add this field
+
+  ContactModel? host;
+
+  List<String>? imageNames;
+  List<MemoryImage>? displayImages;
+  List<String>? amenities;
+
+  Map<String, int>? beds;
+  Map<String, int>? bathrooms;
+
+  List<BookingModel>? bookings;
+  List<ReviewModel>? reviews;
+
+  PostingModel(
+      {this.id = "",
+      this.name = "",
+      this.type = "",
+      this.price = 0,
+      this.caution = 0,
+      this.status = 1, // Set default value of status to 1
+      this.description = "",
+      this.address = "",
+      this.city = "",
+      this.country = "",
+      this.checkInTime = "", // Add this field
+      this.checkOutTime = "", // Add this field
+      this.currency = "",
+      this.host}) {
+    displayImages = [];
+    amenities = [];
+
+    beds = {};
+    bathrooms = {};
+    rating = 0;
+    premium = 0;
+
+    bookings = [];
+    reviews = [];
+  }
+
+  setImagesNames() {
+    imageNames = [];
+
+    for (int i = 0; i < displayImages!.length; i++) {
+      imageNames!.add("image${i}.png");
+    }
+  }
+
+  getPostingInfoFromFirestore() async {
+    DocumentSnapshot snapshot =
+        await FirebaseFirestore.instance.collection('postings').doc(id).get();
+
+    getPostingInfoFromSnapshot(snapshot);
+  }
+
+  getPostingInfoFromSnapshot(DocumentSnapshot snapshot) {
+    address = snapshot['address'] ?? "";
+    amenities = List<String>.from(snapshot['amenities']) ?? [];
+    bathrooms = Map<String, int>.from(snapshot['bathrooms']) ?? {};
+    beds = Map<String, int>.from(snapshot['beds']) ?? {};
+    city = snapshot['city'] ?? "";
+    country = snapshot['country'] ?? "";
+    currency = snapshot['currency'] ?? "";
+    description = snapshot['description'] ?? "";
+
+    String hostID = snapshot['hostID'] ?? "";
+    host = ContactModel(id: hostID);
+
+    imageNames = List<String>.from(snapshot['imageNames']) ?? [];
+    name = snapshot['name'] ?? "";
+    price = snapshot['price'].toDouble() ?? 0.0;
+    caution = snapshot['caution'].toDouble() ?? 0.0;
+    checkInTime = snapshot['checkInTime'] ?? "";
+    checkOutTime = snapshot['checkOutTime'] ?? "";
+    rating = snapshot['rating'].toDouble() ?? 2.5;
+    premium = snapshot['premium'].toDouble() ?? 1.0;
+    status = snapshot['status'].toDouble() ?? 1.0;
+    type = snapshot['type'] ?? "";
+  }
+
+  getAllImagesFromStorage() async {
+    displayImages = [];
+
+    for (int i = 0; i < imageNames!.length; i++) {
+      final imageData = await FirebaseStorage.instance
+          .ref()
+          .child("postingImages")
+          .child(id!)
+          .child(imageNames![i])
+          .getData(1024 * 1024);
+
+      displayImages!.add(MemoryImage(imageData!));
+    }
+
+    return displayImages;
+  }
+
+  getFirstImageFromStorage() async {
+    if (displayImages!.isNotEmpty) {
+      return displayImages!.first;
+    }
+
+    final imageData = await FirebaseStorage.instance
+        .ref()
+        .child("postingImages")
+        .child(id!)
+        .child(imageNames!.first)
+        .getData(1024 * 1024);
+
+    displayImages!.add(MemoryImage(imageData!));
+
+    return displayImages!.first;
+  }
+
+  getAmenititesString() {
+    if (amenities!.isEmpty) {
+      return "";
+    }
+
+    String amenitiesString = amenities.toString();
+
+    return amenitiesString.substring(1, amenitiesString.length - 1);
+  }
+
+  double getCurrentRating() {
+    if (reviews!.length == 0) {
+      return 4;
+    }
+
+    double rating = 0;
+
+    reviews!.forEach((review) {
+      rating += review.rating!;
+    });
+
+    rating /= reviews!.length;
+
+    return rating;
+  }
+
+  getHostFromFirestore() async {
+    await host!.getContactInfoFromFirestore();
+    await host!.getImageFromStorage();
+  }
+
+  int getGuestsNumber() {
+    int? numGuests = 0;
+
+    numGuests = numGuests + beds!['small']!;
+    numGuests = numGuests + beds!['medium']! * 2;
+    numGuests = numGuests + beds!['large']! * 2;
+
+    return numGuests;
+  }
+
+  String getBedroomText() {
+    String text = "";
+
+    if (beds!["small"] != 0) {
+      text = text + beds!["small"].toString() + " single/twin ";
+    }
+
+    if (beds!["medium"] != 0) {
+      text = text + beds!["medium"].toString() + " double ";
+    }
+
+    if (beds!["large"] != 0) {
+      text = text + this.beds!["large"].toString() + " queen/king ";
+    }
+
+    return text;
+  }
+
+  String getBathroomText() {
+    String text = "";
+
+    if (bathrooms!["full"] != 0) {
+      text = text + bathrooms!["full"].toString() + " full ";
+    }
+
+    if (bathrooms!["half"] != 0) {
+      text = text + bathrooms!["half"].toString() + " half ";
+    }
+
+    return text;
+  }
+
+  String getFullAddress() {
+    return address! + ", " + city! + ", " + country!;
+  }
+
+  getAllBookingsFromFirestore() async {
+    bookings = [];
+
+    QuerySnapshot snapshots = await FirebaseFirestore.instance
+        .collection('postings')
+        .doc(id)
+        .collection('bookings')
+        .get();
+
+    for (var snapshot in snapshots.docs) {
+      BookingModel newBooking = BookingModel();
+
+      await newBooking.getBookingInfoFromFirestoreFromPosting(this, snapshot);
+
+      bookings!.add(newBooking);
+    }
+  }
+
+  List<DateTime> getAllBookedDates() {
+    List<DateTime> dates = [];
+
+    bookings!.forEach((booking) {
+      dates.addAll(booking.dates!);
+    });
+
+    return dates;
+  }
+
+  Future<void> makeNewBooking(List<DateTime> dates, context, hostID) async {
+    Map<String, dynamic> bookingData = {
+      'dates': dates,
+      'name': AppConstants.currentUser.getFullNameOfUser(),
+      'userID': AppConstants.currentUser.id,
+      'payment': bookingPrice,
+      //  'image': displayImages!.first,
+    };
+
+    DocumentReference reference = await FirebaseFirestore.instance
+        .collection('postings')
+        .doc(id)
+        .collection('bookings')
+        .add(bookingData);
+
+    BookingModel newBooking = BookingModel();
+
+    newBooking.createBooking(
+        this, AppConstants.currentUser.createUserFromContact(), dates);
+    newBooking.id = reference.id;
+
+    String bookingID = reference.id;
+    await sendWelcomeEmail(hostID, bookingID, dates);
+
+    bookings!.add(newBooking);
+    await AppConstants.currentUser
+        .addBookingToFirestore(newBooking, bookingPrice!, hostID);
+
+    Get.snackbar("Listing", "Booked successfully.");
+  }
+
+  Future<void> sendWelcomeEmail(
+      String hostID, String bookingID, List<DateTime> dates) async {
+    try {
+      // Ensure the current user has an email
+      String? guestEmail = AppConstants.currentUser.email;
+      String? guestName = AppConstants.currentUser.getFullNameOfUser();
+
+      if (guestEmail == null || guestEmail.isEmpty) {
+        print("Guest email not found");
+        return;
+      }
+
+      // Fetch the host's email from Firestore
+      DocumentSnapshot hostSnapshot = await FirebaseFirestore.instance
+          .collection(
+              'users') // Adjust this collection to match where hosts are stored
+          .doc(hostID)
+          .get();
+
+      String hostEmail = hostSnapshot['email'];
+
+      // Convert booked dates to a comma-separated string
+      String bookedDates =
+          dates.map((date) => date.toIso8601String()).join(',');
+
+      final url = Uri.parse("https://cotmade.com/app/send_email_guestbook.php");
+
+      final response = await http.post(url, body: {
+        "email": guestEmail, // Guest email
+        "guest_name": guestName,
+        "host_email": hostEmail, // Host email
+        "booking_id": bookingID, // Booking ID from Firestore
+        "booked_dates": bookedDates, // Send booked dates
+        "check_in_time": checkInTime!, // Send check-in time
+        "check_out_time": checkOutTime!, // Send check-out time
+      });
+
+      if (response.statusCode == 200) {
+        print("✅ Email sent successfully to guest and host");
+      } else {
+        print("❌ Failed to send email: ${response.body}");
+      }
+    } catch (e) {
+      print("🚨 Error sending email: $e");
+    }
+  }
+}
