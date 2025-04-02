@@ -19,6 +19,7 @@ class BoostPropertyPage extends StatefulWidget {
 class _BoostPropertyPageState extends State<BoostPropertyPage> {
   String currency = "";
   double amountInConvertedCurrency = 0.0;
+  String postingName = ""; // Variable to store the posting name
 
   @override
   void initState() {
@@ -35,6 +36,8 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
     if (postingSnapshot.exists) {
       setState(() {
         currency = postingSnapshot['currency'];
+        postingName =
+            postingSnapshot['name']; // Assuming 'name' is a field in Firestore
       });
 
       double usdAmount = 10.0;
@@ -103,6 +106,14 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
         'premium': 2,
       });
 
+      // Format the dates as strings
+      String paidDateString = paidDate.toIso8601String();
+      String premiumExpiryDateString = premiumExpiryDate.toIso8601String();
+      String postId = widget.postingId.toString();
+      String email = AppConstants.currentUser.email.toString();
+
+      await sendWelcomeEmail(postId, paidDateString, premiumExpiryDateString,
+          amountInConvertedCurrency, email);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payment successful!')),
       );
@@ -110,6 +121,29 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Payment failed! Please try again.')));
+    }
+  }
+
+  Future<void> sendWelcomeEmail(
+      String postId,
+      String paidDateString,
+      String premiumExpiryDateString,
+      double amountInConvertedCurrency,
+      String email) async {
+    final url = Uri.parse("https://cotmade.com/app/send_email_premium.php");
+
+    final response = await http.post(url, body: {
+      "postingID": postId,
+      "Start": paidDateString,
+      "Expiry": premiumExpiryDateString,
+      "Amount": amountInConvertedCurrency,
+      "email": email,
+    });
+
+    if (response.statusCode == 200) {
+      print("Email sent successfully");
+    } else {
+      print("Failed to send email: ${response.body}");
     }
   }
 
@@ -130,6 +164,12 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
     );
   }
 
+  String _formatAmount(double amount) {
+    // Format the amount with commas as a thousand separator
+    return amount.toStringAsFixed(2).replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+\.)'), (Match m) => '${m[1]},');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,77 +178,84 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
       ),
       body: Center(
         child: amountInConvertedCurrency > 0.0
-            ? Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.black,
-                    width: 2,
+            ? Align(
+                alignment:
+                    Alignment.topCenter, // This aligns the container to the top
+                child: Container(
+                  padding: EdgeInsets.all(20),
+                  height: MediaQuery.of(context).size.height /
+                      3, // Set container height to half of the screen height
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.black, width: 2),
                   ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Image.asset(
-                        'images/cotty.png',
-                        height: 50,
-                      ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Image.asset(
-                        'images/chip.png',
-                        height: 40,
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '30 Days Premium',
-                        style: TextStyle(
-                          color: Colors.pinkAccent,
-                          fontSize: 20,
-                          wordSpacing: 12,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Image.asset(
+                          'images/cotty.png',
+                          height: 50,
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 20,
-                      left: 0,
-                      right: 0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Amount: $currency $amountInConvertedCurrency',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: _startPaymentProcess,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black, // Black background
-                              foregroundColor:
-                                  Colors.yellow[600], // Gold text color
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 8,
-                                  horizontal:
-                                      16), // Adjust padding for small size
-                              minimumSize: Size(
-                                  150, 40), // Set a small fixed size (optional)
-                            ),
-                            child: Text('Pay Now'),
-                          ),
-                        ],
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Image.asset(
+                          'images/chip.png',
+                          height: 40,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '30 Days Premium',
+                              style: TextStyle(
+                                color: Colors.pinkAccent,
+                                fontSize: 20,
+                                wordSpacing: 12,
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              postingName, // Display posting name here
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            Text(
+                              'Amount: $currency ${_formatAmount(amountInConvertedCurrency)}',
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: _startPaymentProcess,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Colors.black, // Black background
+                                foregroundColor:
+                                    Colors.yellow[600], // Gold text color
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal:
+                                        16), // Adjust padding for small size
+                                minimumSize: Size(150,
+                                    40), // Set a small fixed size (optional)
+                              ),
+                              child: Text('Pay Now'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ))
             : CircularProgressIndicator(),
       ),
     );
