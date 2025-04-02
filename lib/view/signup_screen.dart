@@ -160,6 +160,7 @@ class _SignupScreenState extends State<SignupScreen> {
     "Niger": ["Niamey", "Zinder", "Maradi"],
     "Nigeria": [
       'Abia',
+      'Abuja',
       'Adamawa',
       'Akwa Ibom',
       "Anambra",
