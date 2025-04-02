@@ -267,7 +267,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
               '2. Do not upload videos/image that contain phone numbers, or any personal information.\n'
               '3. Avoid uploading videos/images that violate copyright laws.\n'
               '4. Ensure the video/image quality is clear and not overly pixelated.\n'
-              '5. Videos/images should be related to your listing and relevant to the content.'
+              '5. Videos/images should be related to your listing and relevant to the content.\n'
               '6. If your video/image exceeds 20MB, it will be compressed automatically.',
               style: TextStyle(
                   fontSize: screenWidth * 0.04,
