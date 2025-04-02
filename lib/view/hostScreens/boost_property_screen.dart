@@ -111,9 +111,10 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
       String premiumExpiryDateString = premiumExpiryDate.toIso8601String();
       String postId = widget.postingId.toString();
       String email = AppConstants.currentUser.email.toString();
+      String money = amountInConvertedCurrency.toString();
 
-      await sendWelcomeEmail(postId, paidDateString, premiumExpiryDateString,
-          amountInConvertedCurrency, email);
+      await sendWelcomeEmail(
+          postId, paidDateString, premiumExpiryDateString, money, email);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Payment successful!')),
       );
@@ -124,19 +125,15 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
     }
   }
 
-  Future<void> sendWelcomeEmail(
-      String postId,
-      String paidDateString,
-      String premiumExpiryDateString,
-      double amountInConvertedCurrency,
-      String email) async {
+  Future<void> sendWelcomeEmail(String postId, String paidDateString,
+      String premiumExpiryDateString, String money, String email) async {
     final url = Uri.parse("https://cotmade.com/app/send_email_premium.php");
 
     final response = await http.post(url, body: {
       "postingID": postId,
       "Start": paidDateString,
       "Expiry": premiumExpiryDateString,
-      "Amount": amountInConvertedCurrency,
+      "Amount": money,
       "email": email,
     });
 
