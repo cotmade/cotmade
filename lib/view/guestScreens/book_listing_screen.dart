@@ -51,6 +51,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
   String selectedCurrency =
       ''; // Start with empty, user will select the currency
   List<String> availableCurrencies = [
+    'AED',
     'CAD',
     'CLP',
     'COP',
