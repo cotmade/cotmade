@@ -236,319 +236,336 @@ class _ExploreScreenState extends State<ExploreScreen> {
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(25, 15, 20, 0),
-        child: SingleChildScrollView(
-          child: Container(
-            color: Colors.white,
-            child: Column(
-              children: [
-                // Display the selected country (image and name) and make it clickable
-                GestureDetector(
-                  onTap: () {
-                    // Open the dialog to select a new country
-                    _showCountryList();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundImage:
-                              AssetImage(_selectedCountry!.imagePath),
-                          radius: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          _selectedCountry!.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            //  fontSize: 18,
+        child: Column(
+          children: [
+            // Fixed section: Country selector, search bar, and search buttons
+            SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Country Selector
+                  GestureDetector(
+                    onTap: () {
+                      // Open the dialog to select a new country
+                      _showCountryList();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundImage:
+                                AssetImage(_selectedCountry!.imagePath),
+                            radius: 20,
                           ),
+                          SizedBox(width: 8),
+                          Text(
+                            _selectedCountry!.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              //  fontSize: 18,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            size: 24,
+                          ), // Dropdown arrow to indicate it's clickable
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  // Search Bar
+                  Material(
+                    elevation: 5.0,
+                    color: Color(0xcaf6f6f6),
+                    shadowColor: Colors.grey.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(40),
+                    child: TextField(
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Colors.black,
                         ),
-                        Icon(
-                          Icons.arrow_drop_down,
-                          size: 24,
-                        ), // Dropdown arrow to indicate it's clickable
+                        border: InputBorder.none,
+                        hintText:
+                            'Where to? \nAnywhere • Any week • Add guests',
+                        hintMaxLines: 2,
+                        hintStyle: TextStyle(
+                          color: Colors.black54,
+                        ),
+                      ),
+                      controller: controllerSearch,
+                      onEditingComplete: searchByField,
+                    ),
+                  ),
+
+                  // Search Buttons (Name, City, Type, Clear)
+                  SizedBox(
+                    height: 48,
+                    width: MediaQuery.of(context).size.width / .5,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+                      children: [
+                        MaterialButton(
+                          onPressed: () {
+                            pressSearchByButton("name", true, false, false);
+                          },
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          color: isNameButtonSelected
+                              ? Colors.pinkAccent
+                              : Colors.white,
+                          child: const Text("Name"),
+                        ),
+                        const SizedBox(width: 6),
+                        MaterialButton(
+                          onPressed: () {
+                            pressSearchByButton("city", false, true, false);
+                          },
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          color: isCityButtonSelected
+                              ? Colors.pinkAccent
+                              : Colors.white,
+                          child: const Text("State"),
+                        ),
+                        const SizedBox(width: 6),
+                        MaterialButton(
+                          onPressed: () {
+                            pressSearchByButton("type", false, false, true);
+                          },
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          color: isTypeButtonSelected
+                              ? Colors.pinkAccent
+                              : Colors.white,
+                          child: const Text("Type"),
+                        ),
+                        const SizedBox(width: 6),
+                        MaterialButton(
+                          onPressed: () {
+                            pressSearchByButton("", false, false, false);
+                          },
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          color: Colors.white,
+                          child: const Text("Clear"),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                SizedBox(height: 10),
-                // Search Bar
-                Material(
-                  elevation: 5.0,
-                  color: Color(0xcaf6f6f6),
-                  shadowColor: Colors.grey.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(40),
-                  child: TextField(
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: Colors.black,
-                      ),
-                      border: InputBorder.none,
-                      hintText: 'Where to? \nAnywhere • Any week • Add guests',
-                      hintMaxLines: 2,
-                      hintStyle: TextStyle(
-                        color: Colors.black54,
+                ],
+              ),
+            ),
+
+            // Scrollable content starts here:
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Promo Section (Example for horizontal scroll)
+                    const SizedBox(height: 3),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          "Top",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                    controller: controllerSearch,
-                    onEditingComplete: searchByField,
-                  ),
-                ),
+                    // Add the rest of your content here (Carousels, Listings, etc.)
+                    SizedBox(
+                      height: 220,
+                      child: StreamBuilder<List<PostingModel>>(
+                        stream: postingsStream,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
 
-                // Search Buttons (Name, City, Type, Clear)
-                SizedBox(
-                  height: 48,
-                  width: MediaQuery.of(context).size.width / .5,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
-                    children: [
-                      MaterialButton(
-                        onPressed: () {
-                          pressSearchByButton("name", true, false, false);
-                        },
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        color: isNameButtonSelected
-                            ? Colors.pinkAccent
-                            : Colors.white,
-                        child: const Text("Name"),
-                      ),
-                      const SizedBox(width: 6),
-                      MaterialButton(
-                        onPressed: () {
-                          pressSearchByButton("city", false, true, false);
-                        },
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        color: isCityButtonSelected
-                            ? Colors.pinkAccent
-                            : Colors.white,
-                        child: const Text("State"),
-                      ),
-                      const SizedBox(width: 6),
-                      MaterialButton(
-                        onPressed: () {
-                          pressSearchByButton("type", false, false, true);
-                        },
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        color: isTypeButtonSelected
-                            ? Colors.pinkAccent
-                            : Colors.white,
-                        child: const Text("Type"),
-                      ),
-                      const SizedBox(width: 6),
-                      MaterialButton(
-                        onPressed: () {
-                          pressSearchByButton("", false, false, false);
-                        },
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        color: Colors.white,
-                        child: const Text("Clear"),
-                      ),
-                    ],
-                  ),
-                ),
+                          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                            // Filter postings to include only those with premium value of 2 and status not equal to 0
+                            var premiumPostings = snapshot.data!
+                                .where((posting) =>
+                                    posting.premium == 2.0 &&
+                                    posting.status != 0.0)
+                                .toList();
 
-                // Promo Section (Example for horizontal scroll)
-                const SizedBox(height: 3),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      "Top",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                            if (premiumPostings.isEmpty) {
+                              return const Center(
+                                child: Text('No premium listings available.'),
+                              );
+                            }
+
+                            return ListView(
+                              physics: const BouncingScrollPhysics(),
+                              scrollDirection: Axis.horizontal,
+                              children: premiumPostings.map((posting) {
+                                return InkResponse(
+                                  onTap: () {
+                                    Get.to(ViewPostingScreen(posting: posting));
+                                  },
+                                  enableFeedback: true,
+                                  child: PostingGriddTileUI(posting: posting),
+                                );
+                              }).toList(),
+                            );
+                          } else {
+                            return const Center(
+                              child: Text('Top listings coming soon.'),
+                            );
+                          }
+                        },
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(
-                  height: 220,
-                  child: StreamBuilder<List<PostingModel>>(
-                    stream: postingsStream,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
-                      }
 
-                      if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                        // Filter postings to include only those with premium value of 2 and status not equal to 0
-                        var premiumPostings = snapshot.data!
-                            .where((posting) =>
-                                posting.premium == 2.0 && posting.status != 0.0)
-                            .toList();
+                    // Carousel Section
+                    const SizedBox(height: 15),
+                    CarouselSlider(
+                      items: [
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.network(
+                            'https://cotmade.com/assets/images/rb_2149143193.png',
+                            fit: BoxFit.cover,
+                            height: 60,
+                            width: 400,
+                          ),
+                        ),
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.network(
+                            'https://cotmade.com/assets/images/rb_839.png',
+                            fit: BoxFit.cover,
+                            height: 60,
+                            width: 400,
+                          ),
+                        ),
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.network(
+                            'https://cotmade.com/assets/images/rb_2149143193.png',
+                            fit: BoxFit.cover,
+                            height: 60,
+                            width: 400,
+                          ),
+                        ),
+                      ],
+                      options: CarouselOptions(
+                        height: 60.0,
+                        enlargeCenterPage: true,
+                        autoPlay: true,
+                      ),
+                    ),
 
-                        if (premiumPostings.isEmpty) {
+                    // All Listings Section
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          "All Listings",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Display Listings (GridView)
+                    StreamBuilder<List<PostingModel>>(
+                      stream: postingsStream,
+                      builder: (context, dataSnapshots) {
+                        if (dataSnapshots.connectionState ==
+                            ConnectionState.waiting) {
                           return const Center(
-                            child: Text('No premium listings available.'),
+                            child: CircularProgressIndicator(),
                           );
                         }
 
-                        return ListView(
-                          physics: const BouncingScrollPhysics(),
-                          scrollDirection: Axis.horizontal,
-                          children: premiumPostings.map((posting) {
-                            return InkResponse(
-                              onTap: () {
-                                Get.to(ViewPostingScreen(posting: posting));
-                              },
-                              enableFeedback: true,
-                              child: PostingGriddTileUI(posting: posting),
-                            );
-                          }).toList(),
-                        );
-                      } else {
-                        return const Center(
-                          child: Text('Top listings coming soon.'),
-                        );
-                      }
-                    },
-                  ),
-                ),
+                        if (dataSnapshots.hasData &&
+                            dataSnapshots.data!.isNotEmpty) {
+                          // Use all the data (no skip)
+                          var listings = dataSnapshots.data!;
 
-                // Carousel Section
-                const SizedBox(height: 15),
-                CarouselSlider(
-                  items: [
-                    Container(
-                      margin: EdgeInsets.symmetric(horizontal: 1),
-                      child: Image.network(
-                        'https://cotmade.com/assets/images/rb_2149143193.png',
-                        fit: BoxFit.cover,
-                        height: 60,
-                        width: 400,
-                      ),
-                    ),
-                    Container(
-                      margin: EdgeInsets.symmetric(horizontal: 1),
-                      child: Image.network(
-                        'https://cotmade.com/assets/images/rb_839.png',
-                        fit: BoxFit.cover,
-                        height: 60,
-                        width: 400,
-                      ),
-                    ),
-                    Container(
-                      margin: EdgeInsets.symmetric(horizontal: 1),
-                      child: Image.network(
-                        'https://cotmade.com/assets/images/rb_2149143193.png',
-                        fit: BoxFit.cover,
-                        height: 60,
-                        width: 400,
-                      ),
+                          // Filter out listings where status is 0
+                          var filteredListingsByStatus =
+                              listings.where((posting) {
+                            return posting.status !=
+                                0.0; // Only include postings where status is not 0
+                          }).toList();
+
+                          if (filteredListingsByStatus.isEmpty) {
+                            return const Center(
+                              child: Text('No listings available.'),
+                            );
+                          }
+
+                          // Prioritize listings with premium value of 2, followed by others
+                          var sortedListings = filteredListingsByStatus
+                            ..sort((a, b) {
+                              // Handle null 'premium' values by treating null as 0 for sorting
+                              double premiumA = a.premium ?? 0.0;
+                              double premiumB = b.premium ?? 0.0;
+                              return premiumB.compareTo(
+                                  premiumA); // Sort descending (2, 1, 0)
+                            });
+
+                          // Apply search filter to the sorted listings
+                          var finalFilteredListings =
+                              filterPostings(sortedListings);
+
+                          return GridView.builder(
+                            physics: const ScrollPhysics(),
+                            shrinkWrap: true,
+                            itemCount: finalFilteredListings.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 15,
+                              childAspectRatio: 3 / 4,
+                            ),
+                            itemBuilder: (context, index) {
+                              PostingModel posting =
+                                  finalFilteredListings[index];
+                              return InkResponse(
+                                onTap: () {
+                                  Get.to(ViewPostingScreen(posting: posting));
+                                },
+                                enableFeedback: true,
+                                child: PostingGridTileUI(posting: posting),
+                              );
+                            },
+                          );
+                        } else {
+                          return const Center(
+                            child: Text('Listings coming soon'),
+                          );
+                        }
+                      },
                     ),
                   ],
-                  options: CarouselOptions(
-                    height: 60.0,
-                    enlargeCenterPage: true,
-                    autoPlay: true,
-                  ),
                 ),
-
-                // All Listings Section
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      "All Listings",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Display Listings (GridView)
-                StreamBuilder<List<PostingModel>>(
-                  stream: postingsStream,
-                  builder: (context, dataSnapshots) {
-                    if (dataSnapshots.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-
-                    if (dataSnapshots.hasData &&
-                        dataSnapshots.data!.isNotEmpty) {
-                      // Use all the data (no skip)
-                      var listings = dataSnapshots.data!;
-
-                      // Filter out listings where status is 0
-                      var filteredListingsByStatus = listings.where((posting) {
-                        return posting.status !=
-                            0.0; // Only include postings where status is not 0
-                      }).toList();
-
-                      if (filteredListingsByStatus.isEmpty) {
-                        return const Center(
-                          child: Text('No listings available.'),
-                        );
-                      }
-
-                      // Prioritize listings with premium value of 2, followed by others
-                      var sortedListings = filteredListingsByStatus
-                        ..sort((a, b) {
-                          // Handle null 'premium' values by treating null as 0 for sorting
-                          double premiumA = a.premium ?? 0.0;
-                          double premiumB = b.premium ?? 0.0;
-                          return premiumB
-                              .compareTo(premiumA); // Sort descending (2, 1, 0)
-                        });
-
-                      // Apply search filter to the sorted listings
-                      var finalFilteredListings =
-                          filterPostings(sortedListings);
-
-                      return GridView.builder(
-                        physics: const ScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: finalFilteredListings.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 15,
-                          childAspectRatio: 3 / 4,
-                        ),
-                        itemBuilder: (context, index) {
-                          PostingModel posting = finalFilteredListings[index];
-                          return InkResponse(
-                            onTap: () {
-                              Get.to(ViewPostingScreen(posting: posting));
-                            },
-                            enableFeedback: true,
-                            child: PostingGridTileUI(posting: posting),
-                          );
-                        },
-                      );
-                    } else {
-                      return const Center(
-                        child: Text('Listings coming soon'),
-                      );
-                    }
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
