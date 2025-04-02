@@ -86,6 +86,7 @@ class _withdrawState extends State<withdraw> {
             AppConstants.currentUser.email.toString(),
             AppConstants.currentUser.getFullNameOfUser(),
             withdrawalAmount,
+            userID,
             withdrawalDocumentID);
 
         Get.snackbar(
@@ -124,8 +125,12 @@ class _withdrawState extends State<withdraw> {
     }
   }
 
-  Future<void> sendWelcomeEmail(String email, String fname,
-      double withdrawalAmount, String withdrawalDocumentID) async {
+  Future<void> sendWelcomeEmail(
+      String email,
+      String fname,
+      double withdrawalAmount,
+      String? userID,
+      String withdrawalDocumentID) async {
     final url =
         Uri.parse("https://cotmade.com/app/send_email_hostwithdraw.php");
 
@@ -133,6 +138,7 @@ class _withdrawState extends State<withdraw> {
       "email": email,
       "fname": fname,
       "withdrawalAmount": withdrawalAmount.toString(),
+      "userID": userID,
       "transactionID": withdrawalDocumentID,
     });
 

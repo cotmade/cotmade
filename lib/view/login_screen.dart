@@ -52,7 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
             colors: [
               Colors.white,
               Colors.white,
-              Colors.black12,
+              Colors.white,
+              //  Colors.black12,
             ],
           ),
         ),
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const SizedBox(height: 10),
             //logo
-            Image.asset("images/afrik_prev_ui.png", height: 240),
+            Image.asset("images/afrikk_prev_ui.png", height: 240),
             const SizedBox(height: 3),
             //welcome back you been missed
 

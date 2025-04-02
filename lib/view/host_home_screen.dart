@@ -4,6 +4,7 @@ import 'package:cotmade/view/guestScreens/saved_listings_screen.dart';
 import 'package:cotmade/view/guestScreens/trips_screen.dart';
 import 'package:cotmade/view/hostScreens/bookings_screen.dart';
 import 'package:cotmade/view/hostScreens/my_postings_screen.dart';
+import 'package:cotmade/view/hostScreens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 
 class HostHomeScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _HostHomeScreenState extends State<HostHomeScreen> {
   int selectedIndex = 0;
 
   final List<String> screenTitles = [
+    'Analytics',
     'Bookings',
     'My Postings',
     'Inbox',
@@ -29,6 +31,7 @@ class _HostHomeScreenState extends State<HostHomeScreen> {
   ];
 
   final List<Widget> screens = [
+    HostDashboardScreen(),
     BookingsScreen(),
     MyPostingsScreen(),
     InboxScreen(),
@@ -49,7 +52,7 @@ class _HostHomeScreenState extends State<HostHomeScreen> {
   @override
   void initState() {
     super.initState();
-    selectedIndex = widget.index ?? 3;
+    selectedIndex = widget.index ?? 0;
   }
 
   @override
@@ -95,10 +98,12 @@ class _HostHomeScreenState extends State<HostHomeScreen> {
         selectedItemColor: Colors.pinkAccent, // Active color
         unselectedItemColor: Colors.black, // Inactive color
         items: <BottomNavigationBarItem>[
-          customNavigationBarItem(0, Icons.calendar_today, screenTitles[0]),
-          customNavigationBarItem(1, Icons.home, screenTitles[1]),
-          customNavigationBarItem(2, Icons.message, screenTitles[2]),
-          customNavigationBarItem(3, Icons.person_outline, screenTitles[3]),
+          customNavigationBarItem(
+              0, Icons.dashboard_customize, screenTitles[0]),
+          customNavigationBarItem(1, Icons.calendar_today, screenTitles[1]),
+          customNavigationBarItem(2, Icons.home, screenTitles[2]),
+          customNavigationBarItem(3, Icons.message, screenTitles[3]),
+          customNavigationBarItem(4, Icons.person_outline, screenTitles[4]),
         ],
       ),
     );

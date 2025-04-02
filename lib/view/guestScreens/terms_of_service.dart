@@ -49,8 +49,12 @@ class TermsOfServiceScreen extends StatelessWidget {
                 'All content available on the App, including text, graphics, logos, images, and software, is the property of CotMade or its licensors and is protected by intellectual property laws. You may not copy, modify, distribute, or otherwise exploit the content without permission.'),
             _buildSectionTitle('9. Dispute Resolution'),
             _buildParagraph(
-                'Any disputes arising out of or related to these Terms or the App shall be resolved through binding arbitration in [jurisdiction]. You agree to waive any right to participate in class actions or collective claims.'),
-            _buildSectionTitle('10. Privacy and Data Collection'),
+                'Any disputes arising out of or related to these Terms or the App shall be resolved exclusively through binding arbitration in Nigeria. You agree to waive any right to participate in class actions, collective claims, or representative actions. By using the App, you acknowledge and agree that any dispute will be handled on an individual basis, and you will not pursue any claims on behalf of others or as part of a group. Arbitration shall be the sole method of resolving any dispute, and you consent to the jurisdiction and venue of the arbitration in Nigeria.'),
+            _buildSectionTitle(
+                '10. Limitation of Liability and Waiver of Class Actions'),
+            _buildParagraph(
+                'To the fullest extent permitted by law, you agree that Cotmade, its affiliates, and employees shall not be liable for any theft, death, injury, damage, loss, or any other vices or incidents that may arise from the use of this App or in connection with any dispute arising out of or related to these Terms. You acknowledge and agree that your use of the App is at your own risk.'),
+            _buildSectionTitle('11. Privacy and Data Collection'),
             _buildParagraph(
                 'CotMade collects and uses personal data in accordance with our Privacy Policy. By using the App, you consent to the collection and use of your data as outlined in the Privacy Policy.'),
           ],

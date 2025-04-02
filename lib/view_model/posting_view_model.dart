@@ -2,11 +2,12 @@ import 'package:cotmade/global.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
+import 'package:get/get.dart';
 import '../model/app_constants.dart';
 
 class PostingViewModel {
   addListingInfoToFirestore() async {
+    Get.snackbar("Wait", "your listing is uploading");
     postingModel.setImagesNames();
 
     Map<String, dynamic> dataMap = {
@@ -25,9 +26,10 @@ class PostingViewModel {
       "caution": postingModel.caution,
       "checkInTime": postingModel.checkInTime,
       "checkOutTime": postingModel.checkOutTime,
+      "createdAt": FieldValue.serverTimestamp(),
       "rating": 3.5,
       "premium": 1.0,
-      "status": 0.0,
+      "status": 1.0,
       "type": postingModel.type,
     };
 
@@ -39,6 +41,7 @@ class PostingViewModel {
   }
 
   updatePostingInfoToFirestore() async {
+    Get.snackbar("Wait", "your listing is being updated");
     postingModel.setImagesNames();
 
     Map<String, dynamic> dataMap = {
@@ -57,9 +60,10 @@ class PostingViewModel {
       "caution": postingModel.caution,
       "checkInTime": postingModel.checkInTime,
       "checkOutTime": postingModel.checkOutTime,
+      "createdAt": postingModel.createdAt,
       "rating": 3.5,
-      "premium": 1.0,
-      "status": 0.0,
+      "premium": postingModel.premium,
+      "status": postingModel.status,
       "type": postingModel.type,
     };
 

@@ -38,12 +38,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         'name': AppConstants.currentUser.getFullNameOfUser(),
         'email': AppConstants.currentUser.email.toString(),
         'mobileNumber': AppConstants.currentUser.mobileNumber.toString(),
+        'country': AppConstants.currentUser.country.toString(),
         'timestamp': FieldValue.serverTimestamp(),
       });
       await sendWelcomeEmail(
           AppConstants.currentUser.email.toString(),
           AppConstants.currentUser.getFullNameOfUser(),
           AppConstants.currentUser.mobileNumber.toString(),
+          AppConstants.currentUser.country.toString(),
           _feedbackController.text);
       Get.snackbar("Success", "Feedback submitted successfully",
           snackPosition: SnackPosition.TOP,
@@ -62,7 +64,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> sendWelcomeEmail(String email, String name, String mobileNumber,
-      String _feedbackController) async {
+      String country, String _feedbackController) async {
     final url = Uri.parse("https://cotmade.com/app/send_email_feedback.php");
 
     final response = await http.post(url, body: {
