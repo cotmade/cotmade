@@ -41,6 +41,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
   TextEditingController _checkInTimeController = TextEditingController();
   TextEditingController _checkOutTimeController = TextEditingController();
   double? updatedposting;
+  double? updatedpostin;
 
   TimeOfDay? _checkInTime;
   TimeOfDay? _checkOutTime;
@@ -160,6 +161,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
     'Niger': ['Niamey', 'Zinder', 'Maradi', 'Agadez', 'Tahoua'],
     'Nigeria': [
       'Abia',
+      'Abuja',
       'Adamawa',
       'Akwa Ibom',
       "Anambra",
@@ -231,7 +233,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
   };
 
   final Map<String, String> countryCurrencyMap = {
-    'Algeria': 'EUR', // Algerian Dinar
+    'Algeria': 'AED', // Algerian Dinar
     'Angola': 'USD', // Angolan Kwanza
     'Benin': 'XOF', // West African CFA Franc
     'Botswana': 'ZAR', // Botswanan Pula
@@ -423,10 +425,17 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
             double premiumStatus =
                 postingDocSnapshot['premium']?.toDouble() ?? 0.0;
 
+            double listStatus = postingDocSnapshot['status']?.toDouble() ?? 0.0;
+
             // If the premium status is 2, update the UI or trigger any logic
             if (premiumStatus == 2) {
               setState(() {
                 updatedposting = premiumStatus;
+              });
+            }
+            if (listStatus == 0) {
+              setState(() {
+                updatedpostin = listStatus;
               });
             }
           }
@@ -582,6 +591,17 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                       if (widget.posting != null) ...[
                         // FutureBuilder for Listing (premium status)
                         // Directly check the premium value from widget.posting
+
+                        updatedpostin != null && updatedpostin == 0
+                            ? Center(
+                                child: Text('This is listing is suspended.',
+                                    style: TextStyle(color: Colors.red)),
+                              ) // If premium equals 2
+                            : Center(
+                                child: Text('Active',
+                                    style: TextStyle(color: Colors.black)),
+                              ),
+                        SizedBox(height: 5),
                         updatedposting != null && updatedposting == 2
                             ? Center(
                                 child: Text('This is a premium listing'),
