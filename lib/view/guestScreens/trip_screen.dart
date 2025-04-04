@@ -164,15 +164,13 @@ class TripScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   var posting = postings[index];
 
-                  // Query bookings subcollection to find the current user's booking
                   return FutureBuilder<QuerySnapshot>(
                     future: FirebaseFirestore.instance
                         .collection('postings')
                         .doc(posting
                             .id) // Reference the specific posting document
                         .collection('bookings')
-                        .where('userID', isEqualTo: AppConstants.currentUser.id)
-                        .get(),
+                        .get(), // Fetch all bookings without filtering by userID
                     builder: (context, bookingSnapshot) {
                       if (bookingSnapshot.connectionState ==
                           ConnectionState.waiting) {
@@ -186,123 +184,121 @@ class TripScreen extends StatelessWidget {
 
                       if (!bookingSnapshot.hasData ||
                           bookingSnapshot.data!.docs.isEmpty) {
-                        return SizedBox(); // No booking found for this user in this posting
+                        return SizedBox(); // No booking found for this posting
                       }
 
-                      var bookingDoc = bookingSnapshot.data!.docs
-                          .first; // Assuming one booking per user per posting
-                      var bookingID = bookingDoc.id; // Get the bookingID
-                      var payments =
-                          bookingDoc['payment'] ?? 'No payments data';
-                      // Fetch the `dates` field from Firestore
-                      var dates = bookingDoc['dates'] as List<dynamic>? ??
-                          []; // Ensure it is a List
+                      // Process each booking for the current posting
+                      List<QueryDocumentSnapshot> bookings =
+                          bookingSnapshot.data!.docs;
 
-                      // Convert the `Timestamp` to `DateTime` and format it
-                      List<String> formattedDates = [];
-                      if (dates.isNotEmpty) {
-                        for (var date in dates) {
-                          // Ensure the date is a Timestamp object before converting
-                          if (date is Timestamp) {
-                            DateTime dateTime = date.toDate();
-                            // Format the date as you like. Here I am using a common format
-                            formattedDates.add(DateFormat('MMMM dd, yyyy')
-                                .format(
-                                    dateTime)); // Example: "January 01, 2025"
+                      return Column(
+                        children: bookings.map((bookingDoc) {
+                          var bookingID = bookingDoc.id; // Get the bookingID
+                          var payments =
+                              bookingDoc['payment'] ?? 'No payments data';
+                          var dates = bookingDoc['dates'] as List<dynamic>? ??
+                              []; // Ensure it is a List
+
+                          List<String> formattedDates = [];
+                          if (dates.isNotEmpty) {
+                            for (var date in dates) {
+                              if (date is Timestamp) {
+                                DateTime dateTime = date.toDate();
+                                formattedDates.add(DateFormat('MMMM dd, yyyy')
+                                    .format(dateTime));
+                              }
+                            }
+
+                            formattedDates.sort((a, b) => a.compareTo(b));
                           }
-                        }
 
-                        // Sort the dates to display them in ascending order
-                        formattedDates.sort((a, b) => a.compareTo(b));
-                      }
+                          // Get the posting details
+                          String postingName = posting['name'] ?? 'No Title';
+                          String postingType = posting['type'] ?? 'No Type';
+                          String postingDescription =
+                              posting['description'] ?? 'No Description';
+                          String postingAddress =
+                              posting['address'] ?? 'No Address';
+                          String postingCity =
+                              posting['city'] ?? 'city undefined';
+                          String postingCountry =
+                              posting['country'] ?? 'undefined';
 
-                      // Get the posting details
-                      String postingName = posting['name'] ?? 'No Title';
-                      String postingType = posting['type'] ?? 'No Type';
-                      String postingDescription =
-                          posting['description'] ?? 'No Description';
-                      String postingAddress =
-                          posting['address'] ?? 'No Address';
-                      String postingCity = posting['city'] ?? 'city undefined';
-                      String postingCountry = posting['country'] ?? 'undefined';
-
-                      return Card(
-                        color: Color(0xcaf6f6f6),
-                        shadowColor: Colors.black12,
-                        margin: EdgeInsets.all(8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Display posting details
-                              Text(
-                                postingName,
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              SizedBox(height: 8),
-                              Text(postingType),
-                              SizedBox(height: 8),
-                              Text(postingDescription),
-                              SizedBox(height: 8),
-                              Text(postingAddress),
-                              SizedBox(height: 8),
-                              Text(postingCity),
-                              SizedBox(height: 8),
-                              Text(postingCountry),
-                              SizedBox(height: 8),
-                              // Display formatted dates
-                              if (formattedDates.isNotEmpty)
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Booking ID: $bookingID'),
-                                    SizedBox(height: 10),
-                                    Text('Booked Dates:'),
-                                    for (var date in formattedDates)
-                                      Text(date), // Display each formatted date
-                                  ],
-                                )
-                              else
-                                Text('No booked dates available'),
-
-                              SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Pass postingID to the WriteReviewScreen
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => WriteReviewScreen(
-                                          postingID:
-                                              posting.id), // Pass posting ID
-                                    ),
-                                  );
-                                },
-                                child: Text('Write a review'),
-                              ),
-
-                              // Print button with icon
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  // Call the print function
-                                  _printTripDetails(
+                          return Card(
+                            color: Color(0xcaf6f6f6),
+                            shadowColor: Colors.black12,
+                            margin: EdgeInsets.all(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
                                     postingName,
-                                    postingType,
-                                    postingDescription,
-                                    postingAddress,
-                                    postingCity,
-                                    postingCountry,
-                                    formattedDates,
-                                  );
-                                },
-                                icon: Icon(Icons.print),
-                                label: Text('Print Trip'),
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(postingType),
+                                  SizedBox(height: 8),
+                                  Text(postingDescription),
+                                  SizedBox(height: 8),
+                                  Text(postingAddress),
+                                  SizedBox(height: 8),
+                                  Text(postingCity),
+                                  SizedBox(height: 8),
+                                  Text(postingCountry),
+                                  SizedBox(height: 8),
+                                  // Display formatted dates for each booking
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Booking ID: $bookingID'),
+                                      SizedBox(height: 10),
+                                      Text('Booked Dates:'),
+                                      for (var date in formattedDates)
+                                        Text(date),
+                                    ],
+                                  ),
+                                  SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      // Pass postingID to the WriteReviewScreen
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              WriteReviewScreen(
+                                                  postingID: posting
+                                                      .id), // Pass posting ID
+                                        ),
+                                      );
+                                    },
+                                    child: Text('Write a review'),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      // Call the print function
+                                      _printTripDetails(
+                                        postingName,
+                                        postingType,
+                                        postingDescription,
+                                        postingAddress,
+                                        postingCity,
+                                        postingCountry,
+                                        formattedDates,
+                                      );
+                                    },
+                                    icon: Icon(Icons.print),
+                                    label: Text('Print Trip'),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        }).toList(),
                       );
                     },
                   );
