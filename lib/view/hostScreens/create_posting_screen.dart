@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cotmade/view/hostScreens/boost_property_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cotmade/view/hostScreens/create_promo_screen.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class CreatePostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -454,6 +455,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
         .get();
   }
 
+  // Method to delete the image
   void _removeImage(int index) {
     setState(() {
       _imagesList!
@@ -558,9 +560,10 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                     }
 
                     await postingViewModel.updatePostingInfoToFirestore();
+                    await postingViewModel.addImagesToFirebaseStorage();
 
-                    Get.snackbar("Update Listing",
-                        "your listing is updated successfully.");
+                    Get.snackbar(
+                        "Updated", "your listing has updated successfully.");
                   }
 
                   // clear posting model
@@ -1080,33 +1083,49 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                         children: [
                           // Check-in Time
                           Expanded(
-                            child: TextFormField(
-                              controller: _checkInTimeController,
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                labelText: 'Check-in Time',
-                                suffixIcon: IconButton(
-                                  icon: Icon(Icons.access_time),
-                                  onPressed: () =>
-                                      _selectTime(context, 'checkIn'),
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  controller: _checkInTimeController,
+                                  readOnly: true,
+                                  decoration: InputDecoration(
+                                    labelText: 'Check-in Time',
+                                    suffixIcon: IconButton(
+                                      icon: Icon(Icons.access_time),
+                                      onPressed: () =>
+                                          _selectTime(context, 'checkIn'),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Text('always fill this to avoid errors',
+                                    style: TextStyle(
+                                        color: Colors.pinkAccent,
+                                        fontSize: 11)),
+                              ],
                             ),
                           ),
                           SizedBox(width: 10), // Add space between the fields
                           // Check-out Time
                           Expanded(
-                            child: TextFormField(
-                              controller: _checkOutTimeController,
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                labelText: 'Check-out Time',
-                                suffixIcon: IconButton(
-                                  icon: Icon(Icons.access_time),
-                                  onPressed: () =>
-                                      _selectTime(context, 'checkOut'),
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  controller: _checkOutTimeController,
+                                  readOnly: true,
+                                  decoration: InputDecoration(
+                                    labelText: 'Check-out Time',
+                                    suffixIcon: IconButton(
+                                      icon: Icon(Icons.access_time),
+                                      onPressed: () =>
+                                          _selectTime(context, 'checkOut'),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Text('always fill this to avoid errors',
+                                    style: TextStyle(
+                                        color: Colors.pinkAccent,
+                                        fontSize: 11)),
+                              ],
                             ),
                           ),
                         ],
@@ -1124,7 +1143,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                           controller: _amenitiesTextEditingController,
                           validator: (text) {
                             if (text!.isEmpty) {
-                              return "please enter valid amenities (comma separated)";
+                              return "enter valid amenities & use comma to separate";
                             }
                             return null;
                           },
@@ -1138,7 +1157,8 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                         padding: const EdgeInsets.only(top: 1.0),
                         child: TextFormField(
                           decoration: const InputDecoration(
-                              labelText: "Caution fee: optional"),
+                              labelText:
+                                  "Caution fee: optional. Enter 0 if none"),
                           style: const TextStyle(
                             fontSize: 25.0,
                           ),
