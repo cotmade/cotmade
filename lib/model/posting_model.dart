@@ -20,6 +20,7 @@ class PostingModel {
   String? city;
   String? country;
   String? currency;
+  Timestamp? createdAt;
   double? caution;
   double? rating;
   double? premium;
@@ -50,6 +51,7 @@ class PostingModel {
       this.address = "",
       this.city = "",
       this.country = "",
+      this.createdAt, // Default timestamp value
       this.checkInTime = "", // Add this field
       this.checkOutTime = "", // Add this field
       this.currency = "",
@@ -82,6 +84,7 @@ class PostingModel {
   }
 
   getPostingInfoFromSnapshot(DocumentSnapshot snapshot) {
+    id = snapshot.id;
     address = snapshot['address'] ?? "";
     amenities = List<String>.from(snapshot['amenities']) ?? [];
     bathrooms = Map<String, int>.from(snapshot['bathrooms']) ?? {};
@@ -98,6 +101,7 @@ class PostingModel {
     name = snapshot['name'] ?? "";
     price = snapshot['price'].toDouble() ?? 0.0;
     caution = snapshot['caution'].toDouble() ?? 0.0;
+    createdAt = snapshot['createdAt'];
     checkInTime = snapshot['checkInTime'] ?? "";
     checkOutTime = snapshot['checkOutTime'] ?? "";
     rating = snapshot['rating'].toDouble() ?? 2.5;
@@ -267,7 +271,15 @@ class PostingModel {
     newBooking.id = reference.id;
 
     String bookingID = reference.id;
-    await sendWelcomeEmail(hostID, bookingID, dates);
+    String idd = id ?? "";
+    String namee = name ?? "";
+    String cityy = city ?? "";
+    String countryy = country ?? "";
+    String cautionn = caution.toString();
+    String addresss = address ?? "";
+
+    await sendWelcomeEmail(hostID, bookingID, dates, idd, cautionn, namee,
+        cityy, countryy, addresss);
 
     bookings!.add(newBooking);
     await AppConstants.currentUser
@@ -277,7 +289,15 @@ class PostingModel {
   }
 
   Future<void> sendWelcomeEmail(
-      String hostID, String bookingID, List<DateTime> dates) async {
+      String hostID,
+      String bookingID,
+      List<DateTime> dates,
+      String idd,
+      String cautionn,
+      String namee,
+      String cityy,
+      String countryy,
+      String addresss) async {
     try {
       // Ensure the current user has an email
       String? guestEmail = AppConstants.currentUser.email;
@@ -311,6 +331,12 @@ class PostingModel {
         "booked_dates": bookedDates, // Send booked dates
         "check_in_time": checkInTime!, // Send check-in time
         "check_out_time": checkOutTime!, // Send check-out time
+        "postingID": idd,
+        "caution": cautionn,
+        "listing": namee,
+        "state": cityy,
+        "country": countryy,
+        "address": addresss,
       });
 
       if (response.statusCode == 200) {
