@@ -16,6 +16,8 @@ class HostDashboardScreen extends StatefulWidget {
 class _HostDashboardScreenState extends State<HostDashboardScreen> {
   String selectedFilter = 'Monthly';
   String userCountry = '';
+  String userId = AppConstants.currentUser.id.toString();
+  int totalBookings = 0;
   Map<String, String> listingNames = {};
   List<Map<String, dynamic>> postings = [];
   Map<String, String> currencyMap = {
@@ -81,6 +83,12 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   void initState() {
     super.initState();
     _fetchUserCountry();
+    _getBookingsCount(userId).then((bookings) {
+      setState(() {
+        totalBookings =
+            bookings; // Update the totalBookings state after getting the value
+      });
+    });
   }
 
   Future<void> _fetchUserCountry() async {
@@ -102,43 +110,73 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
 
   Future<void> _fetchPostings() async {
     String userId =
-        'app.constants.currentUser.id'; // Replace with actual user ID
+        AppConstants.currentUser.id.toString(); // Get the current user ID
     DocumentSnapshot userSnapshot =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
+    // Fetch the list of posting IDs associated with the user
     List<String> postingIds =
         List<String>.from(userSnapshot['myPostingIDs'] ?? []);
 
     if (postingIds.isEmpty) return;
 
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where(FieldPath.documentId, whereIn: postingIds)
-        .get();
+    // Initialize a variable to track the posting with the most bookings
+    String bestPostingId = '';
+    int maxBookings = 0;
+
+    // Temporary list to hold all the postings
     List<Map<String, dynamic>> tempPostings = [];
-    for (var doc in postingsSnapshot.docs) {
-      int bookingsCount = await _getBookingsCount(doc.id);
+
+    // Loop through each posting ID and fetch details
+    for (var postingId in postingIds) {
+      int bookingsCount = await _getBookingsCountForPosting(postingId);
+
+      // Check if this posting has the most bookings
+      if (bookingsCount > maxBookings) {
+        maxBookings = bookingsCount;
+        bestPostingId = postingId;
+      }
+
+      // Fetch details for each posting
+      DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(postingId)
+          .get();
       tempPostings.add({
-        'id': doc.id,
-        'name': doc['name'],
-        'createdAt': doc['createdAt'].toDate(),
+        'id': postingId,
+        'name': postingSnapshot['name'],
+        'createdAt': postingSnapshot['createdAt'].toDate(),
         'bookings': bookingsCount,
-        'premium': doc['premium'] ?? 1,
-        'reviews': List<String>.from(doc['reviews'] ?? [])
+        'premium': postingSnapshot['premium'] ?? 1,
+        'reviews': List<String>.from(postingSnapshot['reviews'] ?? []),
       });
     }
 
-    tempPostings.sort((a, b) => b['bookings'].compareTo(a['bookings']));
+    // Set the best listing name using the posting ID with the most bookings
     setState(() {
       postings = tempPostings;
-      bestListing =
-          postings.isNotEmpty ? postings.first['name'] : "No data available";
+      bestListing = bestPostingId.isNotEmpty
+          ? tempPostings
+              .firstWhere((post) => post['id'] == bestPostingId)['name']
+          : "No data available";
     });
   }
 
-  Future<int> _getBookingsCount(String postingId) async {
+// This method counts the bookings for a given postingID
+  Future<int> _getBookingsCountForPosting(String postingId) async {
     QuerySnapshot bookingsSnapshot = await FirebaseFirestore.instance
         .collection('postings')
         .doc(postingId)
+        .collection('bookings')
+        .get();
+
+    return bookingsSnapshot.size; // Return the number of bookings
+  }
+
+  Future<int> _getBookingsCount(String userId) async {
+    QuerySnapshot bookingsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
         .collection('bookings')
         .get();
     return bookingsSnapshot.size;
@@ -187,9 +225,8 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     String currency = currencyMap[userCountry] ?? 'USD';
-    int totalBookings =
-        postings.fold<int>(0, (sum, item) => sum + (item['bookings'] as int));
-    int totalEarnings = totalBookings * 50;
+    int totalBooking = totalBookings;
+    int totalEarnings = totalBooking * 50;
 
     return Scaffold(
       //  appBar: AppBar(title: Text('Host Dashboard')),
@@ -213,8 +250,8 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
               }).toList(),
             ),
             SizedBox(height: 20),
-            _buildAnalyticsCard('Total Bookings',
-                NumberFormat("###,###").format(totalBookings)),
+            _buildAnalyticsCard(
+                'Total Bookings', NumberFormat("###,###").format(totalBooking)),
             _buildAnalyticsCard('Total Earnings',
                 NumberFormat("###,###").format(totalEarnings)),
             _buildAnalyticsCard('Best Performing Listing', bestListing),
