@@ -41,9 +41,24 @@ class PostingViewModel {
   }
 
   updatePostingInfoToFirestore() async {
-    Get.snackbar("Wait", "your listing is being updated");
+    Get.snackbar("Wait", "Your listing is being updated");
+
     postingModel.setImagesNames();
 
+    // Fetch the current posting document to retain old values if not provided
+    DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
+        .collection("postings")
+        .doc(postingModel.id)
+        .get();
+
+    // Get the current values of checkInTime, checkOutTime, and caution from Firestore
+    String? currentCheckInTime = postingSnapshot['checkInTime'];
+    String? currentCheckOutTime = postingSnapshot['checkOutTime'];
+    double? currentCaution = postingSnapshot['caution'];
+    double? currentPremium = postingSnapshot['premium'];
+    double? currentStatus = postingSnapshot['status'];
+
+    // Prepare the data map for updating the posting
     Map<String, dynamic> dataMap = {
       "address": postingModel.address,
       "amenities": postingModel.amenities,
@@ -57,20 +72,48 @@ class PostingViewModel {
       "imageNames": postingModel.imageNames,
       "name": postingModel.name,
       "price": postingModel.price,
-      "caution": postingModel.caution,
-      "checkInTime": postingModel.checkInTime,
-      "checkOutTime": postingModel.checkOutTime,
-      "createdAt": postingModel.createdAt,
+      "createdAt": FieldValue.serverTimestamp(),
       "rating": 3.5,
-      "premium": postingModel.premium,
-      "status": postingModel.status,
+      "premium": currentPremium,
+      "status": currentStatus,
       "type": postingModel.type,
     };
 
+    // Update caution and premium only if the user has provided a new value, otherwise retain the old value
+    if (postingModel.caution != null) {
+      dataMap["caution"] = postingModel.caution;
+    } else if (currentCaution != null) {
+      dataMap["caution"] = currentCaution;
+    }
+
+    // Check if the user has filled in the 'caution' field during edi
+
+    if (postingModel.checkInTime != null) {
+      // If user has provided a new premium value, use it
+      dataMap["checkInTime"] = postingModel.checkInTime;
+    } else if (currentCheckInTime != null) {
+      // If user has NOT provided a new premium value, retain the old premium value from the database
+      dataMap["checkInTime"] =
+          currentCheckInTime; // Use the original value from the database
+    }
+
+    if (postingModel.checkOutTime != null) {
+      // If user has provided a new premium value, use it
+      dataMap["checkOutTime"] = postingModel.checkOutTime;
+    } else if (currentCheckOutTime != null) {
+      // If user has NOT provided a new premium value, retain the old premium value from the database
+      dataMap["checkOutTime"] =
+          currentCheckOutTime; // Use the original value from the database
+    }
+
+    // Update Firestore with the new data
     FirebaseFirestore.instance
         .collection("postings")
         .doc(postingModel.id)
         .update(dataMap);
+
+    // Upload new or updated images to Firebase Storage
+    await addImagesToFirebaseStorage();
   }
 
   addImagesToFirebaseStorage() async {
