@@ -36,6 +36,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
   List<DateTime> bookedDates = [];
   List<DateTime> selectedDates = [];
   List<CalenderUI> calendarWidgets = [];
+  final DateTime today = DateTime.now();
   TextEditingController promoCodeController = TextEditingController();
   String promoMessage = '';
   double discountAmount = 0.0;
@@ -297,7 +298,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
         selectedDates.length * (posting!.price ?? 0) * discountAmount;
     double totaloo = selectedDates.length * (posting!.price ?? 0) - totalo;
     double totalPriceForAllNights = totaloo + (posting!.caution ?? 0);
-    double tota = totaloo * 0.13;
+    double tota = totaloo * 0.15;
     double totalPriceForAll = totaloo - tota;
 
     double price = totalPriceForAllNights * conversionRate;
