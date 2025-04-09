@@ -1,33 +1,12 @@
-# Uncomment the next line to define a global platform for your project
 platform :ios, '13.0'
 
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
-}
-
-def flutter_installation
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_FRAMEWORK_DIR=(.*)/)
-    if matches
-      return matches[1].strip
-    end
-  end
-  raise "FLUTTER_FRAMEWORK_DIR not found in #{generated_xcode_build_settings_path}. Try running flutter pub get."
-end
-
-flutter_application_path = File.expand_path('..', __FILE__)
-load File.join(flutter_application_path, '.ios', 'Flutter', 'podhelper.rb')
+use_frameworks!
+use_modular_headers!
 
 target 'Runner' do
-  install_all_flutter_pods(flutter_application_path)
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+def flutter_install_all_ios_pods(flutter_application_path)
+  eval(File.read(File.join(flutter_application_path, '.flutter-plugins-dependencies')), binding)
 end
