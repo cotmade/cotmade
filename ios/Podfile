@@ -2,13 +2,11 @@ platform :ios, '13.0'
 
 target 'Runner' do
   use_frameworks!
-  pod 'Firebase/Core'
-  pod 'Firebase/Core'
-  pod 'GoogleMaps'
 
-  # Other dependencies (e.g., cloud_firestore, firebase_auth, etc.)
-  pod 'cloud_firestore'
-  pod 'firebase_auth'
-  pod 'firebase_messaging'
-  pod 'firebase_storage'
+  # Pods for Runner
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
 end
