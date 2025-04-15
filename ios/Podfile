@@ -2,6 +2,11 @@ platform :ios, '13.0'
 
 target 'Runner' do
   use_frameworks!
-  
-  GeneratedPluginRegistrant  # 👈 This is likely the culprit
+
+  # Pods for Runner
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
 end
