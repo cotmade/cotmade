@@ -1,12 +1,27 @@
+# Uncomment the next line to define a global platform for your project
+# platform :ios, '13.0'
+
+flutter_application_path = '../..'
+
+load File.join(flutter_application_path, '.flutter-plugins')
+
+# Add the following to ensure CocoaPods fetches Flutter dependencies
+source 'https://github.com/CocoaPods/Specs.git'
+source 'https://github.com/flutter/flutter.git'
+
+# Ensure you specify your iOS deployment target
 platform :ios, '13.0'
 
 target 'Runner' do
-  use_frameworks!
-
   # Pods for Runner
+  use_frameworks!
+  pod 'cloud_firestore', :path => File.join(flutter_application_path, 'packages/cloud_firestore/ios')
 
-  target 'RunnerTests' do
-    inherit! :search_paths
-    # Pods for testing
-  end
+  # Other Flutter plugins
+  pod 'Firebase/Core'
+  pod 'Firebase/Firestore'
+
+  # If you have any other dependencies, add them here
+  # pod 'some_other_pod'
+
 end
