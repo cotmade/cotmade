@@ -1,5 +1,6 @@
 import UIKit
 import Flutter
+import CoreAudio
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
