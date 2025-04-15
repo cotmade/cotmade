@@ -1,10 +1,7 @@
-#import "GeneratedPluginRegistrant.h"
-#import <flutter_plugin/flutter_plugin.h>
+platform :ios, '13.0'
 
-@implementation GeneratedPluginRegistrant
-
-+ (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-  [FlutterPlugin registerWithRegistrar:registrar];
-}
-
-@end
+target 'Runner' do
+  use_frameworks!
+  
+  GeneratedPluginRegistrant  # 👈 This is likely the culprit
+end
