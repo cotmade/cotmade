@@ -3,7 +3,7 @@ platform :ios, '13.0'
 target 'Runner' do
   use_frameworks!
 
-  pod 'CoreAudioTypes', :path => '/System/Library/Frameworks/CoreAudioTypes.framework'
+  # Pods for Runner
 
   target 'RunnerTests' do
     inherit! :search_paths
