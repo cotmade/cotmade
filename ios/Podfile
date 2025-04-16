@@ -1,16 +1,12 @@
 platform :ios, '13.0'
 
 target 'Runner' do
-  # Pods for Runner
   use_frameworks!
-  pod 'Flutter', :path => '../flutter'
 
-  # Add other pods as needed
-end
+  pod 'CoreAudioTypes', :path => '/System/Library/Frameworks/CoreAudioTypes.framework'
 
-post_install do |installer|
-  installer.pods_project.build_configurations.each do |config|
-    config.build_settings['FRAMEWORK_SEARCH_PATHS'] ||= []
-    config.build_settings['FRAMEWORK_SEARCH_PATHS'] << '/System/Library/Frameworks'
+  target 'RunnerTests' do
+    inherit! :search_paths
+    # Pods for testing
   end
 end
