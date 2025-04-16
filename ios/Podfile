@@ -1,12 +1,24 @@
 platform :ios, '13.0'
 
+# Your Pod dependencies
 target 'Runner' do
   use_frameworks!
 
-  # Pods for Runner
+  # Add your pods here
+  pod 'SomePod'
 
-  target 'RunnerTests' do
-    inherit! :search_paths
-    # Pods for testing
+  post_install do |installer|
+    # Ensure CoreAudioTypes.framework is linked
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] ||= '$(inherited)'
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] += ':/System/Library/Frameworks'
+
+        # Add the framework explicitly to Link Binary with Libraries
+        target.frameworks_build_phase.add_file_reference(
+          installer.pods_project.files.find { |file| file.path == 'System/Library/Frameworks/CoreAudioTypes.framework' }
+        )
+      end
+    end
   end
 end
