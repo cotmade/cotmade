@@ -28,8 +28,8 @@ class FirebaseApi {
     }
 
     // Now get the FCM token
-    final fcmToken = await _firebaseMessaging.getToken();
-    debugPrint('Token: $fcmToken');
+    // final fcmToken = await _firebaseMessaging.getToken();
+    // debugPrint('Token: $fcmToken');
 
     FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
   }
