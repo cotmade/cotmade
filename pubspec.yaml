@@ -67,18 +67,19 @@ dependencies:
   printing: ^5.6.0
   fl_chart: ^0.69.2
 
-  
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.2
+  icons_launcher: ^3.0.1
 
-flutter_launcher_icons:
-  android: true
-  image_path_android: "images/nest.png"
-  ios: true
-  min_sdk_android: 21
+icons_launcher:
+  image_path: "images/icon.png"
+  platforms:
+    android:
+      enable: true
+    ios:
+      enable: true
 
 flutter:
   uses-material-design: true
