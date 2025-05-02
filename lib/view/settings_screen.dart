@@ -7,6 +7,8 @@ import 'package:cotmade/view/login_screen2.dart';
 import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
 import 'package:cotmade/view/guestScreens/help_centre.dart';
 import 'package:cotmade/view/guestScreens/terms_of_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({Key? key}) : super(key: key);
@@ -23,6 +25,34 @@ signOut() async {
     Get.offAll(() => FirstScreen());
   } catch (e) {
     Get.snackbar("Error", "An error occurred while signing out.");
+  }
+}
+
+Future<void> deleteUserAccount() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print("User not logged in");
+      return;
+    }
+
+    final userId = AppConstants.currentUser.id; // Your assigned ID
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    // Delete user document from Firestore
+    await userDoc.delete();
+    print("User data deleted from Firestore");
+
+    // Delete Firebase Auth account
+    await user.delete();
+    Get.snackbar(
+        "Account Deleted", "Your account has been deleted successfully");
+    Get.offAll(() => FirstScreen());
+
+    // Optionally: Navigate to login or goodbye screen
+    // Navigator.pushReplacementNamed(context, '/login');
+  } catch (e) {
+    print("Error deleting user account: $e");
   }
 }
 
@@ -171,6 +201,12 @@ class _SettingScreenState extends State<SettingScreen> {
               ),
             ),
             SizedBox(height: 30),
+            Text('Account',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                )),
+            SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.only(bottom: 5),
               child: Card(
@@ -186,6 +222,44 @@ class _SettingScreenState extends State<SettingScreen> {
                     signOut();
                   },
                 ),
+              ),
+            ),
+            SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Card(
+                color: Color(0xcaf6f6f6),
+                elevation: 4,
+                shadowColor: Colors.black12,
+                child: ListTile(
+                    leading: Icon(Icons.logout_outlined, color: Colors.black),
+                    title: Text("Delete Account",
+                        style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text("Delete Account"),
+                          content: Text(
+                            "Are you sure you want to permanently delete your account? This action cannot be undone.",
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context), // Cancel
+                              child: Text("Cancel"),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                Navigator.pop(context); // Close dialog
+                                await deleteUserAccount(); // Call deletion logic
+                              },
+                              child: Text("Delete",
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
               ),
             ),
           ],

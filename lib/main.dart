@@ -20,7 +20,7 @@ Future<void> main() async {
   await FirebaseApi().initNotifications();
   // await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

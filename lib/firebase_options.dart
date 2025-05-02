@@ -25,10 +25,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for iOS - '
-          'try to add using FlutLab Firebase Configuration',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -52,9 +49,21 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-      apiKey: 'AIzaSyCxi7Tipztthk46JXO-EQVVVMYVUpMIrp0',
-      appId: '1:318291109947:android:5e80b4f19c5145c0ce541e',
-      messagingSenderId: '318291109947',
-      projectId: 'nestcrib-ca5a0',
-      storageBucket: 'nestcrib-ca5a0.appspot.com');
+    apiKey: 'AIzaSyCxi7Tipztthk46JXO-EQVVVMYVUpMIrp0',
+    appId: '1:318291109947:android:f4596b746e00a911ce541e',
+    messagingSenderId: '318291109947',
+    projectId: 'nestcrib-ca5a0',
+    storageBucket: 'nestcrib-ca5a0.appspot.com',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBbZd03oIGgqUVF6kwisvzIBzTUwyPOz6g',
+    appId: '1:318291109947:ios:34ad7f8048d42221ce541e',
+    messagingSenderId: '318291109947',
+    projectId: 'nestcrib-ca5a0',
+    storageBucket: 'nestcrib-ca5a0.appspot.com',
+    iosClientId: '318291109947-0e1us7e5m1c3a1c08gfrcbph1u00a6e4.apps.googleusercontent.com',
+    iosBundleId: 'com.cotmade.cotmade',
+  );
+
 }

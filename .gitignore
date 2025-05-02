@@ -1,0 +1,8 @@
+
+# FVM Version Cache
+.fvm/
+ios/Pods
+build
+.idea
+.dart_tool
+ios/.symlinks
