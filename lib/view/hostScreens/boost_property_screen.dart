@@ -47,18 +47,29 @@ class _BoostPropertyPageState extends State<BoostPropertyPage> {
     if (postingSnapshot.exists) {
       setState(() {
         currency = postingSnapshot['currency'];
-        postingName = postingSnapshot['name']; // Assuming 'name' is a field in Firestore
+        postingName =
+            postingSnapshot['name']; // Assuming 'name' is a field in Firestore
       });
 
       double usdAmount = 10.0;
-      double conversionRate = await _getConversionRate('USD', currency);
-      setState(() {
-        amountInConvertedCurrency = usdAmount * conversionRate;
-      });
+
+      // If the currency is USD, no conversion is needed
+      if (currency != 'USD') {
+        double conversionRate = await _getConversionRate('USD', currency);
+        setState(() {
+          amountInConvertedCurrency = usdAmount * conversionRate;
+        });
+      } else {
+        // If currency is USD, set the amount directly
+        setState(() {
+          amountInConvertedCurrency = usdAmount;
+        });
+      }
     }
   }
 
-  Future<double> _getConversionRate(String fromCurrency, String toCurrency) async {
+  Future<double> _getConversionRate(
+      String fromCurrency, String toCurrency) async {
     final String apiKey = '65ecc5642a4b0653f9777381';
     final String url =
         'https://v6.exchangerate-api.com/v6/$apiKey/latest/$fromCurrency';

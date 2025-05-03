@@ -459,7 +459,16 @@ class _FirstExploreState extends State<FirstExplore> {
                         Container(
                           margin: EdgeInsets.symmetric(horizontal: 1),
                           child: Image.network(
-                            'https://cotmade.com/assets/images/rb_2149143193.png',
+                            'https://cotmade.com/assets/images/rb_2149143194.png',
+                            fit: BoxFit.cover,
+                            height: 60,
+                            width: 400,
+                          ),
+                        ),
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.network(
+                            'https://cotmade.com/assets/images/rb_2149143195.png',
                             fit: BoxFit.cover,
                             height: 60,
                             width: 400,
