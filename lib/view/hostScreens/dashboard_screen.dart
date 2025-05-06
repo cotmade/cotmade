@@ -256,7 +256,20 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                 NumberFormat("###,###").format(totalEarnings)),
             _buildAnalyticsCard('Best Performing Listing', bestListing),
             if (trendMessage.isNotEmpty)
-              _buildAnalyticsCard('Trend', trendMessage),
+              Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    const Text(
+      'Market Trend',
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    ),
+    SizedBox(height: 4),
+    _buildAnalyticsCard('', trendMessage), // Pass empty title
+  ],
+),
             if (earningsTrend.isNotEmpty) _buildGraph(),
             SizedBox(height: 20),
             Text('Actions',

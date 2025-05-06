@@ -4,8 +4,8 @@ import 'package:cotmade/view/guestScreens/book_listing_screen.dart';
 import 'package:cotmade/view/widgets/posting_info_tile_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
+//import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore package
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -23,9 +23,9 @@ class ViewPostingScreen extends StatefulWidget {
 }
 
 class _ViewPostingScreenState extends State<ViewPostingScreen> {
-  GoogleMapController? mapController;
-  LatLng? _center;
-  Position? _currentPosition;
+//  GoogleMapController? mapController;
+//  LatLng? _center;
+ // Position? _currentPosition;
   PostingModel? posting;
   bool isLoadingImages = true; // Flag to track image loading
   bool isLoadingReviews = true; // Flag to track review loading
@@ -78,33 +78,33 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
         .get();
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-  }
+ // void _onMapCreated(GoogleMapController controller) {
+  //  mapController = controller;
+ // }
 
-  _getUserLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) {
-        return;
-      }
-    }
-    _currentPosition = await Geolocator.getCurrentPosition();
-    setState(() {
-      _center = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
-    });
-  }
+ // _getUserLocation() async {
+ //   bool serviceEnabled;
+  //  LocationPermission permission;
+ //   serviceEnabled = await Geolocator.isLocationServiceEnabled();
+ //   if (!serviceEnabled) {
+ //     return;
+  //  }
+ //   permission = await Geolocator.checkPermission();
+ //   if (permission == LocationPermission.deniedForever) {
+ //     return;
+  //  }
+ //   if (permission == LocationPermission.denied) {
+  //    permission = await Geolocator.requestPermission();
+  //    if (permission != LocationPermission.whileInUse &&
+  //        permission != LocationPermission.always) {
+   //     return;
+   //   }
+  //  }
+ //   _currentPosition = await Geolocator.getCurrentPosition();
+ //   setState(() {
+  //    _center = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+  //  });
+ // }
 
   @override
   void initState() {
@@ -112,7 +112,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
 
     posting = widget.posting;
     getRequiredInfo();
-    _getUserLocation();
+ //   _getUserLocation();
     _getReviews(); // Fetch the reviews when the screen is initialized
   }
 
@@ -589,24 +589,24 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                       ],
                     ),
                   ),
-                  _center == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : SizedBox(
-                          height: double.infinity,
-                          child: GoogleMap(
-                              onMapCreated: _onMapCreated,
-                              initialCameraPosition: CameraPosition(
-                                target: _center!,
-                                zoom: 15.0,
-                              ),
-                              markers: {
-                                Marker(
-                                  markerId: const MarkerId('user_location'),
-                                  position: _center!,
-                                  infoWindow:
-                                      const InfoWindow(title: 'Address'),
-                                )
-                              })),
+                //  _center == null
+                //      ? const Center(child: CircularProgressIndicator())
+                //      : SizedBox(
+                //          height: double.infinity,
+                //          child: GoogleMap(
+                //              onMapCreated: _onMapCreated,
+                //              initialCameraPosition: CameraPosition(
+                 //               target: _center!,
+                //                zoom: 15.0,
+                //              ),
+                //              markers: {
+                 //               Marker(
+                 //                 markerId: const MarkerId('user_location'),
+                 //                 position: _center!,
+                 //                 infoWindow:
+                 //                     const InfoWindow(title: 'Address'),
+                   //             )
+                   //           })),
                   SizedBox(height: 20),
                   // Reviews Section
 
