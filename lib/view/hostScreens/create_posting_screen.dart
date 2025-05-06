@@ -605,35 +605,35 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                                     style: TextStyle(color: Colors.black)),
                               ),
                         SizedBox(height: 5),
-                       // updatedposting != null && updatedposting == 2
-                        //    ? Center(
-                       //         child: Text('This is a premium listing'),
-                         //     ) // If premium equals 2
-                          //  : Center(
-                           //     child: MaterialButton(
-                           //       onPressed: () {
-                                    // Your button logic here
-                            //        Get.to(() => BoostPropertyPage(
-                             //           postingId: widget.posting!.id ?? ''));
-                             //     },
-                            //      minWidth:
-                             //         MediaQuery.of(context).size.width / 2,
-                            //      elevation: 10,
-                             //     height:
-                             //         MediaQuery.of(context).size.height / 14,
-                             //     color: Colors.white,
-                             //     child: const Text(
-                             //       'Go Premium',
-                             //       style: TextStyle(
-                             //           fontSize: 15, color: Colors.black),
-                             //     ),
-                               //   shape: RoundedRectangleBorder(
-                               //     side: BorderSide(
+                        updatedposting != null && updatedposting == 2
+                            ? Center(
+                                child: Text('This is premium listing'),
+                              ) // If premium equals 2
+                            : Center(
+                                //     child: MaterialButton(
+                                //       onPressed: () {
+                                // Your button logic here
+                                //        Get.to(() => BoostPropertyPage(
+                                //           postingId: widget.posting!.id ?? ''));
+                                //     },
+                                //      minWidth:
+                                //         MediaQuery.of(context).size.width / 2,
+                                //      elevation: 10,
+                                //     height:
+                                //         MediaQuery.of(context).size.height / 14,
+                                //     color: Colors.white,
+                                //     child: const Text(
+                                //       'Go Premium',
+                                //       style: TextStyle(
+                                //           fontSize: 15, color: Colors.black),
+                                //     ),
+                                //   shape: RoundedRectangleBorder(
+                                //     side: BorderSide(
                                 //        color: Colors.black, width: 2),
                                 //    borderRadius: BorderRadius.circular(5),
-                               //   ),
-                               // ),
-                            //  ),
+                                //   ),
+                                //  ),
+                                ),
                         SizedBox(height: 20), // Add space between streams
 
                         // FutureBuilder for the Promo Code
