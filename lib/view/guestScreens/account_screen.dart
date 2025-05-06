@@ -314,7 +314,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    "Click to claim one-time breakfast voucher",
+                                    "Claim one-time breakfast voucher",
                                     textAlign: TextAlign.center,
                                   ),
                                   const Spacer(),
