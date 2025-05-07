@@ -5,7 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:share/share.dart';
 import 'package:cotmade/view/guestScreens/user_profile_page.dart';
 import 'package:cotmade/model/posting_model.dart';
-import 'package:cotmade/view/view_posting_screen.dart';
+import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/unregisteredScreens/userprofile_screen.dart';
 
@@ -264,7 +264,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        ViewPostingScreen(posting: cPosting),
+                                        ViewPostScreen(posting: cPosting),
                                   ),
                                 );
                               },
@@ -300,7 +300,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     IconButton(
                       icon: Icon(
                         liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
-                        color: liked ? Colors.blue : Colors.white,
+                        color: liked ? Colors.pinkAccent : Colors.white,
                       ),
                       onPressed: _toggleLike,
                     ),

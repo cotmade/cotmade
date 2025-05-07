@@ -147,21 +147,27 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _toggleLike() async {
+  final reelRef =
+      FirebaseFirestore.instance.collection('reels').doc(widget.videoData['id']);
+
+  setState(() {
+    liked = !liked;
+    likes += liked ? 1 : -1;
+    showHeart = true;
+  });
+
+  // Atomically increment or decrement the like count
+  await reelRef.update({
+    'likes': FieldValue.increment(liked ? 1 : -1),
+  });
+
+  Future.delayed(Duration(milliseconds: 500), () {
     setState(() {
-      liked = !liked;
-      likes += liked ? 1 : -1;
-      showHeart = true;
+      showHeart = false;
     });
-    await FirebaseFirestore.instance
-        .collection('reels')
-        .doc(widget.videoData['id'])
-        .update({'likes': likes});
-    Future.delayed(Duration(milliseconds: 500), () {
-      setState(() {
-        showHeart = false;
-      });
-    });
-  }
+  });
+}
+
 
   void _shareVideo() {
     Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
@@ -297,7 +303,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     IconButton(
                       icon: Icon(
                         liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
-                        color: liked ? Colors.blue : Colors.white,
+                        color: liked ? Colors.pinkAccent : Colors.white,
                       ),
                       onPressed: _toggleLike,
                     ),

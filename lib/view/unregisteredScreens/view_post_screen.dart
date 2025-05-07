@@ -8,7 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
-import 'package:cotmade/view/login_screen2.dart';
+import 'package:cotmade/view/login_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -70,33 +70,33 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
     });
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-  }
+  // void _onMapCreated(GoogleMapController controller) {
+  // mapController = controller;
+  // }
 
-  _getUserLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) {
-        return;
-      }
-    }
-    _currentPosition = await Geolocator.getCurrentPosition();
-    setState(() {
-      _center = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
-    });
-  }
+  // _getUserLocation() async {
+  //  bool serviceEnabled;
+  //  LocationPermission permission;
+  //  serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  //  if (!serviceEnabled) {
+  //    return;
+  //  }
+  //  permission = await Geolocator.checkPermission();
+  //  if (permission == LocationPermission.deniedForever) {
+  //    return;
+  //  }
+  //  if (permission == LocationPermission.denied) {
+  //    permission = await Geolocator.requestPermission();
+  //    if (permission != LocationPermission.whileInUse &&
+  //       permission != LocationPermission.always) {
+  //     return;
+  //   }
+  //  }
+  //  _currentPosition = await Geolocator.getCurrentPosition();
+  //  setState(() {
+  //    _center = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+  //  });
+  // }
 
   @override
   void initState() {
@@ -104,7 +104,7 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
 
     posting = widget.posting;
     getRequiredInfo();
-    _getUserLocation();
+    // _getUserLocation();
     _getReviews(); // Fetch the reviews when the screen is initialized
   }
 
@@ -216,7 +216,7 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                                 )),
                             child: MaterialButton(
                               onPressed: () {
-                                Get.to(LoginnScreen());
+                                Get.to(LoginScreen());
                               },
                               child: const Text(
                                 'Book Now',
@@ -490,24 +490,24 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                       ],
                     ),
                   ),
-                  _center == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : SizedBox(
-                          height: double.infinity,
-                          child: GoogleMap(
-                              onMapCreated: _onMapCreated,
-                              initialCameraPosition: CameraPosition(
-                                target: _center!,
-                                zoom: 15.0,
-                              ),
-                              markers: {
-                                Marker(
-                                  markerId: const MarkerId('user_location'),
-                                  position: _center!,
-                                  infoWindow:
-                                      const InfoWindow(title: 'Address'),
-                                )
-                              })),
+                  //  _center == null
+                  //     ? const Center(child: CircularProgressIndicator())
+                  //     : SizedBox(
+                  //         height: double.infinity,
+                  //        child: GoogleMap(
+                  //            onMapCreated: _onMapCreated,
+                  //            initialCameraPosition: CameraPosition(
+                  //              target: _center!,
+                  //              zoom: 15.0,
+                  //            ),
+                  //            markers: {
+                  //              Marker(
+                  //                markerId: const MarkerId('user_location'),
+                  //               position: _center!,
+                  //               infoWindow:
+                  //                   const InfoWindow(title: 'Address'),
+                  //            )
+                  //         })),
                   SizedBox(height: 20),
                   // Reviews Section
 
