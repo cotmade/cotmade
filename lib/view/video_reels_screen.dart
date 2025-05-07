@@ -190,9 +190,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
         alignment: Alignment.center,
         children: [
           Positioned.fill(
-            child: AspectRatio(
-              aspectRatio: widget.controller!.value.aspectRatio,
-              child: VideoPlayer(widget.controller!),
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: widget.controller!.value.size.width,
+                height: widget.controller!.value.size.height,
+                child: VideoPlayer(widget.controller!),
+              ),
             ),
           ),
           if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),

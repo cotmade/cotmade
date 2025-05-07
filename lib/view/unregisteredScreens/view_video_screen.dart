@@ -15,13 +15,11 @@ class ViewVideoScreen extends StatefulWidget {
 }
 
 class _ViewVideoScreenState extends State<ViewVideoScreen> {
-  late String uid;
-  late Stream stream;
   late PageController _pageController;
   List<DocumentSnapshot> _videos = [];
-  Map<int, FlickManager> _controllers = {};
+  Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
-  bool _isMuted = false;
+  bool _isMuted = true;
 
   @override
   void initState() {
@@ -41,49 +39,48 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
     });
 
     if (_videos.isNotEmpty) {
-      _preloadVideo(0);
-      if (_videos.length > 1) _preloadVideo(1);
+      for (int i = 0; i <= 3 && i < _videos.length; i++) {
+        _preloadVideo(i);
+      }
     }
   }
 
   void _preloadVideo(int index) {
-    if (index < 0 || index >= _videos.length) return;
-    if (!_controllers.containsKey(index)) {
-      var videoData = _videos[index].data() as Map<String, dynamic>;
-      var videoUrl = videoData['reelsVideo'];
+    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
+      return;
 
-      _controllers[index] = FlickManager(
-        videoPlayerController: VideoPlayerController.network(videoUrl)
-          ..setLooping(true)
-          ..initialize().then((_) {
-            if (_isMuted) {
-              _controllers[index]
-                  ?.flickVideoManager
-                  ?.videoPlayerController
-                  ?.setVolume(0.0);
-            }
-            setState(() {});
-          }),
-      );
-    }
+    var videoData = _videos[index].data() as Map<String, dynamic>;
+    var videoUrl = videoData['reelsVideo'];
+
+    final controller = VideoPlayerController.network(videoUrl);
+    _controllers[index] = controller;
+
+    controller.setLooping(true);
+    controller.setVolume(_isMuted ? 0.0 : 1.0);
+
+    controller.initialize().then((_) {
+      setState(() {});
+      if (index == _currentIndex) {
+        Future.delayed(Duration(milliseconds: 300), () {
+          controller.play();
+        });
+      }
+    });
   }
 
   void _onPageChanged(int index) {
-    if (_controllers.containsKey(_currentIndex)) {
-      _controllers[_currentIndex]?.flickControlManager?.pause();
-    }
+    _controllers[_currentIndex]?.pause();
 
     setState(() {
       _currentIndex = index;
     });
 
-    if (_controllers.containsKey(index)) {
-      _controllers[index]?.flickControlManager?.play();
-    } else {
-      _preloadVideo(index);
-    }
+    _controllers[index]?.play();
 
-    if (index < _videos.length - 1) _preloadVideo(index + 1);
+    for (int i = index - 3; i <= index + 3; i++) {
+      if (i == index) continue;
+      _preloadVideo(i);
+    }
   }
 
   @override
@@ -106,15 +103,13 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
               itemBuilder: (context, index) {
                 var videoData = _videos[index].data() as Map<String, dynamic>;
                 return VideoReelsItem(
-                  flickManager: _controllers[index],
+                  controller: _controllers[index],
                   videoData: videoData,
                   isMuted: _isMuted,
                   onToggleMute: () {
                     setState(() {
                       _isMuted = !_isMuted;
                       _controllers[_currentIndex]
-                          ?.flickVideoManager
-                          ?.videoPlayerController
                           ?.setVolume(_isMuted ? 0.0 : 1.0);
                     });
                   },
@@ -126,13 +121,13 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
 }
 
 class VideoReelsItem extends StatefulWidget {
-  final FlickManager? flickManager;
+  final VideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final VoidCallback onToggleMute;
 
   VideoReelsItem({
-    required this.flickManager,
+    required this.controller,
     required this.videoData,
     required this.isMuted,
     required this.onToggleMute,
@@ -175,20 +170,18 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _pausePlayVideo() {
-    var controller =
-        widget.flickManager?.flickVideoManager?.videoPlayerController;
-    if (controller != null) {
-      if (controller.value.isPlaying) {
-        widget.flickManager?.flickControlManager?.pause();
+    if (widget.controller != null) {
+      if (widget.controller!.value.isPlaying) {
+        widget.controller!.pause();
       } else {
-        widget.flickManager?.flickControlManager?.play();
+        widget.controller!.play();
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.flickManager == null) {
+    if (widget.controller == null || !widget.controller!.value.isInitialized) {
       return Center(child: CircularProgressIndicator());
     }
 
@@ -199,7 +192,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
         alignment: Alignment.center,
         children: [
           Positioned.fill(
-            child: FlickVideoPlayer(flickManager: widget.flickManager!),
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: widget.controller!.value.size.width,
+                height: widget.controller!.value.size.height,
+                child: VideoPlayer(widget.controller!),
+              ),
+            ),
           ),
           if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
           Positioned(
@@ -236,14 +236,12 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(
-                            height:
-                                8), // Add a space between the caption and "Book Now" button
+                        SizedBox(height: 8),
                         StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('postings')
                               .doc(widget.videoData['postingId'])
-                              .snapshots(), // Stream of document snapshots
+                              .snapshots(),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -254,17 +252,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                               return Text('Error loading posting data');
                             }
 
-                            // DocumentSnapshot received from the stream
                             DocumentSnapshot postingSnapshot = snapshot.data!;
                             PostingModel cPosting =
                                 PostingModel(id: widget.videoData['postingId']);
-                            cPosting.getPostingInfoFromSnapshot(
-                                postingSnapshot); // Pass full snapshot
+                            cPosting
+                                .getPostingInfoFromSnapshot(postingSnapshot);
 
-                            // GestureDetector for "Book Now" button
                             return GestureDetector(
                               onTap: () {
-                                // Navigate to ViewPostingScreen with the populated PostingModel
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -296,25 +291,29 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     IconButton(
-                        icon: Icon(
-                            widget.isMuted ? Icons.volume_off : Icons.volume_up,
-                            color: Colors.white),
-                        onPressed: widget.onToggleMute),
+                      icon: Icon(
+                        widget.isMuted ? Icons.volume_off : Icons.volume_up,
+                        color: Colors.white,
+                      ),
+                      onPressed: widget.onToggleMute,
+                    ),
                     IconButton(
-                        icon: Icon(
-                            liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
-                            color: liked ? Colors.blue : Colors.white),
-                        onPressed: _toggleLike),
+                      icon: Icon(
+                        liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
+                        color: liked ? Colors.blue : Colors.white,
+                      ),
+                      onPressed: _toggleLike,
+                    ),
                     Text('$likes', style: TextStyle(color: Colors.white)),
                     IconButton(
-                        icon: Icon(Icons.share, color: Colors.white),
-                        onPressed: _shareVideo),
+                      icon: Icon(Icons.share, color: Colors.white),
+                      onPressed: _shareVideo,
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          // StreamBuilder to listen to the Posting document
         ],
       ),
     );
