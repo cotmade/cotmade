@@ -47,26 +47,30 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   void _preloadVideo(int index) {
-    if (index < 0 || index >= _videos.length) return;
-    if (!_controllers.containsKey(index)) {
-      var videoData = _videos[index].data() as Map<String, dynamic>;
-      var videoUrl = videoData['reelsVideo'];
+  if (index < 0 || index >= _videos.length) return;
+  if (!_controllers.containsKey(index)) {
+    var videoData = _videos[index].data() as Map<String, dynamic>;
+    var videoUrl = videoData['reelsVideo'];
 
-      _controllers[index] = FlickManager(
-        videoPlayerController: VideoPlayerController.network(videoUrl)
-          ..setLooping(true)
-          ..initialize().then((_) {
-            if (_isMuted) {
-              _controllers[index]
-                  ?.flickVideoManager
-                  ?.videoPlayerController
-                  ?.setVolume(0.0);
-            }
-            setState(() {});
-          }),
-      );
-    }
+    final controller = VideoPlayerController.network(videoUrl);
+
+    _controllers[index] = FlickManager(
+      videoPlayerController: controller,
+    );
+
+    controller.setLooping(true);
+    controller.setVolume(_isMuted ? 0.0 : 1.0);
+
+    controller.initialize().then((_) {
+      setState(() {});
+      // iOS autoplay workaround
+      Future.delayed(Duration(milliseconds: 300), () {
+        _controllers[index]?.flickControlManager?.play();
+      });
+    });
   }
+}
+
 
   void _onPageChanged(int index) {
     if (_controllers.containsKey(_currentIndex)) {
