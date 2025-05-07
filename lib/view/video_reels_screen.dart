@@ -6,7 +6,7 @@ import 'package:cotmade/view/guestScreens/user_profile_page.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
-import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
+//import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -267,7 +267,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        ViewPostScreen(posting: cPosting),
+                                        ViewPostingScreen(posting: cPosting),
                                   ),
                                 );
                               },
