@@ -318,19 +318,30 @@ class _AccountScreenState extends State<AccountScreen> {
                                     textAlign: TextAlign.center,
                                   ),
                                   const Spacer(),
-                                  ElevatedButton(
-                                    onPressed: () {},
-                                    style: ElevatedButton.styleFrom(
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                    ),
-                                    child: Text("coming soon",
-                                        style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 10.0)),
-                                  )
+ElevatedButton(
+  onPressed: () {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("New feature on the way!"),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  },
+  style: ElevatedButton.styleFrom(
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    ),
+  ),
+  child: Text(
+    "Stay Tuned",
+    style: TextStyle(
+      color: Colors.black,
+      fontSize: 10.0,
+    ),
+  ),
+),
+
                                 ],
                               ),
                             ),

@@ -19,6 +19,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     "Feature Request",
     "Customer Support",
     "Host Experience",
+    "Report content",
     "Other"
   ];
 
