@@ -165,27 +165,25 @@ class TripScreen extends StatelessWidget {
                   var posting = postings[index];
 
                   return FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('postings')
-                        .doc(posting
-                            .id) // Reference the specific posting document
-                        .collection('bookings')
-                        .get(), // Fetch all bookings without filtering by userID
-                    builder: (context, bookingSnapshot) {
-                      if (bookingSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      }
+  future: FirebaseFirestore.instance
+      .collection('postings')
+      .doc(posting.id)
+      .collection('bookings')
+      .where('userID', isEqualTo: AppConstants.currentUser.id)
+      .get(),
+  builder: (context, bookingSnapshot) {
+    if (bookingSnapshot.connectionState == ConnectionState.waiting) {
+      return Center(child: CircularProgressIndicator());
+    }
 
-                      if (bookingSnapshot.hasError) {
-                        return Center(
-                            child: Text('Error: ${bookingSnapshot.error}'));
-                      }
+    if (bookingSnapshot.hasError) {
+      return Center(child: Text('Error: ${bookingSnapshot.error}'));
+    }
 
-                      if (!bookingSnapshot.hasData ||
-                          bookingSnapshot.data!.docs.isEmpty) {
-                        return SizedBox(); // No booking found for this posting
-                      }
+    if (!bookingSnapshot.hasData || bookingSnapshot.data!.docs.isEmpty) {
+      return SizedBox(); // No bookings for this user under this posting
+    }
+
 
                       // Process each booking for the current posting
                       List<QueryDocumentSnapshot> bookings =
