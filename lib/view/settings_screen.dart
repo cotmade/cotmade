@@ -9,6 +9,7 @@ import 'package:cotmade/view/guestScreens/help_centre.dart';
 import 'package:cotmade/view/guestScreens/terms_of_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cotmade/view/guestScreens/faq_screen.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({Key? key}) : super(key: key);
@@ -149,7 +150,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   trailing:
                       const Icon(Icons.chevron_right, color: Colors.black),
                   onTap: () {
-                    // Get.to(FaqScreen());
+                    Get.to(FaqScreen());
                   },
                 ),
               ),

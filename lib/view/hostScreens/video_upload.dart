@@ -22,6 +22,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   File? _videoFile;
   String? _caption;
   bool _isUploading = false;
+  bool _isTermsAccepted = false; // Track checkbox state
   String? _selectedPostingId; // To hold the selected posting ID
   List<Map<String, String>> _postings =
       []; // List to hold posting IDs and names
@@ -107,7 +108,13 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     if (_videoFile == null ||
         _caption == null ||
         _caption!.isEmpty ||
-        _selectedPostingId == null) {
+        _selectedPostingId == null ||
+        !_isTermsAccepted) {
+      // Ensure terms are accepted
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text("Please accept the terms and conditions before uploading."),
+      ));
       return; // Ensure there's a video, caption, and selected posting ID
     }
 
@@ -245,6 +252,26 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                     }).toList(),
                   ),
             SizedBox(height: 20),
+            // Checkbox for agreeing to terms of use
+            Row(
+              children: [
+                Checkbox(
+                  value: _isTermsAccepted,
+                  onChanged: (bool? newValue) {
+                    setState(() {
+                      _isTermsAccepted = newValue!;
+                    });
+                  },
+                ),
+                Expanded(
+                  child: Text(
+                    "I agree to the Terms of Use",
+                    style: TextStyle(color: Colors.pinkAccent),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
             _isUploading
                 ? Center(
                     child:
@@ -256,7 +283,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
             SizedBox(height: 20),
             // Video upload guidelines
             Text(
-              'Video Upload Guidelines:',
+              'End User License Agreement',
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: screenWidth * 0.05), // Responsive text size

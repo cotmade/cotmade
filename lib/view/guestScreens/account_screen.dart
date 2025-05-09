@@ -322,7 +322,7 @@ ElevatedButton(
   onPressed: () {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("New feature on the way!"),
+        content: Text("Stay tuned!"),
         duration: Duration(seconds: 2),
       ),
     );

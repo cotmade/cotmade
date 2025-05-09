@@ -7,6 +7,7 @@ import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
 //import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
+import 'package:cotmade/view/guestScreens/feedback_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -183,6 +184,49 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
+  // Show the options menu (Report and Block User)
+  void _showMoreOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.report),
+              title: Text('Report'),
+              onTap: () {
+                // Navigate to the Feedback page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        FeedbackScreen(), // Assuming FeedbackPage is your report page
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.block),
+              title: Text('Block User'),
+              onTap: () {
+                // Handle the Block User functionality here
+                _blockUser();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Block user logic (e.g., mark the user as blocked in Firestore)
+  void _blockUser() {
+    // You can add logic here to block the user (update Firestore, etc.)
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text("User blocked")));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.controller == null || !widget.controller!.value.isInitialized) {
@@ -311,6 +355,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     IconButton(
                       icon: Icon(Icons.share, color: Colors.white),
                       onPressed: _shareVideo,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.more_vert, color: Colors.white),
+                      onPressed: _showMoreOptions, // Show the three dots menu
                     ),
                   ],
                 ),
