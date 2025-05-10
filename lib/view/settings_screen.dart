@@ -3,7 +3,7 @@ import 'package:cotmade/model/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/privacy_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cotmade/view/login_screen2.dart';
+//import 'package:cotmade/view/login_screen2.dart';
 import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
 import 'package:cotmade/view/guestScreens/help_centre.dart';
 import 'package:cotmade/view/guestScreens/terms_of_service.dart';
@@ -125,15 +125,29 @@ class _SettingScreenState extends State<SettingScreen> {
                 elevation: 4,
                 shadowColor: Colors.black12,
                 child: ListTile(
-                  leading: const Icon(Icons.support_agent, color: Colors.black),
-                  title: const Text("Contact Help Centre",
-                      style: TextStyle(color: Colors.black)),
-                  trailing:
-                      const Icon(Icons.chevron_right, color: Colors.black),
-                  onTap: () {
-                    Get.to(() => HelpCentreScreen());
-                  },
-                ),
+                    leading:
+                        const Icon(Icons.support_agent, color: Colors.black),
+                    title: const Text("Contact Help Centre",
+                        style: TextStyle(color: Colors.black)),
+                    trailing:
+                        const Icon(Icons.chevron_right, color: Colors.black),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text("Contact Support"),
+                          content: Text(
+                            "You can reach us via:\n\n📧 Email: support@cotmade.com\n📞 Phone: +234 903 479 5131",
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context), // Cancel
+                              child: Text("close"),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
               ),
             ),
             // FAQ button

@@ -223,8 +223,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   // Block user logic (e.g., mark the user as blocked in Firestore)
   void _blockUser() {
     // You can add logic here to block the user (update Firestore, etc.)
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text("User blocked")));
+     Get.snackbar("Blocked", "user has been blocked");
   }
 
   @override
