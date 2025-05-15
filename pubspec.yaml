@@ -67,7 +67,6 @@ dependencies:
   printing: ^5.6.0
   fl_chart: ^0.69.2
   in_app_purchase: ^3.0.0
-  upgrader:
 
 dev_dependencies:
   flutter_test:
