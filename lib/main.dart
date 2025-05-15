@@ -11,6 +11,7 @@ import 'package:cotmade/view/reelsScreen.dart';
 //import 'package:cotmade/view/try_screen.dart';
 import 'package:cotmade/view/onboarding_screen.dart';
 import 'dart:ui';
+import 'package:upgrader/upgrader.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,8 +67,9 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // A widget which will be started on application startup
-      home:
-          ScreenUtilInit(designSize: Size(375, 812), child: OnboardingScreen()),
-    );
+      home: UpgradeAlert(
+          child: ScreenUtilInit(
+              designSize: Size(375, 812), child: OnboardingScreen()),
+        ));
   }
 }
