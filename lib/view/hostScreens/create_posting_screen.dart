@@ -13,6 +13,7 @@ import 'package:cotmade/view/hostScreens/boost_property_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cotmade/view/hostScreens/create_promo_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cotmade/view/hostScreens/my_postings_screen.dart';
 
 class CreatePostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -43,6 +44,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
   TextEditingController _checkOutTimeController = TextEditingController();
   double? updatedposting;
   double? updatedpostin;
+  double? updatedpostingg;
 
   TimeOfDay? _checkInTime;
   TimeOfDay? _checkOutTime;
@@ -428,22 +430,61 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
 
             double listStatus = postingDocSnapshot['status']?.toDouble() ?? 0.0;
 
+            double archiveStatus =
+                postingDocSnapshot['status']?.toDouble() ?? 0.0;
+
             // If the premium status is 2, update the UI or trigger any logic
             if (premiumStatus == 2) {
               setState(() {
                 updatedposting = premiumStatus;
               });
             }
-            if (listStatus == 0) {
-              setState(() {
-                updatedpostin = listStatus;
-              });
-            }
+
+            setState(() {
+              updatedpostingg = archiveStatus;
+              updatedpostin = listStatus;
+            });
           }
         });
       } catch (e) {
         print("Error fetching earnings: $e");
       }
+    }
+  }
+
+  //archive
+  void _archive() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(widget.posting!.id)
+          .update({'status': 0});
+
+      setState(() {
+        widget.posting!.status = 0; // update local state
+      });
+
+      Get.snackbar("Archived", "Successfully archived");
+    } catch (e) {
+      Get.snackbar("Error", "Failed to archive: $e");
+    }
+  }
+
+  //unarchive
+  void _unarchive() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(widget.posting!.id)
+          .update({'status': 1});
+
+      setState(() {
+        widget.posting!.status = 1; // update local state
+      });
+
+      Get.snackbar("Unarchived", "successfully unarchived");
+    } catch (e) {
+      Get.snackbar("Error", "Failed to archive: $e");
     }
   }
 
@@ -595,45 +636,99 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                         // FutureBuilder for Listing (premium status)
                         // Directly check the premium value from widget.posting
 
-                        updatedpostin != null && updatedpostin == 0
-                            ? Center(
-                                child: Text('This listing is suspended.',
-                                    style: TextStyle(color: Colors.red)),
-                              ) // If premium equals 2
-                            : Center(
-                                child: Text('Active',
-                                    style: TextStyle(color: Colors.black)),
-                              ),
+                        Center(
+                            child: Text(
+                          updatedpostin != null
+                              ? (updatedpostin == 0
+                                  ? 'Archived'
+                                  : (updatedpostin == 0.5
+                                      ? 'Suspended'
+                                      : 'Active'))
+                              : 'Loading...',
+                          style: TextStyle(
+                            color: updatedpostin == 0
+                                ? Colors.orange
+                                : (updatedpostin == 0.5
+                                    ? Colors.red
+                                    : Colors.black),
+                          ),
+                        )),
                         SizedBox(height: 5),
-                        updatedposting != null && updatedposting == 2
-                            ? Center(
-                                child: Text('This is premium listing'),
-                              ) // If premium equals 2
-                            : Center(
-                                //     child: MaterialButton(
-                                //       onPressed: () {
-                                // Your button logic here
-                                //        Get.to(() => BoostPropertyPage(
-                                //           postingId: widget.posting!.id ?? ''));
-                                //     },
-                                //      minWidth:
-                                //         MediaQuery.of(context).size.width / 2,
-                                //      elevation: 10,
-                                //     height:
-                                //         MediaQuery.of(context).size.height / 14,
-                                //     color: Colors.white,
-                                //     child: const Text(
-                                //       'Go Premium',
-                                //       style: TextStyle(
-                                //           fontSize: 15, color: Colors.black),
-                                //     ),
-                                //   shape: RoundedRectangleBorder(
-                                //     side: BorderSide(
-                                //        color: Colors.black, width: 2),
-                                //    borderRadius: BorderRadius.circular(5),
-                                //   ),
-                                //  ),
+                        (updatedpostingg == 0.5)
+                            ? const SizedBox
+                                .shrink() // Hides everything when suspended
+                            : Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 20.0),
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Flexible(
+                                        flex: 1,
+                                        child: updatedposting != null &&
+                                                updatedposting == 2
+                                            ? const Center(
+                                                child: Text('Premium listing'))
+                                            : MaterialButton(
+                                                onPressed: () {},
+                                              ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        flex: 1,
+                                        child: (updatedpostingg != null &&
+                                                updatedpostingg! >= 1)
+                                            ? MaterialButton(
+                                                onPressed: _archive,
+                                                elevation: 10,
+                                                height: MediaQuery.of(context)
+                                                        .size
+                                                        .height /
+                                                    14,
+                                                color: Colors.white,
+                                                child: const Text(
+                                                  'Archive',
+                                                  style: TextStyle(
+                                                      fontSize: 15,
+                                                      color: Colors.black),
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  side: const BorderSide(
+                                                      color: Colors.black,
+                                                      width: 2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(5),
+                                                ),
+                                              )
+                                            : MaterialButton(
+                                                onPressed: _unarchive,
+                                                elevation: 10,
+                                                height: MediaQuery.of(context)
+                                                        .size
+                                                        .height /
+                                                    14,
+                                                color: Colors.white,
+                                                child: const Text(
+                                                  'Unarchive',
+                                                  style: TextStyle(
+                                                      fontSize: 15,
+                                                      color: Colors.black),
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  side: const BorderSide(
+                                                      color: Colors.black,
+                                                      width: 2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(5),
+                                                ),
+                                              ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              ),
                         SizedBox(height: 20), // Add space between streams
 
                         // FutureBuilder for the Promo Code

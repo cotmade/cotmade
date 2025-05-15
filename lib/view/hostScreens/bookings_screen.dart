@@ -146,6 +146,19 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   ],
                 ),
               ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(25, 0, 0, 0),
+                child: Row(
+                  children: [
+                    Text(''),
+                    SizedBox(
+                      width: 2,
+                    ),
+                    Text('Click once to see booked dates'),
+                  ],
+                ),
+              ),
               // Reset
               Padding(
                 padding: const EdgeInsets.fromLTRB(25, 0, 0, 0),

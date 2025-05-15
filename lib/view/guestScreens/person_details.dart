@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:cotmade/view/hostScreens/withdraw_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
 class PersonDetails extends StatefulWidget {
   const PersonDetails({Key? key}) : super(key: key);
@@ -117,6 +118,94 @@ class _PersonDetailsState extends State<PersonDetails> {
     _getBankDetails();
     _getEarnings(); // Listen for earnings separately
   }
+
+  //guest refund/withdrawal
+  Future<void> _refund() async {
+    try {
+      final User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // userID = user.uid;
+
+        // Create a new withdrawal document
+        DocumentReference withdrawalDocRef =
+            await FirebaseFirestore.instance.collection('withdrawals').add({
+          'userID': user.uid,
+          'amount': updatedEarnings,
+          'date': FieldValue.serverTimestamp(),
+          'status': 'pending', // Assuming status is 'pending' initially
+          'Name': AppConstants.currentUser.getFullNameOfUser(),
+        });
+
+        // Get the documentID of the newly created document
+        String withdrawalDocumentID = withdrawalDocRef.id;
+
+        // Update user's balance
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'earnings': 0,
+        });
+        // Send email
+        await sendWelcomeEmail(
+            AppConstants.currentUser.email.toString(),
+            AppConstants.currentUser.getFullNameOfUser(),
+            updatedEarnings.toString(),
+            user.uid,
+            withdrawalDocumentID);
+
+        Get.snackbar(
+          "Success",
+          "Withdrawal request submitted successfully",
+          snackPosition: SnackPosition.TOP,
+          colorText: Colors.black,
+          backgroundColor: Color(0xe1f8f6f6),
+          margin: const EdgeInsets.all(10),
+        );
+      }
+    } catch (e) {
+      print("Error saving withdrawal details: $e");
+      Get.snackbar(
+        "Success",
+        "Withdrawal request submitted successfully",
+        snackPosition: SnackPosition.TOP,
+        colorText: Colors.black,
+        backgroundColor: Color(0xe1f8f6f6),
+        margin: const EdgeInsets.all(10),
+      );
+    }
+  }
+
+  Future<void> sendWelcomeEmail(
+      String email,
+      String fname,
+      String updatedEarnings,
+      String? userID,
+      String withdrawalDocumentID) async {
+    final url =
+        Uri.parse("https://cotmade.com/app/send_email_guestwithdraw.php");
+
+    final response = await http.post(url, body: {
+      "email": email,
+      "fname": fname,
+      "withdrawalAmount": updatedEarnings.toString(),
+      "userID": userID,
+      "transactionID": withdrawalDocumentID,
+    });
+
+    if (response.statusCode == 200) {
+      print("Email sent successfully");
+    } else {
+      print("Failed to send email: ${response.body}");
+    }
+  }
+
+  // void _refund() {
+  //  User? user = FirebaseAuth.instance.currentUser;
+  //  FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
+  //    'earnings': 0,
+  //  });
+  //}
 
   // Function to get the bank details and earnings from Firebase
   void _getBankDetails() {
@@ -471,6 +560,12 @@ class _PersonDetailsState extends State<PersonDetails> {
                       ),
                       Divider(color: Colors.black, height: 10, thickness: 2),
                       SizedBox(height: 10),
+                      buildInfoRow(
+                          "Balance:",
+                          updatedEarnings != null
+                              ? NumberFormat('#,###').format(updatedEarnings)
+                              : "Not Available"),
+                      SizedBox(height: 10),
                       buildInfoRow("Bank:", savedBankName ?? "Not provided"),
                       SizedBox(height: 10),
                       buildInfoRow("Account Number:",
@@ -498,6 +593,20 @@ class _PersonDetailsState extends State<PersonDetails> {
                               5), // Optional: Rounded corners
                         ),
                       )),
+                      SizedBox(height: 30),
+                      Center(
+                        child: MaterialButton(
+                          onPressed: _refund,
+                          minWidth: double.infinity,
+                          elevation: 10,
+                          height: MediaQuery.of(context).size.height / 14,
+                          color: Colors.black,
+                          child: const Text(
+                            'Withdraw',
+                            style: TextStyle(fontSize: 15, color: Colors.white),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
           ],

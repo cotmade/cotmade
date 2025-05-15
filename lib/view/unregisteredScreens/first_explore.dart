@@ -7,8 +7,6 @@ import 'package:get/get.dart';
 import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:cotmade/view/widgets/posting_grid2_tile_ui.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:flutter_html/flutter_html.dart'; // Add flutter_html package
-import 'package:cotmade/view/webview_screen.dart';
 
 class FirstExplore extends StatefulWidget {
   const FirstExplore({super.key});
@@ -403,7 +401,8 @@ class _FirstExploreState extends State<FirstExplore> {
                             var premiumPostings = snapshot.data!
                                 .where((posting) =>
                                     posting.premium == 2.0 &&
-                                    posting.status != 0.0)
+                                    posting.status != 0.0 &&
+                                    posting.status != 0.5)
                                 .toList();
 
                             if (premiumPostings.isEmpty) {
@@ -518,8 +517,9 @@ class _FirstExploreState extends State<FirstExplore> {
                           // Filter out listings where status is 0
                           var filteredListingsByStatus =
                               listings.where((posting) {
-                            return posting.status !=
-                                0.0; // Only include postings where status is not 0
+                            return posting.status != 0.0 &&
+                                posting.status !=
+                                    0.5; // Only include postings where status is not 0
                           }).toList();
 
                           if (filteredListingsByStatus.isEmpty) {

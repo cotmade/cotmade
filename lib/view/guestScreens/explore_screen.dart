@@ -6,7 +6,7 @@ import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:cotmade/view/widgets/posting_grid_tile_ui.dart';
 import 'package:cotmade/view/widgets/posting_grid2_tile_ui.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:url_launcher/url_launcher.dart';
+//import 'package:url_launcher/url_launcher.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -401,7 +401,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             var premiumPostings = snapshot.data!
                                 .where((posting) =>
                                     posting.premium == 2.0 &&
-                                    posting.status != 0.0)
+                                    posting.status != 0.0 &&
+                                    posting.status != 0.5)
                                 .toList();
 
                             if (premiumPostings.isEmpty) {
@@ -516,8 +517,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           // Filter out listings where status is 0
                           var filteredListingsByStatus =
                               listings.where((posting) {
-                            return posting.status !=
-                                0.0; // Only include postings where status is not 0
+                            return posting.status != 0 &&
+                                posting.status !=
+                                    0.5; // Only include postings where status is not 0
                           }).toList();
 
                           if (filteredListingsByStatus.isEmpty) {
