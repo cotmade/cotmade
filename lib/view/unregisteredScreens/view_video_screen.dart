@@ -9,6 +9,8 @@ import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/unregisteredScreens/userprofile_screen.dart';
 import 'package:cotmade/view/login_screen.dart';
+import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
+import 'dart:io';
 
 class ViewVideoScreen extends StatefulWidget {
   @override
@@ -46,15 +48,15 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
     }
   }
 
-  void _preloadVideo(int index) {
-    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
-      return;
+  void _preloadVideo(int index) async {
+    if (index < 0 || index >= _videos.length || _controllers.containsKey(index)) return;
 
     var videoData = _videos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
+    var videoId = videoData['id'];
 
-    final controller = VideoPlayerController.network(videoUrl);
-    _controllers[index] = controller;
+    String videoPath = await VideoCacheManager.cacheVideo(videoId, videoUrl);
+    final controller = VideoPlayerController.file(File(videoPath));
 
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);

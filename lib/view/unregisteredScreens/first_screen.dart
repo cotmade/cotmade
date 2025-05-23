@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:cotmade/view/guestScreens/property_reels_screen.dart';
-import 'package:cotmade/view/reelsScreen.dart';
+//import 'package:cotmade/view/reelsScreen.dart';
 import 'package:cotmade/view/guestScreens/trip_screen.dart';
 import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/unregisteredScreens/first_explore.dart';
@@ -30,17 +30,17 @@ class _FirstScreenState extends State<FirstScreen> {
   int selectedIndex = 0;
 
   final List<String> screenTitles = [
+    'Login',
     'Explore',
     'Clips',
     'FAQ',
-    'Login',
   ];
 
   final List<Widget> screens = [
+    LoginScreen(),
     FirstExplore(),
     ViewVideoScreen(),
     FaqPage(),
-    LoginScreen(),
   ];
 
   BottomNavigationBarItem customNavigationBarItem(
@@ -100,12 +100,12 @@ class _FirstScreenState extends State<FirstScreen> {
         currentIndex: selectedIndex,
         type: BottomNavigationBarType.fixed,
         items: <BottomNavigationBarItem>[
-          customNavigationBarItem(0, Icons.search, screenTitles[0]),
+          customNavigationBarItem(0, Icons.login_rounded, screenTitles[0]),
+          customNavigationBarItem(1, Icons.search, screenTitles[1]),
           customNavigationBarItem(
-              1, Icons.video_collection_rounded, screenTitles[1]),
+              2, Icons.video_collection_rounded, screenTitles[2]),
           customNavigationBarItem(
-              2, Icons.question_mark_rounded, screenTitles[2]),
-          customNavigationBarItem(3, Icons.login_rounded, screenTitles[3]),
+              3, Icons.question_mark_rounded, screenTitles[3]),
         ],
       ),
     );

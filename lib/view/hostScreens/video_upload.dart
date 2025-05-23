@@ -125,7 +125,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
     try {
       final videoSize = await _videoFile!.length();
-      if (videoSize > 20 * 1024 * 1024) {
+      if (videoSize > 10 * 1024 * 1024) {
         // If video size > 20MB, compress the video
         File? compressedVideo = await _compressVideo(_videoFile!);
         if (compressedVideo == null) {
@@ -137,11 +137,11 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         }
 
         final compressedSize = await compressedVideo.length();
-        if (compressedSize > 20 * 1024 * 1024) {
+        if (compressedSize > 10 * 1024 * 1024) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content:
-                    Text("Video size still exceeds 20MB after compression")),
+                    Text("Video size still exceeds 10MB after compression")),
           );
           return;
         }
@@ -297,7 +297,8 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
               '5. Videos/images should be related to your listing and relevant to the content.\n'
               '6. If your video/image exceeds 20MB, it will be compressed automatically.\n'
               '7. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
-              '8. Violations may result in content removal or account ban.',
+              '8. Violations may result in content removal or account ban.\n'
+              '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any music included in their videos.',
               style: TextStyle(
                   fontSize: screenWidth * 0.04,
                   color: Colors.black), // Responsive text size

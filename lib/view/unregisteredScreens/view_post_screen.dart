@@ -1,11 +1,10 @@
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guestScreens/book_listing_screen.dart';
+import 'package:cotmade/view/unregisteredScreens/userprofile_screen.dart';
 import 'package:cotmade/view/widgets/posting_info_tile_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
 import 'package:cotmade/view/login_screen.dart';
@@ -25,9 +24,6 @@ class ViewPostScreen extends StatefulWidget {
 }
 
 class _ViewPostScreenState extends State<ViewPostScreen> {
-  GoogleMapController? mapController;
-  LatLng? _center;
-  Position? _currentPosition;
   PostingModel? posting;
   bool isLoadingImages = true; // Flag to track image loading
   bool isLoadingReviews = true; // Flag to track review loading
@@ -167,7 +163,7 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                                 posting!.displayImages![index];
                             return Image(
                               image: currentImage,
-                              fit: BoxFit.fill,
+                              fit: BoxFit.cover,
                             );
                           }),
                 ),
@@ -255,7 +251,10 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                         Column(
                           children: [
                             GestureDetector(
-                              onTap: () {},
+                              onTap: () {
+                                Get.to(() => UserProfilePagee(
+                                    uid: posting!.host!.toString()));
+                              },
                               child: CircleAvatar(
                                 radius:
                                     MediaQuery.of(context).size.width / 12.5,
@@ -271,16 +270,21 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                               padding: const EdgeInsets.only(top: 10.0),
                               child: Row(
                                 children: [
-                                  Text(
-                                    "Host:",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                                  ),
-                                  Text(
-                                    posting!.host!.getFullNameOfUser(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  GestureDetector(
+                                    onTap: () {
+                                      // Navigate to host profile screen
+                                      Get.to(() => UserProfilePagee(
+                                          uid: posting!.host!.toString()));
+                                    },
+                                    child: Text(
+                                      posting!.host!.getFullNameOfUser(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors
+                                            .black, // Optional: Make it look like a link
+                                        decoration: TextDecoration
+                                            .underline, // Optional: underline for clarity
+                                      ),
                                     ),
                                   ),
                                 ],
