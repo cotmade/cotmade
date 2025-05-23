@@ -69,7 +69,6 @@ dependencies:
   in_app_purchase: ^3.0.0
   upgrader:
   dio:
-  path_provider:
 
 dev_dependencies:
   flutter_test:
