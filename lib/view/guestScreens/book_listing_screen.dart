@@ -313,7 +313,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
         phoneNumber: AppConstants.currentUser.mobileNumber.toString());
 
     Flutterwave flutterwave = Flutterwave(
-      //context: context,
+      context: context,
       publicKey: "FLWPUBK-5075e726729201f3c2b77df72b4a8da5-X",
       currency: currency,
       redirectUrl: 'https://cotmade.com',
@@ -325,7 +325,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
       isTestMode: false,
     );
 
-    final ChargeResponse response = await flutterwave.charge(context);
+    final ChargeResponse response = await flutterwave.charge();
     showLoading(response.toString());
     print("Response: ${response.toJson()}");
     print("Status: ${response.status}");
