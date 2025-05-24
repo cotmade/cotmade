@@ -380,12 +380,11 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                 children: [
                                   // Address and Location
                                   Text(
-                                    '$address\n, $city\n, $country',
+                                    '$address\n $city\n $country',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
                                     ),
-                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),

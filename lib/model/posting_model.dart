@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:flutter/material.dart';
 import '../global.dart';
 import 'app_constants.dart';
 
@@ -79,8 +79,28 @@ class PostingModel {
   getPostingInfoFromFirestore() async {
     DocumentSnapshot snapshot =
         await FirebaseFirestore.instance.collection('postings').doc(id).get();
-
-    getPostingInfoFromSnapshot(snapshot);
+    if (snapshot.exists) {
+      // Check if the status of the document is greater than or equal to 1
+      if (snapshot['status'] >= 1) {
+        // Proceed to get the posting info from the snapshot
+        getPostingInfoFromSnapshot(snapshot);
+      } else {
+        // If the status is less than 1, show a message or handle accordingly
+        Center(
+          child: Text(
+            'currently unavailable at the moment',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+            ),
+          ),
+        );
+        // You can also show a UI message here using `setState` or other methods
+      }
+    } else {
+      // Handle the case where the document doesn't exist
+      print('Document does not exist.');
+    }
   }
 
   getPostingInfoFromSnapshot(DocumentSnapshot snapshot) {
