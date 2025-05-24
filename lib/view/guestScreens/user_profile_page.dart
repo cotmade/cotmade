@@ -32,6 +32,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
     stream = FirebaseFirestore.instance
         .collection('postings')
         .where('hostID', isEqualTo: uid)
+        .where('status',
+            isGreaterThanOrEqualTo: 1) // Only fetch posts where status >= 1
         .snapshots();
 
     // Fetch user info and profile image

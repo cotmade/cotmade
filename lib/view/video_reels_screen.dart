@@ -6,7 +6,6 @@ import 'package:cotmade/view/guestScreens/user_profile_page.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
-//import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
 import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
@@ -28,6 +27,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   Map<int, CachedVideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
+  bool _isSearchVisible = false;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -41,8 +42,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         .collection('reels')
         .orderBy('time', descending: true)
         .get();
-
-    // Optionally: implement your cache cleanup logic here if you want.
 
     setState(() {
       _videos = snapshot.docs;
@@ -121,7 +120,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
-// Clear cache method
+  // Clear cache method
   Future<void> _clearCache() async {
     var cacheManager = DefaultCacheManager();
     await cacheManager.emptyCache();
@@ -144,43 +143,76 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     super.dispose();
   }
 
+  void _toggleSearch() {
+    setState(() {
+      _isSearchVisible = !_isSearchVisible;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.black,
-        body: RefreshIndicator(
-          onRefresh: _onRefresh, // Trigger refresh when pulled
-          child: _videos.isEmpty
-              ? Center(child: CircularProgressIndicator())
-              : PageView.builder(
-                  controller: _pageController,
-                  itemCount: _videos.length,
-                  scrollDirection: Axis.vertical,
-                  onPageChanged: _onPageChanged,
-                  itemBuilder: (context, index) {
-                    var videoData =
-                        _videos[index].data() as Map<String, dynamic>;
-                    return VideoReelsItem(
-                      controller: _controllers[index],
-                      videoData: videoData,
-                      isMuted: _isMuted,
-                      onToggleMute: () {
-                        setState(() {
-                          _isMuted = !_isMuted;
-                          _controllers[_currentIndex]
-                              ?.setVolume(_isMuted ? 0.0 : 1.0);
-                        });
-                      },
-                    );
-                  },
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _onRefresh, // Trigger refresh when pulled
+            child: _videos.isEmpty
+                ? Center(child: CircularProgressIndicator())
+                : PageView.builder(
+                    controller: _pageController,
+                    itemCount: _videos.length,
+                    scrollDirection: Axis.vertical,
+                    onPageChanged: _onPageChanged,
+                    itemBuilder: (context, index) {
+                      var videoData =
+                          _videos[index].data() as Map<String, dynamic>;
+                      return VideoReelsItem(
+                        controller: _controllers[index],
+                        videoData: videoData,
+                        isMuted: _isMuted,
+                        onToggleMute: () {
+                          setState(() {
+                            _isMuted = !_isMuted;
+                            _controllers[_currentIndex]
+                                ?.setVolume(_isMuted ? 0.0 : 1.0);
+                          });
+                        },
+                      );
+                    },
+                  ),
+          ),
+          if (_isSearchVisible)
+            Positioned(
+              top: 40,
+              left: 16,
+              right: 16,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.close),
+                    onPressed: _toggleSearch,
+                  ),
                 ),
-        ));
+              ),
+            ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toggleSearch,
+        child: Icon(_isSearchVisible ? Icons.close : Icons.search, color: Colors.white),
+      ),
+    );
   }
 }
 
 class VideoReelsItem extends StatefulWidget {
   final CachedVideoPlayerController? controller;
-  // final VideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final VoidCallback onToggleMute;
@@ -244,7 +276,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
-  // Show the options menu (Report and Block User)
   void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
@@ -256,12 +287,11 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               leading: Icon(Icons.report),
               title: Text('Report'),
               onTap: () {
-                // Navigate to the Feedback page
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        FeedbackScreen(), // Assuming FeedbackPage is your report page
+                        FeedbackScreen(),
                   ),
                 );
               },
@@ -270,7 +300,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               leading: Icon(Icons.block),
               title: Text('Block User'),
               onTap: () {
-                // Handle the Block User functionality here
                 _blockUser();
               },
             ),
@@ -280,10 +309,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     );
   }
 
-  // Block user logic (e.g., mark the user as blocked in Firestore)
   void _blockUser() {
-    // You can add logic here to block the user (update Firestore, etc.)
-    Get.snackbar("Blocked", "user has been blocked");
+    Get.snackbar("Blocked", "User has been blocked");
   }
 
   @override
@@ -368,17 +395,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final address =
                                 data['address'] ?? 'Unknown Address';
 
-                            DocumentSnapshot postingSnapshot = snapshot.data!;
-                            PostingModel cPosting =
-                                PostingModel(id: widget.videoData['postingId']);
-                            cPosting
-                                .getPostingInfoFromSnapshot(postingSnapshot);
-
                             return Container(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Address and Location
                                   Text(
                                     '$address\n $city\n $country',
                                     style: TextStyle(
@@ -388,8 +408,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),
-
-                                  // "Book Now" button
                                   GestureDetector(
                                     onTap: () {
                                       Navigator.push(
@@ -397,7 +415,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                         MaterialPageRoute(
                                           builder: (context) =>
                                               ViewPostingScreen(
-                                                  posting: cPosting),
+                                                  posting: PostingModel(
+                                                      id: widget.videoData[
+                                                          'postingId'])),
                                         ),
                                       );
                                     },
@@ -445,9 +465,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       icon: Icon(Icons.share, color: Colors.white),
                       onPressed: _shareVideo,
                     ),
+                    
                     IconButton(
                       icon: Icon(Icons.more_vert, color: Colors.white),
-                      onPressed: _showMoreOptions, // Show the three dots menu
+                      onPressed: _showMoreOptions,
                     ),
                   ],
                 ),
