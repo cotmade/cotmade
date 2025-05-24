@@ -253,7 +253,7 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                             GestureDetector(
                               onTap: () {
                                 Get.to(() => UserProfilePagee(
-                                    uid: posting!.host!.toString()));
+                                    uid: posting!.host!.id!));
                               },
                               child: CircleAvatar(
                                 radius:
@@ -274,7 +274,7 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                                     onTap: () {
                                       // Navigate to host profile screen
                                       Get.to(() => UserProfilePagee(
-                                          uid: posting!.host!.toString()));
+                                         uid: posting!.host!.id!));
                                     },
                                     child: Text(
                                       posting!.host!.getFullNameOfUser(),

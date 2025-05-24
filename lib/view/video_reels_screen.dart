@@ -11,6 +11,7 @@ import 'package:cotmade/view/guestScreens/feedback_screen.dart';
 import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
 import 'dart:async';
+import 'package:path/path.dart' as p;
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -39,46 +40,28 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     });
   }
 
-  Future<void> _loadVideos() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('reels')
-        .orderBy('time', descending: true)
-        .get();
-
-    setState(() {
-      _videos = snapshot.docs;
-    });
-
-    if (_videos.isNotEmpty) {
-      for (int i = 0; i <= 3 && i < _videos.length; i++) {
-        _preloadVideo(i);
-      }
-    }
-  }
-
   Future<void> _syncCacheWithDatabase() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
+    final snapshot = await FirebaseFirestore.instance
         .collection('reels')
         .orderBy('time', descending: true)
         .get();
-
-    List<DocumentSnapshot> latestVideos = snapshot.docs;
-    List<String> latestIds =
-        latestVideos.map((doc) => doc['id'] as String).toList();
+    final latestVideos = snapshot.docs;
+    final latestIds = latestVideos.map((e) => e['id'] as String).toSet();
 
     final cachedFiles = await VideoCacheManager.getCachedFiles();
     for (var file in cachedFiles) {
-      String cachedId = file.path.split('/').last.split('.').first;
+      final cachedId = p.basenameWithoutExtension(file.path);
       if (!latestIds.contains(cachedId)) {
         await VideoCacheManager.deleteVideo(cachedId);
       }
     }
-    for (int i = 0; i < latestVideos.length; i++) {
-      var videoData = latestVideos[i].data() as Map<String, dynamic>;
-      String videoId = videoData['id'];
-      bool isCached = await VideoCacheManager.isCached(videoId);
+
+    for (var doc in latestVideos) {
+      final id = doc['id'];
+      final url = doc['reelsVideo'];
+      final isCached = await VideoCacheManager.isCached(id);
       if (!isCached) {
-        await VideoCacheManager.cacheVideo(videoId, videoData['reelsVideo']);
+        await VideoCacheManager.cacheVideo(id, url);
       }
     }
 
@@ -86,103 +69,71 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       _videos = latestVideos;
     });
 
-    for (int i = _currentIndex - 3; i <= _currentIndex + 3; i++) {
+    for (int i = _currentIndex - 2; i <= _currentIndex + 2; i++) {
+      _preloadVideo(i);
+    }
+  }
+
+  Future<void> _loadVideos() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('reels')
+        .orderBy('time', descending: true)
+        .get();
+    setState(() {
+      _videos = snapshot.docs;
+    });
+    for (int i = 0; i < 3 && i < _videos.length; i++) {
       _preloadVideo(i);
     }
   }
 
   void _preloadVideo(int index) async {
-    if (index < 0 || index >= _videos.length) return;
-    if (_controllers.containsKey(index)) return;
+    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
+      return;
 
-    var videoData = _videos[index].data() as Map<String, dynamic>;
-    var videoUrl = videoData['reelsVideo'];
-    var videoId = videoData['id'];
+    final data = _videos[index].data() as Map<String, dynamic>;
+    final videoId = data['id'];
+    final videoUrl = data['reelsVideo'];
 
-    bool isCached = await VideoCacheManager.isCached(videoId);
-
+    final cachedPath = await VideoCacheManager.getCachedFilePath(videoId);
     VideoPlayerController controller;
 
-    if (isCached) {
-      // Load from cached file immediately
-      String path = await VideoCacheManager.getVideoPath(videoId);
-      File cachedFile = File(path);
-
-      if (await cachedFile.exists()) {
-        controller = VideoPlayerController.file(cachedFile);
-        await controller.initialize();
-      } else {
-        // If cached file missing, fallback to network
-        controller = VideoPlayerController.network(videoUrl);
-        await controller.initialize();
-        isCached = false; // mark as not cached so we try caching later
-      }
+    if (cachedPath != null) {
+      controller = VideoPlayerController.file(File(cachedPath));
     } else {
-      // Load from network immediately
       controller = VideoPlayerController.network(videoUrl);
-      await controller.initialize();
+      VideoCacheManager.cacheVideo(
+          videoId, videoUrl); // start caching in background
     }
 
+    await controller.initialize();
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
+    if (index == _currentIndex) controller.play();
 
-    _controllers[index] = controller;
-    setState(() {}); // Update UI to show this controller
-
-    if (index == _currentIndex) {
-      controller.play();
-    }
-
-    // If video is not cached, start caching in background and swap controller when done
-    if (!isCached) {
-      VideoCacheManager.cacheVideo(videoId, videoUrl).then((_) async {
-        String cachedPath = await VideoCacheManager.getVideoPath(videoId);
-        File cachedFile = File(cachedPath);
-        if (await cachedFile.exists()) {
-          VideoPlayerController cachedController =
-              VideoPlayerController.file(cachedFile);
-          await cachedController.initialize();
-          cachedController.setLooping(true);
-          cachedController.setVolume(_isMuted ? 0.0 : 1.0);
-
-          // Replace old controller with cached controller smoothly
-          if (_controllers.containsKey(index)) {
-            await _controllers[index]!.pause();
-            _controllers[index]!.dispose();
-          }
-
-          _controllers[index] = cachedController;
-
-          // If this is currently visible video, play cached video immediately
-          if (index == _currentIndex) {
-            cachedController.play();
-          }
-
-          setState(() {}); // Refresh UI with cached video controller
-        }
-      });
-    }
+    setState(() {
+      _controllers[index] = controller;
+    });
   }
 
   void _onPageChanged(int index) {
     _controllers[_currentIndex]?.pause();
-
     setState(() {
       _currentIndex = index;
     });
-
     _controllers[index]?.play();
 
-    for (int i = index - 3; i <= index + 3; i++) {
-      if (i == index) continue;
-      _preloadVideo(i);
+    for (int i = index - 2; i <= index + 2; i++) {
+      if (i != index) _preloadVideo(i);
     }
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
-    _controllers.forEach((key, controller) => controller.dispose());
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
