@@ -9,6 +9,13 @@ import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/unregisteredScreens/userprofile_screen.dart';
 import 'package:cotmade/view/login_screen.dart';
+import 'dart:io';
+import 'dart:async';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plus.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ViewVideoScreen extends StatefulWidget {
   @override
@@ -18,7 +25,7 @@ class ViewVideoScreen extends StatefulWidget {
 class _ViewVideoScreenState extends State<ViewVideoScreen> {
   late PageController _pageController;
   List<DocumentSnapshot> _videos = [];
-  Map<int, VideoPlayerController> _controllers = {};
+  Map<int, CachedVideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
 
@@ -35,38 +42,64 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
         .orderBy('time', descending: true)
         .get();
 
+    // Optionally: implement your cache cleanup logic here if you want.
+
     setState(() {
       _videos = snapshot.docs;
     });
 
     if (_videos.isNotEmpty) {
+      // Preload first 4 videos
       for (int i = 0; i <= 3 && i < _videos.length; i++) {
         _preloadVideo(i);
       }
+
+      // Start background caching from index 4 onwards
+      _cacheVideosInBackground(startFromIndex: 4);
     }
   }
 
-  void _preloadVideo(int index) {
+  void _preloadVideo(int index) async {
     if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
       return;
 
     var videoData = _videos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
 
-    final controller = VideoPlayerController.network(videoUrl);
+    final controller = CachedVideoPlayerController.network(videoUrl);
     _controllers[index] = controller;
 
+    await controller.initialize();
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
 
-    controller.initialize().then((_) {
-      setState(() {});
-      if (index == _currentIndex) {
-        Future.delayed(Duration(milliseconds: 300), () {
-          controller.play();
-        });
+    setState(() {});
+
+    if (index == _currentIndex) {
+      Future.delayed(Duration(milliseconds: 300), () {
+        controller.play();
+      });
+    }
+  }
+
+  void _cacheVideosInBackground({required int startFromIndex}) async {
+    for (int i = startFromIndex; i < _videos.length; i++) {
+      if (_controllers.containsKey(i)) continue; // already cached
+
+      var videoData = _videos[i].data() as Map<String, dynamic>;
+      var videoUrl = videoData['reelsVideo'];
+
+      final tempController = CachedVideoPlayerController.network(videoUrl);
+
+      try {
+        await tempController.initialize();
+        await tempController.setLooping(true);
+        await tempController.setVolume(0);
+        await tempController.dispose();
+      } catch (e) {
+        print('Failed to cache video at $i: $e');
       }
-    });
+    }
   }
 
   void _onPageChanged(int index) {
@@ -76,7 +109,11 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
       _currentIndex = index;
     });
 
-    _controllers[index]?.play();
+    if (_controllers[index] == null) {
+      _preloadVideo(index);
+    } else {
+      _controllers[index]?.play();
+    }
 
     for (int i = index - 3; i <= index + 3; i++) {
       if (i == index) continue;
@@ -84,45 +121,65 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
     }
   }
 
+  // Clear cache method
+  Future<void> _clearCache() async {
+    var cacheManager = DefaultCacheManager();
+    await cacheManager.emptyCache();
+    print("Cache cleared!");
+  }
+
+  // Handle pull-to-refresh action
+  Future<void> _onRefresh() async {
+    // Clear cache
+    await _clearCache();
+
+    // Reload the videos
+    await _loadVideos();
+  }
+
   @override
   void dispose() {
     _controllers.forEach((key, controller) => controller.dispose());
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: _videos.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : PageView.builder(
-              controller: _pageController,
-              itemCount: _videos.length,
-              scrollDirection: Axis.vertical,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (context, index) {
-                var videoData = _videos[index].data() as Map<String, dynamic>;
-                return VideoReelsItem(
-                  controller: _controllers[index],
-                  videoData: videoData,
-                  isMuted: _isMuted,
-                  onToggleMute: () {
-                    setState(() {
-                      _isMuted = !_isMuted;
-                      _controllers[_currentIndex]
-                          ?.setVolume(_isMuted ? 0.0 : 1.0);
-                    });
+        backgroundColor: Colors.black,
+        body: RefreshIndicator(
+          onRefresh: _onRefresh, // Trigger refresh when pulled
+          child: _videos.isEmpty
+              ? Center(child: CircularProgressIndicator())
+              : PageView.builder(
+                  controller: _pageController,
+                  itemCount: _videos.length,
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, index) {
+                    var videoData =
+                        _videos[index].data() as Map<String, dynamic>;
+                    return VideoReelsItem(
+                      controller: _controllers[index],
+                      videoData: videoData,
+                      isMuted: _isMuted,
+                      onToggleMute: () {
+                        setState(() {
+                          _isMuted = !_isMuted;
+                          _controllers[_currentIndex]
+                              ?.setVolume(_isMuted ? 0.0 : 1.0);
+                        });
+                      },
+                    );
                   },
-                );
-              },
-            ),
-    );
+                ),
+        ));
   }
 }
 
 class VideoReelsItem extends StatefulWidget {
-  final VideoPlayerController? controller;
+  final CachedVideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final VoidCallback onToggleMute;
@@ -222,7 +279,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     Get.snackbar("Login", "kindly login to block this user");
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (widget.controller == null || !widget.controller!.value.isInitialized) {
@@ -241,7 +297,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               child: SizedBox(
                 width: widget.controller!.value.size.width,
                 height: widget.controller!.value.size.height,
-                child: VideoPlayer(widget.controller!),
+                child: CachedVideoPlayer(widget.controller!),
               ),
             ),
           ),
@@ -295,6 +351,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             if (snapshot.hasError || !snapshot.hasData) {
                               return Text('Error loading posting data');
                             }
+                            final data =
+                                snapshot.data!.data() as Map<String, dynamic>;
+
+                            final city = data['city'] ?? 'Unknown City';
+                            final country =
+                                data['country'] ?? 'Unknown Country';
+                            final address =
+                                data['address'] ?? 'Unknown Address';
 
                             DocumentSnapshot postingSnapshot = snapshot.data!;
                             PostingModel cPosting =
@@ -302,28 +366,48 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             cPosting
                                 .getPostingInfoFromSnapshot(postingSnapshot);
 
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ViewPostScreen(posting: cPosting),
+                            return Container(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Address and Location
+                                  Text(
+                                    '$address\n, $city\n, $country',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 8, horizontal: 8),
-                                color: Colors.pinkAccent,
-                                child: Text(
-                                  'Book Now',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                  SizedBox(height: 8),
+
+                                  // "Book Now" button
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ViewPostScreen(posting: cPosting),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 8),
+                                      color: Colors.pinkAccent,
+                                      child: Text(
+                                        'Book Now',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             );
                           },

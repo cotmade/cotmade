@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -120,6 +121,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
+// Clear cache method
+  Future<void> _clearCache() async {
+    var cacheManager = DefaultCacheManager();
+    await cacheManager.emptyCache();
+    print("Cache cleared!");
+  }
+
+  // Handle pull-to-refresh action
+  Future<void> _onRefresh() async {
+    // Clear cache
+    await _clearCache();
+
+    // Reload the videos
+    await _loadVideos();
+  }
+
   @override
   void dispose() {
     _controllers.forEach((key, controller) => controller.dispose());
@@ -130,31 +147,34 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: _videos.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : PageView.builder(
-              controller: _pageController,
-              itemCount: _videos.length,
-              scrollDirection: Axis.vertical,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (context, index) {
-                var videoData = _videos[index].data() as Map<String, dynamic>;
-                return VideoReelsItem(
-                  controller: _controllers[index],
-                  videoData: videoData,
-                  isMuted: _isMuted,
-                  onToggleMute: () {
-                    setState(() {
-                      _isMuted = !_isMuted;
-                      _controllers[_currentIndex]
-                          ?.setVolume(_isMuted ? 0.0 : 1.0);
-                    });
+        backgroundColor: Colors.black,
+        body: RefreshIndicator(
+          onRefresh: _onRefresh, // Trigger refresh when pulled
+          child: _videos.isEmpty
+              ? Center(child: CircularProgressIndicator())
+              : PageView.builder(
+                  controller: _pageController,
+                  itemCount: _videos.length,
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, index) {
+                    var videoData =
+                        _videos[index].data() as Map<String, dynamic>;
+                    return VideoReelsItem(
+                      controller: _controllers[index],
+                      videoData: videoData,
+                      isMuted: _isMuted,
+                      onToggleMute: () {
+                        setState(() {
+                          _isMuted = !_isMuted;
+                          _controllers[_currentIndex]
+                              ?.setVolume(_isMuted ? 0.0 : 1.0);
+                        });
+                      },
+                    );
                   },
-                );
-              },
-            ),
-    );
+                ),
+        ));
   }
 }
 
@@ -339,34 +359,64 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                               return Text('Error loading posting data');
                             }
 
+                            final data =
+                                snapshot.data!.data() as Map<String, dynamic>;
+
+                            final city = data['city'] ?? 'Unknown City';
+                            final country =
+                                data['country'] ?? 'Unknown Country';
+                            final address =
+                                data['address'] ?? 'Unknown Address';
+
                             DocumentSnapshot postingSnapshot = snapshot.data!;
                             PostingModel cPosting =
                                 PostingModel(id: widget.videoData['postingId']);
                             cPosting
                                 .getPostingInfoFromSnapshot(postingSnapshot);
 
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ViewPostingScreen(posting: cPosting),
+                            return Container(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Address and Location
+                                  Text(
+                                    '$address\n, $city\n, $country',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 8, horizontal: 8),
-                                color: Colors.pinkAccent,
-                                child: Text(
-                                  'Book Now',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                  SizedBox(height: 8),
+
+                                  // "Book Now" button
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ViewPostingScreen(
+                                                  posting: cPosting),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 8),
+                                      color: Colors.pinkAccent,
+                                      child: Text(
+                                        'Book Now',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             );
                           },
