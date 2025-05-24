@@ -28,179 +28,104 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   int _currentIndex = 0;
   bool _isMuted = true;
 
-  Directory? _cacheDir;
-  Set<String> _cachedVideoIds = {}; // track cached videos by ID
-
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _initCacheDirAndLoad();
+    _loadVideos();
   }
 
-  Future<void> _initCacheDirAndLoad() async {
-    _cacheDir = await getApplicationDocumentsDirectory();
-    await _loadVideosAndSyncCache();
-  }
-
-  /// Load videos from Firestore and sync cache folder
-  Future<void> _loadVideosAndSyncCache() async {
+  Future<void> _loadVideos() async {
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('reels')
         .orderBy('time', descending: true)
         .get();
 
-    final freshVideos = snapshot.docs;
-    final freshIds = freshVideos.map((doc) => doc.id).toSet();
-
-    await _deleteRemovedCachedVideos(freshIds);
+    // Optionally: implement your cache cleanup logic here if you want.
 
     setState(() {
-      _videos = freshVideos;
+      _videos = snapshot.docs;
     });
 
-    await _downloadNewVideos(freshVideos);
+    if (_videos.isNotEmpty) {
+      // Preload first 4 videos
+      for (int i = 0; i <= 3 && i < _videos.length; i++) {
+        _preloadVideo(i);
+      }
 
-    // Preload first few videos for smooth playback
-    for (int i = 0; i < _videos.length && i < 4; i++) {
-      await _initController(i);
+      // Start background caching from index 4 onwards
+      _cacheVideosInBackground(startFromIndex: 4);
     }
   }
 
-  /// Delete cached files not found in Firestore anymore
-  Future<void> _deleteRemovedCachedVideos(Set<String> freshIds) async {
-    if (_cacheDir == null) return;
+  void _preloadVideo(int index) async {
+    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
+      return;
 
-    final files = _cacheDir!.listSync();
+    var videoData = _videos[index].data() as Map<String, dynamic>;
+    var videoUrl = videoData['reelsVideo'];
 
-    for (var fileEntity in files) {
-      if (fileEntity is File) {
-        final filename = path.basename(fileEntity.path); // e.g. "abc123.mp4"
-        final videoId = path.basenameWithoutExtension(filename);
-        if (!freshIds.contains(videoId)) {
-          try {
-            await fileEntity.delete();
-            _cachedVideoIds.remove(videoId);
-            print('Deleted cached video: $filename');
-          } catch (e) {
-            print('Failed to delete cached video $filename: $e');
-          }
-        } else {
-          _cachedVideoIds.add(videoId);
-        }
-      }
-    }
-  }
-
-  /// Download videos not yet cached
-  Future<void> _downloadNewVideos(List<DocumentSnapshot> videos) async {
-    if (_cacheDir == null) return;
-
-    for (var doc in videos) {
-      final videoId = doc.id;
-      final videoData = doc.data() as Map<String, dynamic>;
-      final videoUrl = videoData['reelsVideo'] as String;
-
-      // Extract extension from URL, handle query params
-      final ext = path.extension(videoUrl).split('?').first;
-      final filePath = '${_cacheDir!.path}/$videoId$ext';
-
-      if (_cachedVideoIds.contains(videoId)) continue; // Already cached
-
-      final file = File(filePath);
-      if (await file.exists()) {
-        _cachedVideoIds.add(videoId);
-        continue; // Exists locally
-      }
-
-      try {
-        print('Downloading video $videoId...');
-        final response = await http.get(Uri.parse(videoUrl));
-        if (response.statusCode == 200) {
-          await file.writeAsBytes(response.bodyBytes);
-          _cachedVideoIds.add(videoId);
-          print('Downloaded and cached video $videoId');
-        } else {
-          print('Failed to download video $videoId: HTTP ${response.statusCode}');
-        }
-      } catch (e) {
-        print('Error downloading video $videoId: $e');
-      }
-    }
-  }
-
-  /// Initialize controller, load cached file if exists otherwise network
-  Future<void> _initController(int index) async {
-    if (index < 0 || index >= _videos.length) return;
-    if (_controllers.containsKey(index)) return;
-
-    var doc = _videos[index];
-    var videoData = doc.data() as Map<String, dynamic>;
-    var videoUrl = videoData['reelsVideo'] as String;
-    var videoId = doc.id;
-
-    File? localFile;
-    if (_cacheDir != null) {
-      final cachedFiles = _cacheDir!.listSync().whereType<File>();
-      for (final file in cachedFiles) {
-        final filename = path.basename(file.path);
-        final basename = path.basenameWithoutExtension(filename);
-        if (basename == videoId) {
-          localFile = file;
-          break;
-        }
-      }
-    }
-
-    CachedVideoPlayerController controller;
-    if (localFile != null) {
-      controller = CachedVideoPlayerController.file(localFile);
-    } else {
-      controller = CachedVideoPlayerController.network(videoUrl);
-    }
+    final controller = CachedVideoPlayerController.network(videoUrl);
+    _controllers[index] = controller;
 
     await controller.initialize();
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
 
-    _controllers[index] = controller;
+    setState(() {});
 
     if (index == _currentIndex) {
       Future.delayed(Duration(milliseconds: 300), () {
         controller.play();
       });
     }
-
-    setState(() {});
   }
 
-  void _onPageChanged(int index) async {
+  void _cacheVideosInBackground({required int startFromIndex}) async {
+    for (int i = startFromIndex; i < _videos.length; i++) {
+      if (_controllers.containsKey(i)) continue; // already cached
+
+      var videoData = _videos[i].data() as Map<String, dynamic>;
+      var videoUrl = videoData['reelsVideo'];
+
+      final tempController = CachedVideoPlayerController.network(videoUrl);
+
+      try {
+        await tempController.initialize();
+        await tempController.setLooping(true);
+        await tempController.setVolume(0);
+        await tempController.dispose();
+      } catch (e) {
+        print('Failed to cache video at $i: $e');
+      }
+    }
+  }
+
+  void _onPageChanged(int index) {
     _controllers[_currentIndex]?.pause();
 
     setState(() {
       _currentIndex = index;
     });
 
-    if (_controllers[index] != null) {
-      _controllers[index]!.play();
+    if (_controllers[index] == null) {
+      _preloadVideo(index);
     } else {
-      await _initController(index);
       _controllers[index]?.play();
     }
 
-    // Preload neighbors
     for (int i = index - 3; i <= index + 3; i++) {
-      if (i < 0 || i >= _videos.length) continue;
-      _initController(i);
+      if (i == index) continue;
+      _preloadVideo(i);
     }
   }
 
   @override
   void dispose() {
-    _controllers.forEach((key, c) => c.dispose());
+    _controllers.forEach((key, controller) => controller.dispose());
+    _pageController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +160,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
 class VideoReelsItem extends StatefulWidget {
   final CachedVideoPlayerController? controller;
- // final VideoPlayerController? controller;
+  // final VideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final VoidCallback onToggleMute;
