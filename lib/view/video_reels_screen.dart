@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
 import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
+import 'dart:async';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -22,12 +23,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
+  Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _loadVideos();
+    _startSyncTimer();
+  }
+
+  void _startSyncTimer() {
+    _syncTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      _syncCacheWithDatabase();
+    });
   }
 
   Future<void> _loadVideos() async {
@@ -47,27 +56,78 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
+  Future<void> _syncCacheWithDatabase() async {
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('reels')
+        .orderBy('time', descending: true)
+        .get();
+
+    List<DocumentSnapshot> latestVideos = snapshot.docs;
+    List<String> latestIds =
+        latestVideos.map((doc) => doc['id'] as String).toList();
+
+    final cachedFiles = await VideoCacheManager.getCachedFiles();
+    for (var file in cachedFiles) {
+      String cachedId = file.path.split('/').last.split('.').first;
+      if (!latestIds.contains(cachedId)) {
+        await VideoCacheManager.deleteVideo(cachedId);
+      }
+    }
+    for (int i = 0; i < latestVideos.length; i++) {
+      var videoData = latestVideos[i].data() as Map<String, dynamic>;
+      String videoId = videoData['id'];
+      bool isCached = await VideoCacheManager.isCached(videoId);
+      if (!isCached) {
+        await VideoCacheManager.cacheVideo(videoId, videoData['reelsVideo']);
+      }
+    }
+
+    setState(() {
+      _videos = latestVideos;
+    });
+
+    for (int i = _currentIndex - 3; i <= _currentIndex + 3; i++) {
+      _preloadVideo(i);
+    }
+  }
+
   void _preloadVideo(int index) async {
-    if (index < 0 || index >= _videos.length || _controllers.containsKey(index)) return;
+    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
+      return;
 
     var videoData = _videos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
     var videoId = videoData['id'];
 
-    String videoPath = await VideoCacheManager.cacheVideo(videoId, videoUrl);
-    final controller = VideoPlayerController.file(File(videoPath));
+    bool isCached = await VideoCacheManager.isCached(videoId);
+    VideoPlayerController controller;
 
+    if (isCached) {
+      String path = await VideoCacheManager.getVideoPath(videoId);
+      controller = VideoPlayerController.file(File(path));
+    } else {
+      controller = VideoPlayerController.network(videoUrl);
+      controller.addListener(() async {
+        if (controller.value.isInitialized &&
+            !_controllers.containsKey(index)) {
+          _controllers[index] = controller;
+          setState(() {});
+          await VideoCacheManager.cacheVideo(videoId, videoUrl);
+        }
+      });
+    }
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
+    await controller.initialize();
 
-    controller.initialize().then((_) {
+    if (index == _currentIndex) {
+      controller.play();
+    }
+
+    if (!_controllers.containsKey(index)) {
+      _controllers[index] = controller;
       setState(() {});
-      if (index == _currentIndex) {
-        Future.delayed(Duration(milliseconds: 300), () {
-          controller.play();
-        });
-      }
-    });
+    }
   }
 
   void _onPageChanged(int index) {
@@ -87,6 +147,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   @override
   void dispose() {
+    _syncTimer?.cancel();
     _controllers.forEach((key, controller) => controller.dispose());
     super.dispose();
   }
@@ -151,27 +212,27 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _toggleLike() async {
-  final reelRef =
-      FirebaseFirestore.instance.collection('reels').doc(widget.videoData['id']);
+    final reelRef = FirebaseFirestore.instance
+        .collection('reels')
+        .doc(widget.videoData['id']);
 
-  setState(() {
-    liked = !liked;
-    likes += liked ? 1 : -1;
-    showHeart = true;
-  });
-
-  // Atomically increment or decrement the like count
-  await reelRef.update({
-    'likes': FieldValue.increment(liked ? 1 : -1),
-  });
-
-  Future.delayed(Duration(milliseconds: 500), () {
     setState(() {
-      showHeart = false;
+      liked = !liked;
+      likes += liked ? 1 : -1;
+      showHeart = true;
     });
-  });
-}
 
+    // Atomically increment or decrement the like count
+    await reelRef.update({
+      'likes': FieldValue.increment(liked ? 1 : -1),
+    });
+
+    Future.delayed(Duration(milliseconds: 500), () {
+      setState(() {
+        showHeart = false;
+      });
+    });
+  }
 
   void _shareVideo() {
     Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
@@ -226,7 +287,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   // Block user logic (e.g., mark the user as blocked in Firestore)
   void _blockUser() {
     // You can add logic here to block the user (update Firestore, etc.)
-     Get.snackbar("Blocked", "user has been blocked");
+    Get.snackbar("Blocked", "user has been blocked");
   }
 
   @override
@@ -303,9 +364,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             }
 
                             DocumentSnapshot postingSnapshot = snapshot.data!;
-                            PostingModel cPosting = PostingModel(
-                                id: widget.videoData['postingId']);
-                            cPosting.getPostingInfoFromSnapshot(postingSnapshot);
+                            PostingModel cPosting =
+                                PostingModel(id: widget.videoData['postingId']);
+                            cPosting
+                                .getPostingInfoFromSnapshot(postingSnapshot);
 
                             return GestureDetector(
                               onTap: () {

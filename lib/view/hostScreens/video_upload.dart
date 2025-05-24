@@ -207,15 +207,18 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Upload Video'),
-      ),
-      body: Padding(
+Widget build(BuildContext context) {
+  double screenWidth = MediaQuery.of(context).size.width;
+
+  return Scaffold(
+    appBar: AppBar(
+      title: Text('Upload Video'),
+    ),
+    body: SingleChildScrollView(
+      child: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _videoFile == null
                 ? Text("No video selected")
@@ -233,9 +236,8 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
               child: Text("Select Video"),
             ),
             SizedBox(height: 20),
-            // Dropdown to select posting ID
             _postings.isEmpty
-                ? CircularProgressIndicator() // Show a loader if postings are still empty
+                ? CircularProgressIndicator()
                 : DropdownButton<String>(
                     hint: Text("Select Posting"),
                     value: _selectedPostingId,
@@ -252,7 +254,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                     }).toList(),
                   ),
             SizedBox(height: 20),
-            // Checkbox for agreeing to terms of use
             Row(
               children: [
                 Checkbox(
@@ -273,20 +274,18 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
             ),
             SizedBox(height: 20),
             _isUploading
-                ? Center(
-                    child:
-                        CircularProgressIndicator()) // Show loading indicator
+                ? Center(child: CircularProgressIndicator())
                 : ElevatedButton(
                     onPressed: _uploadVideo,
                     child: Text("Upload Video"),
                   ),
             SizedBox(height: 20),
-            // Video upload guidelines
             Text(
               'End User License Agreement',
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: screenWidth * 0.05), // Responsive text size
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.05,
+              ),
             ),
             SizedBox(height: 10),
             Text(
@@ -300,12 +299,15 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
               '8. Violations may result in content removal or account ban.\n'
               '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any music included in their videos.',
               style: TextStyle(
-                  fontSize: screenWidth * 0.04,
-                  color: Colors.black), // Responsive text size
+                fontSize: screenWidth * 0.04,
+                color: Colors.black,
+              ),
             ),
+            SizedBox(height: 30), // Bottom padding
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

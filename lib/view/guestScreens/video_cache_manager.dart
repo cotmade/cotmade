@@ -1,44 +1,73 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 class VideoCacheManager {
-  /// Get the local directory for storing cached videos
-  static Future<String> _getLocalPath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = '${directory.path}/cached_videos';
-    await Directory(path).create(recursive: true);
-    return path;
+  // Extract extension from URL (default to .mp4 if not found)
+  static String _getExtensionFromUrl(String url) {
+    String extension = path.extension(url).split('?').first;
+    return extension.isNotEmpty ? extension : '.mp4';
   }
 
-  /// Get the file name with correct extension from URL
-  static String _getFileName(String videoId, String url) {
-    final ext = p.extension(url); // e.g. .mp4 or .mov
-    return '$videoId$ext';
+  // Cache video with correct extension
+  static Future<String> cacheVideo(String videoId, String videoUrl) async {
+    try {
+      final cacheDir = await getTemporaryDirectory();
+      final extension = _getExtensionFromUrl(videoUrl);
+      final filePath = '${cacheDir.path}/$videoId$extension';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        return file.path;
+      }
+
+      final response = await http.get(Uri.parse(videoUrl));
+      if (response.statusCode == 200) {
+        await file.writeAsBytes(response.bodyBytes);
+        return file.path;
+      } else {
+        throw Exception('Failed to download video');
+      }
+    } catch (e) {
+      print("Cache error: $e");
+      rethrow;
+    }
   }
 
-  /// Get the File reference for the video
-  static Future<File> _getVideoFile(String videoId, String url) async {
-    final path = await _getLocalPath();
-    final fileName = _getFileName(videoId, url);
-    return File('$path/$fileName');
+  // Check if cached by searching for any extension
+  static Future<bool> isCached(String videoId) async {
+    final cacheDir = await getTemporaryDirectory();
+    final files = cacheDir.listSync().whereType<File>();
+    return files
+        .any((file) => path.basenameWithoutExtension(file.path) == videoId);
   }
 
-  /// Check if video is already cached
-  static Future<String?> getCachedVideo(String videoId, String url) async {
-    final file = await _getVideoFile(videoId, url);
-    return file.existsSync() ? file.path : null;
+  // Get the cached file path regardless of extension
+  static Future<String> getVideoPath(String videoId) async {
+    final cacheDir = await getTemporaryDirectory();
+    final files = cacheDir.listSync().whereType<File>();
+    final match = files.firstWhere(
+      (file) => path.basenameWithoutExtension(file.path) == videoId,
+      orElse: () => throw Exception('Cached video not found'),
+    );
+    return match.path;
   }
 
-  /// Download and cache the video if not already cached
-  static Future<String> cacheVideo(String videoId, String url) async {
-    final file = await _getVideoFile(videoId, url);
+  // Delete video (any extension)
+  static Future<void> deleteVideo(String videoId) async {
+    final cacheDir = await getTemporaryDirectory();
+    final files = cacheDir.listSync().whereType<File>();
+    for (var file in files) {
+      if (path.basenameWithoutExtension(file.path) == videoId) {
+        await file.delete();
+      }
+    }
+  }
 
-    if (await file.exists()) return file.path;
-
-    final dio = Dio();
-    await dio.download(url, file.path);
-    return file.path;
+  // Return all cached video files
+  static Future<List<File>> getCachedFiles() async {
+    final cacheDir = await getTemporaryDirectory();
+    return cacheDir.listSync().whereType<File>().toList();
   }
 }
