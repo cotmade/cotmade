@@ -69,6 +69,7 @@ dependencies:
   in_app_purchase: ^3.0.0
   upgrader:
   dio: ^5.7.0
+  flutter_cached_video_player_plus:
 
 dev_dependencies:
   flutter_test:
