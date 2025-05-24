@@ -282,8 +282,6 @@ class _ViewPostScreenState extends State<ViewPostScreen> {
                                         fontWeight: FontWeight.bold,
                                         color: Colors
                                             .black, // Optional: Make it look like a link
-                                        decoration: TextDecoration
-                                            .underline, // Optional: underline for clarity
                                       ),
                                     ),
                                   ),

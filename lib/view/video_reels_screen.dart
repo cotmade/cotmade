@@ -92,41 +92,75 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   void _preloadVideo(int index) async {
-    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
-      return;
+    if (index < 0 || index >= _videos.length) return;
+    if (_controllers.containsKey(index)) return;
 
     var videoData = _videos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
     var videoId = videoData['id'];
 
     bool isCached = await VideoCacheManager.isCached(videoId);
+
     VideoPlayerController controller;
 
     if (isCached) {
+      // Load from cached file immediately
       String path = await VideoCacheManager.getVideoPath(videoId);
-      controller = VideoPlayerController.file(File(path));
+      File cachedFile = File(path);
+
+      if (await cachedFile.exists()) {
+        controller = VideoPlayerController.file(cachedFile);
+        await controller.initialize();
+      } else {
+        // If cached file missing, fallback to network
+        controller = VideoPlayerController.network(videoUrl);
+        await controller.initialize();
+        isCached = false; // mark as not cached so we try caching later
+      }
     } else {
+      // Load from network immediately
       controller = VideoPlayerController.network(videoUrl);
-      controller.addListener(() async {
-        if (controller.value.isInitialized &&
-            !_controllers.containsKey(index)) {
-          _controllers[index] = controller;
-          setState(() {});
-          await VideoCacheManager.cacheVideo(videoId, videoUrl);
-        }
-      });
+      await controller.initialize();
     }
+
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
-    await controller.initialize();
+
+    _controllers[index] = controller;
+    setState(() {}); // Update UI to show this controller
 
     if (index == _currentIndex) {
       controller.play();
     }
 
-    if (!_controllers.containsKey(index)) {
-      _controllers[index] = controller;
-      setState(() {});
+    // If video is not cached, start caching in background and swap controller when done
+    if (!isCached) {
+      VideoCacheManager.cacheVideo(videoId, videoUrl).then((_) async {
+        String cachedPath = await VideoCacheManager.getVideoPath(videoId);
+        File cachedFile = File(cachedPath);
+        if (await cachedFile.exists()) {
+          VideoPlayerController cachedController =
+              VideoPlayerController.file(cachedFile);
+          await cachedController.initialize();
+          cachedController.setLooping(true);
+          cachedController.setVolume(_isMuted ? 0.0 : 1.0);
+
+          // Replace old controller with cached controller smoothly
+          if (_controllers.containsKey(index)) {
+            await _controllers[index]!.pause();
+            _controllers[index]!.dispose();
+          }
+
+          _controllers[index] = cachedController;
+
+          // If this is currently visible video, play cached video immediately
+          if (index == _currentIndex) {
+            cachedController.play();
+          }
+
+          setState(() {}); // Refresh UI with cached video controller
+        }
+      });
     }
   }
 

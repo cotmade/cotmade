@@ -9,9 +9,6 @@ import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/unregisteredScreens/userprofile_screen.dart';
 import 'package:cotmade/view/login_screen.dart';
-import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
-import 'dart:io';
-import 'dart:async';
 
 class ViewVideoScreen extends StatefulWidget {
   @override
@@ -24,20 +21,12 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
   Map<int, VideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
-  Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _loadVideos();
-    _startSyncTimer();
-  }
-
-  void _startSyncTimer() {
-    _syncTimer = Timer.periodic(Duration(minutes: 1), (timer) {
-      _syncCacheWithDatabase();
-    });
   }
 
   Future<void> _loadVideos() async {
@@ -57,78 +46,27 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
     }
   }
 
-  Future<void> _syncCacheWithDatabase() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('reels')
-        .orderBy('time', descending: true)
-        .get();
-
-    List<DocumentSnapshot> latestVideos = snapshot.docs;
-    List<String> latestIds =
-        latestVideos.map((doc) => doc['id'] as String).toList();
-
-    final cachedFiles = await VideoCacheManager.getCachedFiles();
-    for (var file in cachedFiles) {
-      String cachedId = file.path.split('/').last.split('.').first;
-      if (!latestIds.contains(cachedId)) {
-        await VideoCacheManager.deleteVideo(cachedId);
-      }
-    }
-    for (int i = 0; i < latestVideos.length; i++) {
-      var videoData = latestVideos[i].data() as Map<String, dynamic>;
-      String videoId = videoData['id'];
-      bool isCached = await VideoCacheManager.isCached(videoId);
-      if (!isCached) {
-        await VideoCacheManager.cacheVideo(videoId, videoData['reelsVideo']);
-      }
-    }
-
-    setState(() {
-      _videos = latestVideos;
-    });
-
-    for (int i = _currentIndex - 3; i <= _currentIndex + 3; i++) {
-      _preloadVideo(i);
-    }
-  }
-
-  void _preloadVideo(int index) async {
+  void _preloadVideo(int index) {
     if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
       return;
 
     var videoData = _videos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
-    var videoId = videoData['id'];
 
-    bool isCached = await VideoCacheManager.isCached(videoId);
-    VideoPlayerController controller;
+    final controller = VideoPlayerController.network(videoUrl);
+    _controllers[index] = controller;
 
-    if (isCached) {
-      String path = await VideoCacheManager.getVideoPath(videoId);
-      controller = VideoPlayerController.file(File(path));
-    } else {
-      controller = VideoPlayerController.network(videoUrl);
-      controller.addListener(() async {
-        if (controller.value.isInitialized &&
-            !_controllers.containsKey(index)) {
-          _controllers[index] = controller;
-          setState(() {});
-          await VideoCacheManager.cacheVideo(videoId, videoUrl);
-        }
-      });
-    }
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0.0 : 1.0);
-    await controller.initialize();
 
-    if (index == _currentIndex) {
-      controller.play();
-    }
-
-    if (!_controllers.containsKey(index)) {
-      _controllers[index] = controller;
+    controller.initialize().then((_) {
       setState(() {});
-    }
+      if (index == _currentIndex) {
+        Future.delayed(Duration(milliseconds: 300), () {
+          controller.play();
+        });
+      }
+    });
   }
 
   void _onPageChanged(int index) {
@@ -148,7 +86,6 @@ class _ViewVideoScreenState extends State<ViewVideoScreen> {
 
   @override
   void dispose() {
-    _syncTimer?.cancel();
     _controllers.forEach((key, controller) => controller.dispose());
     super.dispose();
   }
@@ -284,6 +221,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     // You can add logic here to block the user (update Firestore, etc.)
     Get.snackbar("Login", "kindly login to block this user");
   }
+
 
   @override
   Widget build(BuildContext context) {

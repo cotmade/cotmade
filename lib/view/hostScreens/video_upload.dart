@@ -207,107 +207,115 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  double screenWidth = MediaQuery.of(context).size.width;
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
 
-  return Scaffold(
-    appBar: AppBar(
-      title: Text('Upload Video'),
-    ),
-    body: SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _videoFile == null
-                ? Text("No video selected")
-                : Text("Selected video: ${_videoFile!.path.split('/').last}"),
-            SizedBox(height: 20),
-            TextField(
-              onChanged: (value) {
-                _caption = value;
-              },
-              decoration: InputDecoration(hintText: 'Enter video caption'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _pickVideo,
-              child: Text("Select Video"),
-            ),
-            SizedBox(height: 20),
-            _postings.isEmpty
-                ? CircularProgressIndicator()
-                : DropdownButton<String>(
-                    hint: Text("Select Posting"),
-                    value: _selectedPostingId,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedPostingId = newValue;
-                      });
-                    },
-                    items: _postings.map((posting) {
-                      return DropdownMenuItem<String>(
-                        value: posting['id'],
-                        child: Text(posting['name']!),
-                      );
-                    }).toList(),
-                  ),
-            SizedBox(height: 20),
-            Row(
-              children: [
-                Checkbox(
-                  value: _isTermsAccepted,
-                  onChanged: (bool? newValue) {
-                    setState(() {
-                      _isTermsAccepted = newValue!;
-                    });
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    "I agree to the Terms of Use",
-                    style: TextStyle(color: Colors.pinkAccent),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            _isUploading
-                ? Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    onPressed: _uploadVideo,
-                    child: Text("Upload Video"),
-                  ),
-            SizedBox(height: 20),
-            Text(
-              'End User License Agreement',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.05,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Upload Video'),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _videoFile == null
+                  ? Text("No video selected")
+                  : Text("Selected video: ${_videoFile!.path.split('/').last}"),
+              SizedBox(height: 20),
+              TextField(
+                onChanged: (value) {
+                  _caption = value;
+                },
+                decoration: InputDecoration(hintText: 'Enter video caption'),
               ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              '1. Ensure the video/image does not contain any offensive or inappropriate content.\n'
-              '2. Do not upload videos/image that contain phone numbers, or any personal information.\n'
-              '3. Avoid uploading videos/images that violate copyright laws.\n'
-              '4. Ensure the video/image quality is clear and not overly pixelated.\n'
-              '5. Videos/images should be related to your listing and relevant to the content.\n'
-              '6. If your video/image exceeds 20MB, it will be compressed automatically.\n'
-              '7. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
-              '8. Violations may result in content removal or account ban.\n'
-              '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any music included in their videos.',
-              style: TextStyle(
-                fontSize: screenWidth * 0.04,
-                color: Colors.black,
+              SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _pickVideo,
+                  child: Text("Select Video"),
+                ),
               ),
-            ),
-            SizedBox(height: 30), // Bottom padding
-          ],
+              SizedBox(height: 20),
+              Center(
+                child: _postings.isEmpty
+                    ? CircularProgressIndicator()
+                    : DropdownButton<String>(
+                        hint: Text("Select Posting"),
+                        value: _selectedPostingId,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedPostingId = newValue;
+                          });
+                        },
+                        items: _postings.map((posting) {
+                          return DropdownMenuItem<String>(
+                            value: posting['id'],
+                            child: Text(posting['name']!),
+                          );
+                        }).toList(),
+                      ),
+              ),
+              SizedBox(height: 20),
+              Center(
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _isTermsAccepted,
+                      onChanged: (bool? newValue) {
+                        setState(() {
+                          _isTermsAccepted = newValue!;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Text(
+                        "I agree to the Terms of Use",
+                        style: TextStyle(color: Colors.pinkAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              Center(
+                child: _isUploading
+                    ? Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        onPressed: _uploadVideo,
+                        child: Text("Upload Video"),
+                      ),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'End User License Agreement',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: screenWidth * 0.05,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '1. Ensure the video/image does not contain any offensive or inappropriate content.\n'
+                '2. Do not upload videos/image that contain phone numbers, or any personal information.\n'
+                '3. Avoid uploading videos/images that violate copyright laws.\n'
+                '4. Ensure the video/image quality is clear and not overly pixelated.\n'
+                '5. Videos/images should be related to your listing and relevant to the content.\n'
+                '6. If your video/image exceeds 20MB, it will be compressed automatically.\n'
+                '7. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
+                '8. Violations may result in content removal or account ban.\n'
+                '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any music included in their videos.',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.04,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 30), // Bottom padding
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
