@@ -23,7 +23,8 @@ class VideoReelsPage extends StatefulWidget {
 
 class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
-  List<DocumentSnapshot> _videos = [];
+  List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cache
+  List<DocumentSnapshot> _filteredVideos = [];
   Map<int, CachedVideoPlayerController> _controllers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
@@ -34,9 +35,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    _loadVideos();
+    _loadVideos(); // Load videos from Firestore initially
   }
 
+  // Function to load videos from Firestore and cache them locally
   Future<void> _loadVideos() async {
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('reels')
@@ -44,25 +46,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         .get();
 
     setState(() {
-      _videos = snapshot.docs;
+      _allVideos = snapshot.docs; // Cache all videos locally
+      _filteredVideos = _allVideos; // Initially, show all videos
     });
 
-    if (_videos.isNotEmpty) {
-      // Preload first 4 videos
-      for (int i = 0; i <= 3 && i < _videos.length; i++) {
-        _preloadVideo(i);
-      }
-
-      // Start background caching from index 4 onwards
-      _cacheVideosInBackground(startFromIndex: 4);
+    // Preload first 4 videos from the cache
+    for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
+      _preloadVideo(i);
     }
+
+    // Start background caching for the rest of the videos
+    _cacheVideosInBackground(startFromIndex: 4);
   }
 
+  // Function to preload videos from the cache
   void _preloadVideo(int index) async {
-    if (index < 0 || index >= _videos.length || _controllers.containsKey(index))
-      return;
+    if (index < 0 ||
+        index >= _filteredVideos.length ||
+        _controllers.containsKey(index)) return;
 
-    var videoData = _videos[index].data() as Map<String, dynamic>;
+    var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
 
     final controller = CachedVideoPlayerController.network(videoUrl);
@@ -81,11 +84,12 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
+  // Function to cache videos in the background
   void _cacheVideosInBackground({required int startFromIndex}) async {
-    for (int i = startFromIndex; i < _videos.length; i++) {
+    for (int i = startFromIndex; i < _filteredVideos.length; i++) {
       if (_controllers.containsKey(i)) continue; // already cached
 
-      var videoData = _videos[i].data() as Map<String, dynamic>;
+      var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
       var videoUrl = videoData['reelsVideo'];
 
       final tempController = CachedVideoPlayerController.network(videoUrl);
@@ -101,39 +105,37 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
-  void _onPageChanged(int index) {
-    _controllers[_currentIndex]?.pause();
+  // Function to handle search filtering based on postings data
+  Future<void> _filterVideos() async {
+    String queryText = _searchController.text.toLowerCase();
+    if (queryText.isEmpty) {
+      setState(() {
+        _filteredVideos = _allVideos; // Show all videos if query is empty
+      });
+      return;
+    }
 
-    setState(() {
-      _currentIndex = index;
+    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('country', isGreaterThanOrEqualTo: queryText)
+        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
+
+    // Step 2: Get all matching postingIds from the postings collection
+    List<String> matchingPostingIds = [];
+    postingsSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
     });
 
-    if (_controllers[index] == null) {
-      _preloadVideo(index);
-    } else {
-      _controllers[index]?.play();
-    }
-
-    for (int i = index - 3; i <= index + 3; i++) {
-      if (i == index) continue;
-      _preloadVideo(i);
-    }
-  }
-
-  // Clear cache method
-  Future<void> _clearCache() async {
-    var cacheManager = DefaultCacheManager();
-    await cacheManager.emptyCache();
-    print("Cache cleared!");
-  }
-
-  // Handle pull-to-refresh action
-  Future<void> _onRefresh() async {
-    // Clear cache
-    await _clearCache();
-
-    // Reload the videos
-    await _loadVideos();
+    // Step 3: Filter the cached videos based on the matching postingIds
+    setState(() {
+      _filteredVideos = _allVideos.where((video) {
+        var videoData = video.data() as Map<String, dynamic>;
+        return matchingPostingIds.contains(videoData['postingId']);
+      }).toList();
+    });
   }
 
   @override
@@ -143,12 +145,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     super.dispose();
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _isSearchVisible = !_isSearchVisible;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,17 +152,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: _onRefresh, // Trigger refresh when pulled
-            child: _videos.isEmpty
+            onRefresh: _loadVideos, // Trigger refresh when pulled
+            child: _filteredVideos.isEmpty
                 ? Center(child: CircularProgressIndicator())
                 : PageView.builder(
                     controller: _pageController,
-                    itemCount: _videos.length,
+                    itemCount: _filteredVideos.length,
                     scrollDirection: Axis.vertical,
-                    onPageChanged: _onPageChanged,
+                    onPageChanged: (index) {
+                      _currentIndex = index;
+                      _preloadVideo(index); // Preload the current video
+                    },
                     itemBuilder: (context, index) {
                       var videoData =
-                          _videos[index].data() as Map<String, dynamic>;
+                          _filteredVideos[index].data() as Map<String, dynamic>;
                       return VideoReelsItem(
                         controller: _controllers[index],
                         videoData: videoData,
@@ -189,6 +188,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
               right: 16,
               child: TextField(
                 controller: _searchController,
+                onChanged: (value) {
+                  _filterVideos(); // Filter the cached videos based on the search query
+                },
                 decoration: InputDecoration(
                   hintText: 'Search...',
                   filled: true,
@@ -196,7 +198,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                   border: OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(Icons.close),
-                    onPressed: _toggleSearch,
+                    onPressed: () {
+                      setState(() {
+                        _isSearchVisible = false;
+                        _filteredVideos =
+                            _allVideos; // Reset to show all videos
+                      });
+                    },
                   ),
                 ),
               ),
@@ -204,8 +212,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _toggleSearch,
-        child: Icon(_isSearchVisible ? Icons.close : Icons.search, color: Colors.white),
+        onPressed: () {
+          setState(() {
+            _isSearchVisible = !_isSearchVisible;
+          });
+        },
+        child: Icon(_isSearchVisible ? Icons.close : Icons.search,
+            color: Colors.white),
       ),
     );
   }
@@ -290,8 +303,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        FeedbackScreen(),
+                    builder: (context) => FeedbackScreen(),
                   ),
                 );
               },
@@ -465,7 +477,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       icon: Icon(Icons.share, color: Colors.white),
                       onPressed: _shareVideo,
                     ),
-                    
                     IconButton(
                       icon: Icon(Icons.more_vert, color: Colors.white),
                       onPressed: _showMoreOptions,
