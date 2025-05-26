@@ -330,8 +330,8 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
       _beds = {'small': 0, 'medium': 0, 'large': 0};
 
       _bathrooms = {
-        'full': 0,
-        'half': 0,
+        'number': 0,
+        'toilet': 0,
       };
 
       _imagesList = [];
@@ -1138,33 +1138,37 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                           children: <Widget>[
                             //Full bathroom
                             AmenitiesUI(
-                              type: 'Full',
-                              startValue: _bathrooms!['full']!,
+                              type: 'Number',
+                              startValue: _bathrooms!['number']!,
                               decreaseValue: () {
-                                _bathrooms!['full'] = _bathrooms!['full']! - 1;
+                                _bathrooms!['number'] =
+                                    _bathrooms!['number']! - 1;
 
-                                if (_bathrooms!['full']! < 0) {
-                                  _bathrooms!['full'] = 0;
+                                if (_bathrooms!['number']! < 0) {
+                                  _bathrooms!['number'] = 0;
                                 }
                               },
                               increaseValue: () {
-                                _bathrooms!['full'] = _bathrooms!['full']! + 1;
+                                _bathrooms!['number'] =
+                                    _bathrooms!['number']! + 1;
                               },
                             ),
 
                             //Haldf bathroom
                             AmenitiesUI(
-                              type: 'Half',
-                              startValue: _bathrooms!['half']!,
+                              type: 'Toilet',
+                              startValue: _bathrooms!['toilet']!,
                               decreaseValue: () {
-                                _bathrooms!['half'] = _bathrooms!['half']! - 1;
+                                _bathrooms!['toilet'] =
+                                    _bathrooms!['toilet']! - 1;
 
-                                if (_bathrooms!['half']! < 0) {
-                                  _bathrooms!['half'] = 0;
+                                if (_bathrooms!['toilet']! < 0) {
+                                  _bathrooms!['toilet'] = 0;
                                 }
                               },
                               increaseValue: () {
-                                _bathrooms!['half'] = _bathrooms!['half']! + 1;
+                                _bathrooms!['toilet'] =
+                                    _bathrooms!['toilet']! + 1;
                               },
                             ),
                           ],

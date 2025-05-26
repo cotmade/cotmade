@@ -90,7 +90,7 @@ class PostingModel {
           child: Text(
             'currently unavailable at the moment',
             style: TextStyle(
-              color: Colors.black,
+              color: Colors.white,
               fontSize: 16,
             ),
           ),
@@ -226,12 +226,12 @@ class PostingModel {
   String getBathroomText() {
     String text = "";
 
-    if (bathrooms!["full"] != 0) {
-      text = text + bathrooms!["full"].toString() + " full ";
+    if (bathrooms!["number"] != 0) {
+      text = text + bathrooms!["number"].toString() + " full ";
     }
 
-    if (bathrooms!["half"] != 0) {
-      text = text + bathrooms!["half"].toString() + " half ";
+    if (bathrooms!["toilet"] != 0) {
+      text = text + bathrooms!["toilet"].toString() + " half ";
     }
 
     return text;

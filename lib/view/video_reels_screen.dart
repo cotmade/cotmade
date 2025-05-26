@@ -15,6 +15,7 @@ import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plu
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -26,6 +27,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cache
   List<DocumentSnapshot> _filteredVideos = [];
   Map<int, CachedVideoPlayerController> _controllers = {};
+  Map<int, AudioPlayer> _audioPlayers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
   bool _isSearchVisible = false;
@@ -67,13 +69,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
+    var audioName = videoData['audioName'];
 
     final controller = CachedVideoPlayerController.network(videoUrl);
     _controllers[index] = controller;
 
     await controller.initialize();
     controller.setLooping(true);
-    controller.setVolume(_isMuted ? 0.0 : 1.0);
+    controller.setVolume(0.0); // Muting video sound
+
+    // Play the audio from the assets
+    _playAudio(index, audioName);
 
     setState(() {});
 
@@ -82,6 +88,42 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         controller.play();
       });
     }
+    // Add listener to stop audio when video ends
+    controller.addListener(() {
+      if (!controller.value.isPlaying) {
+        // Stop the audio when the video finishes
+        _audioPlayers[index]?.stop();
+      }
+    });
+
+    // Add another listener to pause audio when video pauses
+    controller.addListener(() {
+      if (controller.value.position == controller.value.duration) {
+        _audioPlayers[index]?.stop();
+      }
+    });
+  }
+
+  // Play audio from assets
+  void _playAudio(int index, String audioName) {
+    AudioPlayer audioPlayer = AudioPlayer();
+    _audioPlayers[index] = audioPlayer;
+
+    // Load and play the audio from assets
+    audioPlayer.play(AssetSource('audio/$audioName'));
+
+    // Sync the audio to stop when the video ends
+    _controllers[index]?.addListener(() {
+      if (!_controllers[index]!.value.isPlaying) {
+        _audioPlayers[index]?.stop(); // Stop audio when the video ends
+      }
+
+      // Ensure the audio stops at the right point
+      if (_controllers[index]!.value.position ==
+          _controllers[index]!.value.duration) {
+        _audioPlayers[index]?.stop();
+      }
+    });
   }
 
   // Function to cache videos in the background
@@ -105,9 +147,14 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
+  String formatSearchQuery(String query) {
+    if (query.isEmpty) return query;
+    return query[0].toUpperCase() + query.substring(1).toLowerCase();
+  }
+
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = _searchController.text.toLowerCase();
+    String queryText = formatSearchQuery(_searchController.text);
     if (queryText.isEmpty) {
       setState(() {
         _filteredVideos = _allVideos; // Show all videos if query is empty
@@ -141,6 +188,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   @override
   void dispose() {
     _controllers.forEach((key, controller) => controller.dispose());
+    _audioPlayers.forEach((key, player) => player.dispose());
     _pageController.dispose();
     super.dispose();
   }
@@ -170,6 +218,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                         controller: _controllers[index],
                         videoData: videoData,
                         isMuted: _isMuted,
+                        audioName: videoData['audioName'], // Pass audio name
                         onToggleMute: () {
                           setState(() {
                             _isMuted = !_isMuted;
@@ -191,13 +240,24 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 onChanged: (value) {
                   _filterVideos(); // Filter the cached videos based on the search query
                 },
+                style: TextStyle(
+                    color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
                   hintText: 'Search...',
+                  hintStyle: TextStyle(
+                      color: Colors.white60), // Lighter color for hint text
                   filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(),
+                  fillColor: Colors.black, // Background color of the TextField
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: Colors.pinkAccent,
+                        width: 2), // Pink accent border
+                    borderRadius:
+                        BorderRadius.circular(8), // Optional: rounded corners
+                  ),
                   suffixIcon: IconButton(
-                    icon: Icon(Icons.close),
+                    icon: Icon(Icons.close,
+                        color: Colors.white), // Close icon in white
                     onPressed: () {
                       setState(() {
                         _isSearchVisible = false;
@@ -217,8 +277,11 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             _isSearchVisible = !_isSearchVisible;
           });
         },
-        child: Icon(_isSearchVisible ? Icons.close : Icons.search,
-            color: Colors.white),
+        backgroundColor: Colors.black, // Set the background color to black
+        child: Icon(
+          _isSearchVisible ? Icons.close : Icons.search,
+          color: Colors.white, // Set the icon color to white
+        ),
       ),
     );
   }
@@ -229,12 +292,14 @@ class VideoReelsItem extends StatefulWidget {
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final VoidCallback onToggleMute;
+  final String audioName;
 
   VideoReelsItem({
     required this.controller,
     required this.videoData,
     required this.isMuted,
     required this.onToggleMute,
+    required this.audioName,
   });
 
   @override
@@ -404,15 +469,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final city = data['city'] ?? 'Unknown City';
                             final country =
                                 data['country'] ?? 'Unknown Country';
-                            final address =
-                                data['address'] ?? 'Unknown Address';
 
                             return Container(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '$address\n $city\n $country',
+                                    '$city\n $country',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -460,13 +523,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   children: [
                     IconButton(
                       icon: Icon(
-                        widget.isMuted ? Icons.volume_off : Icons.volume_up,
-                        color: Colors.white,
-                      ),
-                      onPressed: widget.onToggleMute,
-                    ),
-                    IconButton(
-                      icon: Icon(
                         liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
                         color: liked ? Colors.pinkAccent : Colors.white,
                       ),
@@ -480,6 +536,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     IconButton(
                       icon: Icon(Icons.more_vert, color: Colors.white),
                       onPressed: _showMoreOptions,
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        widget.isMuted ? Icons.volume_off : Icons.volume_up,
+                        color: Colors.white,
+                      ),
+                      onPressed: widget.onToggleMute,
                     ),
                   ],
                 ),

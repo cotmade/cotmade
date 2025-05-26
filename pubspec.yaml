@@ -70,6 +70,9 @@ dependencies:
   upgrader:
   dio: ^5.7.0
   flutter_cached_video_player_plus:
+  audioplayers:
+  flutter_sound:
+
 
 dev_dependencies:
   flutter_test:
@@ -89,6 +92,7 @@ flutter:
   uses-material-design: true
   assets:
     - images/
+    - audio/
   
   # fonts:
   #   - family: Schyler

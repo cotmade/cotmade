@@ -7,6 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/model/app_constants.dart';
+import 'package:video_player/video_player.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:cotmade/model/app_constants.dart';
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -20,17 +23,29 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   File? _videoFile;
+  String? _audioName; // Track selected audio name
+  VideoPlayerController? _videoController; // Video controller
   String? _caption;
   bool _isUploading = false;
   bool _isTermsAccepted = false; // Track checkbox state
   String? _selectedPostingId; // To hold the selected posting ID
   List<Map<String, String>> _postings =
       []; // List to hold posting IDs and names
+  bool _audioFinished = false;
+  FlutterSoundPlayer? _audioPlayer; // Audio player for preview
 
   @override
   void initState() {
     super.initState();
     _fetchUserPostings(); // Fetch the posting IDs associated with the current user
+    _audioPlayer = FlutterSoundPlayer(); // Initialize audio player
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose(); // Dispose video controller
+    _audioPlayer?.stopPlayer(); // Dispose audio player
+    super.dispose();
   }
 
   // Fetch posting IDs from the current user's document
@@ -75,11 +90,62 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   Future<void> _pickVideo() async {
     final XFile? pickedFile =
         await _picker.pickVideo(source: ImageSource.gallery);
-
     if (pickedFile != null) {
       setState(() {
         _videoFile = File(pickedFile.path);
+        _videoController = VideoPlayerController.file(_videoFile!)
+          ..initialize().then((_) {
+            setState(() {}); // Ensure the video player is initialized
+          });
       });
+    }
+  }
+
+  // Pick an audio file from assets
+  Future<void> _pickAudio() async {
+    // Let's assume you have an assets folder with audio files
+    final audioFiles = [
+      'cinematic-intro.mp3',
+      'gospel-choir-heavenly.mp3',
+      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
+    ]; // Example audio files in assets
+
+    final selectedAudio = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Audio'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: audioFiles.map((audio) {
+              return ListTile(
+                title: Text(audio),
+                onTap: () {
+                  Navigator.of(context).pop(audio); // Return selected audio
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+
+    if (selectedAudio != null) {
+      setState(() {
+        _audioName = selectedAudio;
+        _audioFinished = false;
+      });
+
+      // Play the selected audio for preview
+      await _audioPlayer?.startPlayer(
+        fromURI:
+            'audio/$selectedAudio', // Assuming audio is in the assets folder
+        whenFinished: () {
+          setState(() {
+            _audioFinished = true; // Reset UI when audio finishes
+          });
+        },
+      );
     }
   }
 
@@ -192,6 +258,8 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'email': email, // Non-nullable string
         'likes': 0,
         'postId': fileName,
+        'hostID': AppConstants.currentUser.id,
+        'audioName': _audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID
         'reelsVideo': videoUrl,
         'time': Timestamp.now(),
@@ -212,7 +280,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Upload Video'),
+        title: Text('upload video'),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -222,7 +290,23 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
             children: [
               _videoFile == null
                   ? Text("No video selected")
-                  : Text("Selected video: ${_videoFile!.path.split('/').last}"),
+                  : Column(
+                      children: [
+                        Container(
+                          height: 200,
+                          child: _videoController == null ||
+                                  !_videoController!.value.isInitialized
+                              ? Center(child: CircularProgressIndicator())
+                              : VideoPlayer(_videoController!),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _videoController?.pause();
+                          },
+                          child: Text('Pause Video'),
+                        ),
+                      ],
+                    ),
               SizedBox(height: 20),
               TextField(
                 onChanged: (value) {
@@ -236,6 +320,17 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                   onPressed: _pickVideo,
                   child: Text("Select Video"),
                 ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _pickAudio,
+                child: Text("Select Audio"),
+              ),
+              SizedBox(height: 20),
+              Text(
+                _audioName == null
+                    ? "No audio selected"
+                    : "Selected Audio: $_audioName",
               ),
               SizedBox(height: 20),
               Center(
