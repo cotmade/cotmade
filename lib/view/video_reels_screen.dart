@@ -110,7 +110,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     _audioPlayers[index] = audioPlayer;
 
     // Load and play the audio from assets
-    audioPlayer.play(AssetSource('audio/$audioName'));
+    audioPlayer.play(AssetSource('assets/audio/$audioName'));
 
     // Sync the audio to stop when the video ends
     _controllers[index]?.addListener(() {
@@ -169,9 +169,21 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
         .get();
 
+    // Query for city as well
+    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('city', isGreaterThanOrEqualTo: queryText)
+        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
+
     // Step 2: Get all matching postingIds from the postings collection
     List<String> matchingPostingIds = [];
     postingsSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
+
+    citySnapshot.docs.forEach((doc) {
       var data = doc.data() as Map<String, dynamic>;
       matchingPostingIds.add(data['id']);
     });
@@ -193,6 +205,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     super.dispose();
   }
 
+  // Clear cache when refreshing
+  Future<void> _clearCache() async {
+    // Dispose of all controllers and audio players
+    _controllers.forEach((key, controller) => controller.dispose());
+    _audioPlayers.forEach((key, player) => player.dispose());
+
+    // Clear the maps holding the controllers and audio players
+    _controllers.clear();
+    _audioPlayers.clear();
+  }
+
+  // Function to handle the refresh action
+  Future<void> _refreshVideos() async {
+    // Clear the cache first
+    await _clearCache();
+
+    // Reload videos from Firestore
+    await _loadVideos();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -200,7 +232,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: _loadVideos, // Trigger refresh when pulled
+            onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
                 ? Center(child: CircularProgressIndicator())
                 : PageView.builder(
@@ -230,6 +262,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     },
                   ),
           ),
+          // Display audio name at the top left
+
           if (_isSearchVisible)
             Positioned(
               top: 40,
@@ -396,6 +430,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
       return Center(child: CircularProgressIndicator());
     }
 
+    // Extracting audioName from the videoData
+    final audioName = widget.videoData['audioName'] ?? "Unknown Audio";
+
     return GestureDetector(
       onDoubleTap: _toggleLike,
       onLongPress: _pausePlayVideo,
@@ -409,6 +446,18 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 width: widget.controller!.value.size.width,
                 height: widget.controller!.value.size.height,
                 child: CachedVideoPlayer(widget.controller!),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 20, // Adjust position as necessary
+            left: 16,
+            child: Text(
+              widget.audioName, // Display the audio name
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
             ),
           ),

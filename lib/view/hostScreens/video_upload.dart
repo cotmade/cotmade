@@ -32,6 +32,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   List<Map<String, String>> _postings =
       []; // List to hold posting IDs and names
   bool _audioFinished = false;
+  bool _isPlaying = false;
   FlutterSoundPlayer? _audioPlayer; // Audio player for preview
 
   @override
@@ -133,13 +134,16 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     if (selectedAudio != null) {
       setState(() {
         _audioName = selectedAudio;
-        _audioFinished = false;
+        _audioFinished = false; // Reset audio finish state
       });
 
-      // Play the selected audio for preview
+      // Stop the previous audio player if any
+      await _audioPlayer?.stopPlayer();
+
+      // Start playing the selected audio for preview
       await _audioPlayer?.startPlayer(
         fromURI:
-            'audio/$selectedAudio', // Assuming audio is in the assets folder
+            'assets/audio/$selectedAudio', // Assuming audio is in the assets folder
         whenFinished: () {
           setState(() {
             _audioFinished = true; // Reset UI when audio finishes
@@ -147,6 +151,29 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         },
       );
     }
+  }
+
+  // Play or Pause the audio
+  Future<void> _toggleAudioPlayback() async {
+    if (_isPlaying) {
+      // Pause the audio
+      await _audioPlayer?.pausePlayer();
+    } else {
+      // Start the audio or resume from the paused state
+      await _audioPlayer?.startPlayer(
+        fromURI: 'assets/audio/$_audioName', // Play the selected audio
+        whenFinished: () {
+          setState(() {
+            _audioFinished = true; // Reset when the audio finishes
+          });
+        },
+      );
+    }
+
+    // Toggle the playing state
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
   }
 
   // Compress the video if its size exceeds 20MB
@@ -258,7 +285,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'email': email, // Non-nullable string
         'likes': 0,
         'postId': fileName,
-        'hostID': AppConstants.currentUser.id,
         'audioName': _audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID
         'reelsVideo': videoUrl,
@@ -299,21 +325,9 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                               ? Center(child: CircularProgressIndicator())
                               : VideoPlayer(_videoController!),
                         ),
-                        ElevatedButton(
-                          onPressed: () {
-                            _videoController?.pause();
-                          },
-                          child: Text('Pause Video'),
-                        ),
                       ],
                     ),
-              SizedBox(height: 20),
-              TextField(
-                onChanged: (value) {
-                  _caption = value;
-                },
-                decoration: InputDecoration(hintText: 'Enter video caption'),
-              ),
+
               SizedBox(height: 20),
               Center(
                 child: ElevatedButton(
@@ -322,16 +336,35 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 ),
               ),
               SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _pickAudio,
-                child: Text("Select Audio"),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _pickAudio,
+                  child: Text("Select Audio"),
+                ),
               ),
               SizedBox(height: 20),
-              Text(
-                _audioName == null
-                    ? "No audio selected"
-                    : "Selected Audio: $_audioName",
+              Center(
+                child: Text(
+                  _audioName == null ? "No audio selected" : "$_audioName",
+                ),
               ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: _toggleAudioPlayback,
+                child: Text(_isPlaying ? "Pause Audio" : "Play Audio"),
+              ),
+              // Audio control UI
+              if (_isPlaying)
+                Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: CircularProgressIndicator(),
+                ),
+              if (_audioFinished)
+                Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text("Audio Finished"),
+                ),
+              SizedBox(height: 10),
               SizedBox(height: 20),
               Center(
                 child: _postings.isEmpty
@@ -351,6 +384,13 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                           );
                         }).toList(),
                       ),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                onChanged: (value) {
+                  _caption = value;
+                },
+                decoration: InputDecoration(hintText: 'Enter video caption'),
               ),
               SizedBox(height: 20),
               Center(
@@ -379,7 +419,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                     ? Center(child: CircularProgressIndicator())
                     : ElevatedButton(
                         onPressed: _uploadVideo,
-                        child: Text("Upload Video"),
+                        child: Text("submit"),
                       ),
               ),
               SizedBox(height: 20),
@@ -400,7 +440,8 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 '6. If your video/image exceeds 20MB, it will be compressed automatically.\n'
                 '7. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
                 '8. Violations may result in content removal or account ban.\n'
-                '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any music included in their videos.',
+                '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any content included in their videos.',
+                textAlign: TextAlign.justify,
                 style: TextStyle(
                   fontSize: screenWidth * 0.04,
                   color: Colors.black,
