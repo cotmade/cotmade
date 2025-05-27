@@ -71,7 +71,7 @@ dependencies:
   dio: ^5.7.0
   flutter_cached_video_player_plus:
   flutter_sound:
-  just_audio:
+  just_audio: ^0.9.43
 
 
 dev_dependencies:
