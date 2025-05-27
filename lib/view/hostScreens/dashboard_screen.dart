@@ -286,7 +286,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   Future<void> _fetchUserReels() async {
     QuerySnapshot reelsSnapshot = await FirebaseFirestore.instance
         .collection('reels')
-        .where('userID', isEqualTo: userId)
+        .where('uid', isEqualTo: userId)
         .get();
 
     List<Map<String, dynamic>> tempReels = reelsSnapshot.docs.map((doc) {
