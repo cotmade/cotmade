@@ -10,6 +10,7 @@ import 'package:cotmade/model/app_constants.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
+import 'package:just_audio/just_audio.dart';
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -17,6 +18,7 @@ class VideoUploadPage extends StatefulWidget {
 }
 
 class _VideoUploadPageState extends State<VideoUploadPage> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -32,20 +34,18 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   List<Map<String, String>> _postings =
       []; // List to hold posting IDs and names
   bool _audioFinished = false;
-  bool _isPlaying = false;
-  FlutterSoundPlayer? _audioPlayer; // Audio player for preview
+  bool _isPlaying = false; // Audio player for preview
 
   @override
   void initState() {
     super.initState();
-    _fetchUserPostings(); // Fetch the posting IDs associated with the current user
-    _audioPlayer = FlutterSoundPlayer(); // Initialize audio player
+    _fetchUserPostings(); // Initialize audio player
   }
 
   @override
   void dispose() {
     _videoController?.dispose(); // Dispose video controller
-    _audioPlayer?.stopPlayer(); // Dispose audio player
+    _audioPlayer.dispose(); // Dispose audio player
     super.dispose();
   }
 
@@ -103,84 +103,33 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   }
 
   // Pick an audio file from assets
-  // Pick an audio file from assets with Play/Stop buttons
   Future<void> _pickAudio() async {
-    // Let's assume you have an assets folder with audio files
     final audioFiles = [
       'cinematic-intro.mp3',
       'gospel-choir-heavenly.mp3',
       'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-    ]; // Example audio files in assets
+    ];
 
     final selectedAudio = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return SimpleDialog(
           title: Text('Select Audio'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: audioFiles.map((audio) {
-              bool isPlaying = false; // Track play state for each audio
+          children: audioFiles.map((audio) {
+            return SimpleDialogOption(
+              child: Text(audio),
+              onPressed: () async {
+                Navigator.of(context).pop(audio);
 
-              return ListTile(
-                title: Text(audio),
-                subtitle: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                      onPressed: () async {
-                        // Stop any currently playing audio before starting the new one
-                        if (_audioPlayer != null && _audioPlayer!.isPlaying) {
-                          await _audioPlayer?.stopPlayer();
-                          setState(() {
-                            isPlaying = false; // Reset play state
-                          });
-                        }
-
-                        if (isPlaying) {
-                          // Pause the current audio if it's playing
-                          await _audioPlayer?.pausePlayer();
-                          setState(() {
-                            isPlaying = false;
-                          });
-                        } else {
-                          // Start the audio or resume from the paused state
-                          await _audioPlayer?.startPlayer(
-                            fromURI:
-                                'assets/audio/$audio', // Assuming audio is in the assets folder
-                            whenFinished: () {
-                              setState(() {
-                                isPlaying =
-                                    false; // Reset when the audio finishes
-                              });
-                            },
-                          );
-                          setState(() {
-                            isPlaying = true;
-                          });
-                        }
-                      },
-                    ),
-                    if (isPlaying) // Only show the Stop button if the audio is playing
-                      IconButton(
-                        icon: Icon(Icons.stop),
-                        onPressed: () async {
-                          // Stop the audio
-                          await _audioPlayer?.stopPlayer();
-                          setState(() {
-                            isPlaying = false; // Reset when stop is pressed
-                          });
-                        },
-                      ),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.of(context).pop(audio); // Return selected audio
-                },
-              );
-            }).toList(),
-          ),
+                try {
+                  await _audioPlayer.setAsset('assets/audio/$audio');
+                  await _audioPlayer.play();
+                } catch (e) {
+                  print("Audio play error: $e");
+                }
+              },
+            );
+          }).toList(),
         );
       },
     );
@@ -188,22 +137,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     if (selectedAudio != null) {
       setState(() {
         _audioName = selectedAudio;
-        _audioFinished = false; // Reset audio finish state
       });
-
-      // Stop the previous audio player if any
-      await _audioPlayer?.stopPlayer();
-
-      // Start playing the selected audio for preview
-      await _audioPlayer?.startPlayer(
-        fromURI:
-            'assets/audio/$selectedAudio', // Assuming audio is in the assets folder
-        whenFinished: () {
-          setState(() {
-            _audioFinished = true; // Reset UI when audio finishes
-          });
-        },
-      );
     }
   }
 

@@ -15,7 +15,7 @@ import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plu
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -105,29 +105,34 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Play audio from assets
-  void _playAudio(int index, String audioName) {
-    AudioPlayer audioPlayer = AudioPlayer();
-    _audioPlayers[index] = audioPlayer;
+  void _playAudio(int index, String audioName) async {
+    // Stop previous audio if any
+    if (_audioPlayers[index] != null) {
+      await _audioPlayers[index]!.dispose();
+    }
 
-    // Correct audio path
-    final audioPath = 'assets/audio/$audioName';
-    print("Playing audio from path: $audioPath");
+    final player = AudioPlayer();
+    _audioPlayers[index] = player;
 
-    // Play the audio from the assets directly
-    audioPlayer.play(AssetSource(audioPath));
+    try {
+      final audioPath = 'assets/audio/$audioName';
+      print("Playing audio from: $audioPath");
 
-    // Sync the audio to stop when the video ends
-    _controllers[index]?.addListener(() {
-      if (!_controllers[index]!.value.isPlaying) {
-        _audioPlayers[index]?.stop(); // Stop audio when the video ends
-      }
+      await player.setAsset(audioPath);
+      await player.setLoopMode(LoopMode.one); // match video loop
+      player.play();
 
-      // Ensure the audio stops at the right point
-      if (_controllers[index]!.value.position ==
-          _controllers[index]!.value.duration) {
-        _audioPlayers[index]?.stop();
-      }
-    });
+      // Optionally sync with video
+      _controllers[index]?.addListener(() {
+        if (!_controllers[index]!.value.isPlaying) {
+          player.pause();
+        } else if (player.playing == false) {
+          player.play();
+        }
+      });
+    } catch (e) {
+      print("Audio playback error: $e");
+    }
   }
 
   // Function to cache videos in the background
