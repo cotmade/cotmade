@@ -78,6 +78,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   String bestListing = "";
   String trendMessage = "";
   List<FlSpot> earningsTrend = []; // For the graph
+  List<Map<String, dynamic>> reels = []; // User's reels list
 
   @override
   void initState() {
@@ -89,59 +90,95 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             bookings; // Update the totalBookings state after getting the value
       });
     });
+    _fetchUserReels();
+    _fetchBestListing(); // Call to fetch the best listing based on bookings
+  }
+
+  Future<void> _fetchBestListing() async {
+    // Query the postings collection to get all postings for the current user
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('hostID', isEqualTo: userId) // Filter by hostID (current user)
+        .get();
+
+    int maxBookings = 0;
+    String bestListingId = ""; // Store the best listing ID
+    String bestListingName = "None"; // Default to "None" if no listing is found
+
+    // Loop through each posting and count the bookings in the bookings subcollection
+    for (var posting in postingsSnapshot.docs) {
+      String postingId = posting.id;
+
+      // Query the bookings subcollection for this posting
+      QuerySnapshot bookingsSnapshot = await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(postingId)
+          .collection('bookings')
+          .get();
+
+      int bookingsCount =
+          bookingsSnapshot.size; // Get the number of bookings for this posting
+
+      // Check if this posting has more bookings than the current max
+      if (bookingsCount > maxBookings) {
+        maxBookings = bookingsCount;
+        bestListingId = postingId;
+        bestListingName = posting['name']; // Set the name of the best listing
+      }
+    }
+
+    // If no postings have been found or all bookings are the same, set bestListing to "None"
+    setState(() {
+      bestListing = bestListingName;
+    });
   }
 
   Future<void> _fetchUserCountry() async {
-    String? userId = AppConstants.currentUser.id; // Replace with actual user ID
+    String? userId = AppConstants.currentUser.id;
     DocumentSnapshot userSnapshot =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
     if (userSnapshot.exists) {
       setState(() {
-        userCountry = userSnapshot['country'] ??
-            'United States'; // Default to 'United States' if not available
+        userCountry = userSnapshot['country'] ?? 'United States';
       });
     }
 
-    _fetchPostings(); // Fetch postings after fetching the country
-    _fetchTrendMessage(); // Fetch trend message after fetching the country
-    _fetchEarningsTrend(); // Fetch earnings trend after fetching the country
+    _fetchPostings();
+    _fetchTrendMessage();
+    _fetchEarningsTrend();
   }
 
   Future<void> _fetchPostings() async {
-    String userId =
-        AppConstants.currentUser.id.toString(); // Get the current user ID
+    String userId = AppConstants.currentUser.id.toString();
     DocumentSnapshot userSnapshot =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
-    // Fetch the list of posting IDs associated with the user
     List<String> postingIds =
         List<String>.from(userSnapshot['myPostingIDs'] ?? []);
 
     if (postingIds.isEmpty) return;
 
-    // Initialize a variable to track the posting with the most bookings
-    String bestPostingId = '';
-    int maxBookings = 0;
-
-    // Temporary list to hold all the postings
     List<Map<String, dynamic>> tempPostings = [];
 
-    // Loop through each posting ID and fetch details
     for (var postingId in postingIds) {
+      // Get the bookings count from the bookings subcollection
       int bookingsCount = await _getBookingsCountForPosting(postingId);
 
-      // Check if this posting has the most bookings
-      if (bookingsCount > maxBookings) {
-        maxBookings = bookingsCount;
-        bestPostingId = postingId;
-      }
-
-      // Fetch details for each posting
       DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
           .collection('postings')
           .doc(postingId)
           .get();
+
+      bool shouldSuggestBoost = bookingsCount < 7 &&
+          DateTime.now()
+                  .difference(postingSnapshot['createdAt'].toDate())
+                  .inDays >=
+              15;
+      bool shouldSuggestReview =
+          List<String>.from(postingSnapshot['reviews'] ?? []).length < 3;
+      bool shouldSuggestPromo = postingSnapshot['premium'] != 2;
+
       tempPostings.add({
         'id': postingId,
         'name': postingSnapshot['name'],
@@ -149,20 +186,18 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         'bookings': bookingsCount,
         'premium': postingSnapshot['premium'] ?? 1,
         'reviews': List<String>.from(postingSnapshot['reviews'] ?? []),
+        'shouldSuggestBoost': shouldSuggestBoost,
+        'shouldSuggestReview': shouldSuggestReview,
+        'shouldSuggestPromo': shouldSuggestPromo,
       });
     }
 
-    // Set the best listing name using the posting ID with the most bookings
     setState(() {
       postings = tempPostings;
-      bestListing = bestPostingId.isNotEmpty
-          ? tempPostings
-              .firstWhere((post) => post['id'] == bestPostingId)['name']
-          : "No data available";
     });
   }
 
-// This method counts the bookings for a given postingID
+// Function to get the number of bookings for a posting by querying the bookings subcollection
   Future<int> _getBookingsCountForPosting(String postingId) async {
     QuerySnapshot bookingsSnapshot = await FirebaseFirestore.instance
         .collection('postings')
@@ -170,7 +205,35 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         .collection('bookings')
         .get();
 
-    return bookingsSnapshot.size; // Return the number of bookings
+    return bookingsSnapshot
+        .size; // Return the count of bookings for the posting
+  }
+
+  Future<int> _getTotalBookingsCountForHost() async {
+    // First, query the postings collection to get all postings for the current user
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('hostID', isEqualTo: userId) // Filter by hostID (current user)
+        .get();
+
+    int totalBookings = 0;
+
+    // Loop through each posting and count the bookings in the bookings subcollection
+    for (var posting in postingsSnapshot.docs) {
+      String postingId = posting.id;
+
+      // Query the bookings subcollection for this posting
+      QuerySnapshot bookingsSnapshot = await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(postingId)
+          .collection('bookings')
+          .get();
+
+      // Add the number of bookings to the total
+      totalBookings += bookingsSnapshot.size;
+    }
+
+    return totalBookings; // Return the total bookings count for all postings of the current user
   }
 
   Future<int> _getBookingsCount(String userId) async {
@@ -195,7 +258,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
     });
   }
 
-  // Fetching earnings trend (for the graph) using bookings data
   Future<void> _fetchEarningsTrend() async {
     List<FlSpot> trendData = [];
     DateTime now = DateTime.now();
@@ -210,16 +272,77 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
           .get();
 
       int monthlyBookings = bookingsSnapshot.size;
-      double earnings =
-          monthlyBookings * 50.0; // Assuming $50 per booking for earnings
+      double earnings = monthlyBookings * 50.0;
 
       trendData.add(FlSpot(i.toDouble(), earnings));
     }
 
     setState(() {
-      earningsTrend = trendData.reversed
-          .toList(); // Reverse to display the latest month first
+      earningsTrend = trendData.reversed.toList();
     });
+  }
+
+  // Fetch user's reels from the 'reels' collection where userId matches the current user's ID
+  Future<void> _fetchUserReels() async {
+    QuerySnapshot reelsSnapshot = await FirebaseFirestore.instance
+        .collection('reels')
+        .where('userID', isEqualTo: userId)
+        .get();
+
+    List<Map<String, dynamic>> tempReels = reelsSnapshot.docs.map((doc) {
+      return {
+        'id': doc.id,
+        'caption': doc['caption'],
+        'likes': doc['likes'] ?? 0,
+      };
+    }).toList();
+
+    setState(() {
+      reels = tempReels;
+    });
+  }
+
+  // Add the following method to show a confirmation dialog:
+  Future<void> _showDeleteConfirmationDialog(String reelId) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible:
+          false, // The user must tap one of the options to close the dialog
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Delete'),
+          content: Text('Are you sure you want to delete this video?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _deleteReel(reelId); // Call the delete function if confirmed
+              },
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Function to delete a reel
+  Future<void> _deleteReel(String reelId) async {
+    await FirebaseFirestore.instance.collection('reels').doc(reelId).delete();
+
+    setState(() {
+      reels.removeWhere((reel) => reel['id'] == reelId);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('video deleted successfully'),
+    ));
   }
 
   @override
@@ -229,7 +352,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
     int totalEarnings = totalBooking * 50;
 
     return Scaffold(
-      //  appBar: AppBar(title: Text('Host Dashboard')),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
         child: Column(
@@ -257,20 +379,73 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             _buildAnalyticsCard('Best Performing Listing', bestListing),
             if (trendMessage.isNotEmpty)
               Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    const Text(
-      'Market Trend',
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-      ),
-    ),
-    SizedBox(height: 4),
-    _buildAnalyticsCard('', trendMessage), // Pass empty title
-  ],
-),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Market Trend',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  SizedBox(height: 4),
+                  _buildAnalyticsCard('', trendMessage), // Pass empty title
+                ],
+              ),
             if (earningsTrend.isNotEmpty) _buildGraph(),
+            SizedBox(height: 20),
+
+            // Reels section showing the user's caption, likes, and delete button
+            if (reels.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your Reels',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  SizedBox(height: 10),
+                  Column(
+                    children: reels.map((reel) {
+                      return Card(
+                        margin: EdgeInsets.symmetric(vertical: 10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Caption
+                              Text(
+                                reel['caption'] ?? 'No caption available',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 10),
+                              // Like count beside the thumbs up icon
+                              Row(
+                                children: [
+                                  Icon(Icons.thumb_up_alt_outlined,
+                                      color: Colors.blue),
+                                  SizedBox(width: 5),
+                                  Text('${reel['likes']} likes',
+                                      style: TextStyle(fontSize: 14)),
+                                ],
+                              ),
+                              SizedBox(height: 10),
+                              // Delete button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete,
+                                  color: Colors.pinkAccent,
+                                ),
+                                onPressed: () => _showDeleteConfirmationDialog(reel[
+                                    'id']), // Use a callback to invoke the delete function
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             SizedBox(height: 20),
             Text('Actions',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -286,11 +461,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   }
 
   Widget _buildPostingActions(Map<String, dynamic> post) {
-    bool shouldSuggestBoost = post['bookings'] < 7 &&
-        DateTime.now().difference(post['createdAt']).inDays >= 15;
-    bool shouldSuggestReview = post['reviews'].length < 3;
-    bool shouldSuggestPromo = post['premium'] != 2;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,6 +469,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
+            // Action buttons
             _buildActionButton('Create & run promo', Icons.price_change, () {
               Navigator.push(
                   context,
@@ -306,7 +477,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                       builder: (context) =>
                           CreatePromoCodeScreen(postingId: post['id'])));
             }),
-            if (shouldSuggestPromo)
+            if (post['shouldSuggestPromo'])
               _buildActionButton('Promote Listing', Icons.campaign, () {
                 Navigator.push(
                     context,
@@ -316,7 +487,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
               }),
           ],
         ),
-        if (shouldSuggestBoost)
+        if (post['shouldSuggestBoost'])
           Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
@@ -324,7 +495,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
-        if (shouldSuggestReview)
+        if (post['shouldSuggestReview'])
           Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
@@ -363,9 +534,8 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
       icon: Icon(icon, color: Colors.white),
       label: Text(label, style: TextStyle(color: Colors.white)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.black,
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
+          backgroundColor: Colors.black,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
     );
   }
 
