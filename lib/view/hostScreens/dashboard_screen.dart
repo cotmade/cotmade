@@ -393,59 +393,51 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             SizedBox(height: 20),
 
             // Reels section showing the user's caption, likes, and delete button
-            if (reels.isNotEmpty)
+            
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your Reels',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  SizedBox(height: 10),
-                  Column(
-                    children: reels.map((reel) {
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Caption
-                              Text(
-                                reel['caption'] ?? 'No caption available',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              SizedBox(height: 10),
-                              // Like count beside the thumbs up icon
-                              Row(
-                                children: [
-                                  Icon(Icons.thumb_up_alt_outlined,
-                                      color: Colors.blue),
-                                  SizedBox(width: 5),
-                                  Text('${reel['likes']} likes',
-                                      style: TextStyle(fontSize: 14)),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              // Delete button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete,
-                                  color: Colors.pinkAccent,
-                                ),
-                                onPressed: () => _showDeleteConfirmationDialog(reel[
-                                    'id']), // Use a callback to invoke the delete function
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
+  children: reels.map((reel) {
+    return Card(
+      elevation: 3,
+      margin: EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Caption
+            if (reel['caption'] != null && reel['caption'].toString().trim().isNotEmpty)
+              Text(
+                reel['caption'],
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+            SizedBox(height: 8),
+
+            // Likes
+            Row(
+              children: [
+                Icon(Icons.thumb_up_alt_outlined, color: Colors.blue),
+                SizedBox(width: 6),
+                Text('${reel['likes'] ?? 0} likes',
+                    style: TextStyle(fontSize: 14)),
+              ],
+            ),
+            SizedBox(height: 8),
+
+            // Delete Button
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: Icon(Icons.delete, color: Colors.redAccent),
+                onPressed: () => _showDeleteConfirmationDialog(reel['id']),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }).toList(),
+),
+
             SizedBox(height: 20),
             Text('Actions',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
