@@ -259,6 +259,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                         controller: _controllers[index],
                         videoData: videoData,
                         isMuted: _isMuted,
+                        documentId: _filteredVideos[index].id, // <–– NEW!
                         audioName: videoData['audioName'], // Pass audio name
                         onToggleMute: () {
                           setState(() {
@@ -334,6 +335,7 @@ class VideoReelsItem extends StatefulWidget {
   final CachedVideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
+  final String documentId;
   final VoidCallback onToggleMute;
   final String audioName;
 
@@ -341,6 +343,7 @@ class VideoReelsItem extends StatefulWidget {
     required this.controller,
     required this.videoData,
     required this.isMuted,
+    required this.documentId, // <–– ADD THIS
     required this.onToggleMute,
     required this.audioName,
   });
@@ -361,9 +364,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _toggleLike() async {
-    final reelRef = FirebaseFirestore.instance
-        .collection('reels')
-        .doc(widget.videoData['id']);
+    final reelRef =
+        FirebaseFirestore.instance.collection('reels').doc(widget.documentId);
 
     setState(() {
       liked = !liked;
