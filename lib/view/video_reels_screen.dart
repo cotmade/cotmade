@@ -432,7 +432,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _blockUser() {
-    Get.snackbar("Blocked", "User has been blocked");
+    Get.snackbar("Blocked", "User has been blocked.");
   }
 
   @override
