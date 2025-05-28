@@ -285,10 +285,17 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                       children: [
                         Container(
                           height: 200,
-                          child: _videoController == null ||
-                                  !_videoController!.value.isInitialized
-                              ? Center(child: CircularProgressIndicator())
-                              : VideoPlayer(_videoController!),
+                          child: FittedBox(
+                            fit: BoxFit.cover, // Same effect as for images
+                            clipBehavior: Clip.hardEdge,
+                            child: SizedBox(
+                              height: 200,
+                              child: _videoController == null ||
+                                      !_videoController!.value.isInitialized
+                                  ? Center(child: CircularProgressIndicator())
+                                  : VideoPlayer(_videoController!),
+                            ),
+                          ),
                         ),
                       ],
                     ),
