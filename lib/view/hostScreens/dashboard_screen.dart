@@ -393,50 +393,59 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             SizedBox(height: 20),
 
             // Reels section showing the user's caption, likes, and delete button
-            
-              Column(
-  children: reels.map((reel) {
-    return Card(
-      elevation: 3,
-      margin: EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Caption
-            if (reel['caption'] != null && reel['caption'].toString().trim().isNotEmpty)
-              Text(
-                reel['caption'],
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            SizedBox(height: 8),
-
-            // Likes
-            Row(
-              children: [
-                Icon(Icons.thumb_up_alt_outlined, color: Colors.blue),
-                SizedBox(width: 6),
-                Text('${reel['likes'] ?? 0} likes',
-                    style: TextStyle(fontSize: 14)),
-              ],
+            Text(
+              'Video(s)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            Column(
+              children: reels.map((reel) {
+                return Card(
+                  color: Color(0xcaf6f6f6),
+                  shadowColor: Colors.black12,
+                  elevation: 3,
+                  margin: EdgeInsets.symmetric(vertical: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Caption
+                        if (reel['caption'] != null &&
+                            reel['caption'].toString().trim().isNotEmpty)
+                          Text(
+                            reel['caption'],
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        SizedBox(height: 8),
 
-            // Delete Button
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: Icon(Icons.delete, color: Colors.redAccent),
-                onPressed: () => _showDeleteConfirmationDialog(reel['id']),
-              ),
+                        // Likes
+                        Row(
+                          children: [
+                            Icon(Icons.thumb_up_alt_outlined,
+                                color: Colors.pinkAccent),
+                            SizedBox(width: 6),
+                            Text('${reel['likes'] ?? 0} likes',
+                                style: TextStyle(fontSize: 14)),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+
+                        // Delete Button
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.redAccent),
+                            onPressed: () =>
+                                _showDeleteConfirmationDialog(reel['id']),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-          ],
-        ),
-      ),
-    );
-  }).toList(),
-),
 
             SizedBox(height: 20),
             Text('Actions',

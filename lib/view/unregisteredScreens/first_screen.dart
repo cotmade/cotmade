@@ -32,14 +32,14 @@ class _FirstScreenState extends State<FirstScreen> {
   final List<String> screenTitles = [
     'Login',
     'Explore',
-    'Clips',
+    // 'Clips',
     'FAQ',
   ];
 
   final List<Widget> screens = [
     LoginScreen(),
     FirstExplore(),
-    ViewVideoScreen(),
+    //  ViewVideoScreen(),
     FaqPage(),
   ];
 
@@ -102,10 +102,10 @@ class _FirstScreenState extends State<FirstScreen> {
         items: <BottomNavigationBarItem>[
           customNavigationBarItem(0, Icons.login_rounded, screenTitles[0]),
           customNavigationBarItem(1, Icons.search, screenTitles[1]),
+          //    customNavigationBarItem(
+          //       2, Icons.video_collection_rounded, screenTitles[2]),
           customNavigationBarItem(
-              2, Icons.video_collection_rounded, screenTitles[2]),
-          customNavigationBarItem(
-              3, Icons.question_mark_rounded, screenTitles[3]),
+              2, Icons.question_mark_rounded, screenTitles[3]),
         ],
       ),
     );
