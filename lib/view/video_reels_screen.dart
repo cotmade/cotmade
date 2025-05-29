@@ -492,14 +492,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.videoData['email'].split('@')[0],
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        //  Text(
+                        //   widget.videoData['email'].split('@')[0],
+                        //   style: TextStyle(
+                        //    color: Colors.white,
+                        //   fontWeight: FontWeight.bold,
+                        //   fontSize: 16,
+                        //  ),
+                        // ),
                         SizedBox(height: 8),
                         Text(
                           widget.videoData['caption'],
@@ -526,6 +526,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final data =
                                 snapshot.data!.data() as Map<String, dynamic>;
 
+                            var review = data['reviews'] ??
+                                []; // Default to an empty list if null
+                            //  int numberOfReviews = review.length;
+                            final price = data['price'] ?? 'unknown';
                             final city = data['city'] ?? 'Unknown City';
                             final country =
                                 data['country'] ?? 'Unknown Country';
@@ -534,6 +538,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Text(
+                                    '$price/night',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
                                   Text(
                                     '$city\n $country',
                                     style: TextStyle(
@@ -570,6 +582,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                       ),
                                     ),
                                   ),
+                                  //  SizedBox(height: 8),
+                                  //   Text(
+                                  //    '$numberOfReviews Reviews',
+                                  //    style: TextStyle(
+                                  //     color: Colors.white,
+                                  //    fontSize: 16,
+                                  //   ),
+                                  //  ),
                                 ],
                               ),
                             );
