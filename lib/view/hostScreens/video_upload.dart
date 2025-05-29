@@ -283,13 +283,15 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                   ? Center(child: Text("No video selected"))
                   : Column(
                       children: [
-                        Container(
-                          height: 200,
-                          width: 100,
-                          child: _videoController == null ||
-                                  !_videoController!.value.isInitialized
-                              ? Center(child: CircularProgressIndicator())
-                              : VideoPlayer(_videoController!),
+                        Center(
+                          child: Container(
+                            height: 200,
+                            width: 100,
+                            child: _videoController == null ||
+                                    !_videoController!.value.isInitialized
+                                ? Center(child: CircularProgressIndicator())
+                                : VideoPlayer(_videoController!),
+                          ),
                         ),
                       ],
                     ),
