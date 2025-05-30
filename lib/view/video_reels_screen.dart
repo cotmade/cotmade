@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:share/share.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:cotmade/view/guestScreens/user_profile_page.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
