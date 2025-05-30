@@ -2,14 +2,17 @@ import 'package:cotmade/view/guestScreens/account_screen.dart';
 import 'package:cotmade/view/guestScreens/explore_screen.dart';
 import 'package:cotmade/view/guestScreens/inbox_screen.dart';
 import 'package:cotmade/view/guestScreens/saved_listings_screen.dart';
-import 'package:cotmade/view/guestScreens/trip_screen.dart';
+import 'package:cotmade/view/guestScreens/trips_screen.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:cotmade/view/guestScreens/property_reels_screen.dart';
+import 'package:cotmade/view/reelsScreen.dart';
+import 'package:cotmade/view/guestScreens/trip_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 
 class GuestHomeScreen extends StatefulWidget {
@@ -20,8 +23,7 @@ class GuestHomeScreen extends StatefulWidget {
 }
 
 class _GuestHomeScreenState extends State<GuestHomeScreen> {
-  // Set the initial selectedIndex to 5 to display VideoReelsPage initially
-  int selectedIndex = 5;
+  int selectedIndex = 0;
 
   final List<String> screenTitles = [
     'Explore',
@@ -70,8 +72,7 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> {
           ),
         ),
         title: Text(
-          // Only show titles for the regular screens
-          selectedIndex < 5 ? screenTitles[selectedIndex] : '',
+          screenTitles[selectedIndex],
           style: const TextStyle(
             fontSize: 18,
             color: Colors.black,
@@ -81,19 +82,15 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            iconSize: 25.0,
-            icon: Icon(Icons.video_collection_rounded),
-            onPressed: () {
-              // Navigate directly to VideoReelsPage when clicked
-              Get.to(VideoReelsPage());
-            },
-            color: Colors.black,
-          ),
+              iconSize: 25.0,
+              icon: Icon(Icons.video_collection_rounded),
+              onPressed: () {
+                Get.to(VideoReelsPage());
+              },
+              color: Colors.black),
         ],
       ),
-      body: selectedIndex == 5
-          ? VideoReelsPage() // Show VideoReelsPage if the selectedIndex is 5
-          : screens[selectedIndex], // Otherwise, show the selected screen
+      body: screens[selectedIndex],
       backgroundColor: Colors.white,
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,

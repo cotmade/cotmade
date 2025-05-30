@@ -19,6 +19,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
+import 'package:cotmade/view/guest_home_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -402,9 +403,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
- 
   // Function to get image from Firebase Storage
-   MemoryImage? displayImage;
+  MemoryImage? displayImage;
 
   getImageFromStorage(uid) async {
     try {
@@ -488,13 +488,34 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
           Positioned(
             top: 50, // Adjust position as necessary
             left: 16,
-            child: Text(
-              widget.audioName, // Display the audio name
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.normal,
-                fontSize: 13,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width *
+                    0.6, // 60% of screen width
+              ), // Adjust max width as needed
+              child: Text(
+                widget.audioName,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis, // Show "..." if too long
+                maxLines: 1, // Keep it to one line
+                softWrap: false,
               ),
+            ),
+          ),
+
+          // Top-right positioned icon button
+          Positioned(
+            top: 50, // adjust for status bar
+            right: 20,
+            child: IconButton(
+              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+              onPressed: () {
+                GuestHomeScreen();
+              },
             ),
           ),
           if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
@@ -636,7 +657,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   children: [
                     MaterialButton(
                       onPressed: () {
-                            UserProfilePage(uid: widget.videoData['uid']);
+                        UserProfilePage(uid: widget.videoData['uid']);
                       },
                       child: CircleAvatar(
                         backgroundColor: Colors.black,
