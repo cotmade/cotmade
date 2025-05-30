@@ -54,7 +54,6 @@ dependencies:
   flutter_cached_video_player_plus:
   flutter_sound:
   just_audio: ^0.9.43
-  share:
 
 dev_dependencies:
   flutter_test:

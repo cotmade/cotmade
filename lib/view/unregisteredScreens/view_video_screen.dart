@@ -16,6 +16,7 @@ import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plu
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ViewVideoScreen extends StatefulWidget {
   @override
