@@ -61,6 +61,10 @@ dev_dependencies:
   flutter_lints: ^2.0.2
   icons_launcher: ^3.0.1
 
+dependency_overrides:
+  flutter_cached_video_player_plus:
+    path: ./local_packages/flutter_cached_video_player_plus
+
 icons_launcher:
   image_path: "images/icon.png"
   platforms:
