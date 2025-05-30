@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:cotmade/view/guestScreens/property_reels_screen.dart';
-import 'package:cotmade/view/reelsScreen.dart';
+//import 'package:cotmade/view/reelsScreen.dart';
 import 'package:cotmade/view/guestScreens/trip_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 

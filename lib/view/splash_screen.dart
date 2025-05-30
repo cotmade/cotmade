@@ -11,7 +11,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cotmade/view/onboarding_screen.dart';
 import 'package:cotmade/view/suspended_account_screen.dart';
-import 'package:cotmade/view/video_reels_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -69,7 +68,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Get.back(); // Close the dialog
 
       // Navigate to the home screen after loading data
-      Get.offAll(() => VideoReelsPage());
+      Get.offAll(() => GuestHomeScreen());
     } else {
       // User is not logged in, navigate to the first screen (login/signup)
       Get.back(); // Close the loading dialog

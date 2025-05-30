@@ -20,7 +20,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
-import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
