@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cotmade/view/onboarding_screen.dart';
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
