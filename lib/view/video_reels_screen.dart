@@ -16,6 +16,9 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cotmade/model/posting_model.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -399,6 +402,28 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
+ 
+  // Function to get image from Firebase Storage
+   MemoryImage? displayImage;
+
+  getImageFromStorage(uid) async {
+    try {
+      final imageDataInBytes = await FirebaseStorage.instance
+          .ref()
+          .child("userImages")
+          .child(uid)
+          .child(uid + ".png")
+          .getData(1024 * 1024);
+
+      setState(() {
+        displayImage = MemoryImage(imageDataInBytes!);
+      });
+    } catch (e) {
+      print("Error fetching image: $e");
+      // Handle error: You might want to show a default image or leave it null
+    }
+  }
+
   void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
@@ -531,15 +556,23 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             //  int numberOfReviews = review.length;
                             final price = data['price'] ?? 'unknown';
                             final city = data['city'] ?? 'Unknown City';
+                            final currency = data['currency'] ?? 'unknown';
                             final country =
                                 data['country'] ?? 'Unknown Country';
+
+                            // Function to format only the price (without affecting currency)
+                            String formatPrice(price) {
+                              var formatter = NumberFormat('#,##0',
+                                  'en_US'); // No decimals (whole number only)
+                              return formatter.format(price);
+                            }
 
                             return Container(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '$price/night',
+                                    '$currency ${formatPrice(price)}/night',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -601,6 +634,26 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 ),
                 Column(
                   children: [
+                    MaterialButton(
+                      onPressed: () {
+                            UserProfilePage(uid: widget.videoData['uid']);
+                      },
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black,
+                        radius: 30,
+                        child: displayImage != null
+                            ? CircleAvatar(
+                                backgroundImage: displayImage,
+                                radius: 29,
+                              )
+                            : Icon(
+                                Icons.account_circle,
+                                size: 30,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                    SizedBox(height: 10),
                     IconButton(
                       icon: Icon(
                         liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
