@@ -1,6 +1,12 @@
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
 android {
-    compileSdk = 35
     namespace = "com.cotmade.cotmade"
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.cotmade.cotmade"
@@ -37,6 +43,10 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
+}
+
+flutter {
+    source = "../.."
 }
