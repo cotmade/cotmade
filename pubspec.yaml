@@ -69,9 +69,12 @@ dependencies:
   in_app_purchase: ^3.0.0
   upgrader:
   dio: ^5.7.0
-  flutter_cached_video_player_plus:
   flutter_sound:
   just_audio: ^0.9.43
+
+dependency_overrides:
+  flutter_cached_video_player_plus:
+    path: local_packages/flutter_cached_video_player_plus
 
 
 dev_dependencies:
