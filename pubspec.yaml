@@ -52,7 +52,7 @@ dependencies:
   upgrader:
   dio: ^5.7.0
   flutter_sound:
-  just_audio: ^0.9.43
+  just_audio:
   flutter_cache_manager:
 
 dev_dependencies:
