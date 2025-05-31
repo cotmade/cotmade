@@ -283,9 +283,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             right: 16,
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-              onPressed: () {
-                GuestHomeScreen();
-              },
+             onPressed: () {
+  Get.to(() => GuestHomeScreen());
+},
+
             ),
           ),
           // Display audio name at the top left
