@@ -55,7 +55,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("android/app/cotmade.jks")
+            storeFile = file("cotmade.jks")
             storePassword = "Jennifer321#"
             keyAlias = "Tim"
             keyPassword = "Jennifer321#"
