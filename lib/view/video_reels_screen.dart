@@ -11,10 +11,10 @@ import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_cached_video_player/flutter_cached_video_player.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -30,12 +30,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
   List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cache
   List<DocumentSnapshot> _filteredVideos = [];
-  Map<int, CachedVideoPlayerController> _controllers = {};
+  Map<int, VideoPlayerController> _controllers = {};
   Map<int, AudioPlayer> _audioPlayers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
+  final cacheManager = DefaultCacheManager(); // Cache manager for videos
 
   @override
   void initState() {
@@ -66,6 +67,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Function to preload videos from the cache
+  // Function to preload videos from the cache
   void _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
@@ -75,37 +77,47 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     var videoUrl = videoData['reelsVideo'];
     var audioName = videoData['audioName'];
 
-    final controller = CachedVideoPlayerController.network(videoUrl);
-    _controllers[index] = controller;
+    final filePath = await _cacheVideo(videoUrl);  // Cache video
+    if (filePath != null) {
+      final controller = VideoPlayerController.file(File(filePath));
+      _controllers[index] = controller;
 
-    await controller.initialize();
-    controller.setLooping(true);
-    controller.setVolume(0.0); // Muting video sound
+      await controller.initialize();
+      controller.setLooping(true);
+      controller.setVolume(0.0); // Muting video sound
 
-    // Play the audio from the assets
-    _playAudio(index, audioName);
+      // Play the audio from the assets
+      _playAudio(index, audioName);
 
-    setState(() {});
+      setState(() {});
 
-    if (index == _currentIndex) {
-      Future.delayed(Duration(milliseconds: 300), () {
-        controller.play();
+      if (index == _currentIndex) {
+        Future.delayed(Duration(milliseconds: 300), () {
+          controller.play();
+        });
+      }
+
+      // Add listener to stop audio when video ends
+      controller.addListener(() {
+        if (!controller.value.isPlaying) {
+          // Stop the audio when the video finishes
+          _audioPlayers[index]?.stop();
+        }
+      });
+
+      // Add another listener to pause audio when video pauses
+      controller.addListener(() {
+        if (controller.value.position == controller.value.duration) {
+          _audioPlayers[index]?.stop();
+        }
       });
     }
-    // Add listener to stop audio when video ends
-    controller.addListener(() {
-      if (!controller.value.isPlaying) {
-        // Stop the audio when the video finishes
-        _audioPlayers[index]?.stop();
-      }
-    });
+  }
 
-    // Add another listener to pause audio when video pauses
-    controller.addListener(() {
-      if (controller.value.position == controller.value.duration) {
-        _audioPlayers[index]?.stop();
-      }
-    });
+  // Cache the video file
+  Future<String?> _cacheVideo(String videoUrl) async {
+    final file = await cacheManager.getSingleFile(videoUrl);
+    return file.path; // Return the local file path
   }
 
   // Play audio from assets
@@ -147,18 +159,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
       var videoUrl = videoData['reelsVideo'];
 
-      final tempController = CachedVideoPlayerController.network(videoUrl);
+      final filePath = await _cacheVideo(videoUrl);  // Cache video
+      if (filePath != null) {
+        final tempController = VideoPlayerController.file(File(filePath));
 
-      try {
-        await tempController.initialize();
-        await tempController.setLooping(true);
-        await tempController.setVolume(0);
-        await tempController.dispose();
-      } catch (e) {
-        print('Failed to cache video at $i: $e');
+        try {
+          await tempController.initialize();
+          await tempController.setLooping(true);
+          await tempController.setVolume(0);
+          await tempController.dispose();
+        } catch (e) {
+          print('Failed to cache video at $i: $e');
+        }
       }
     }
   }
+
 
   String formatSearchQuery(String query) {
     if (query.isEmpty) return query;
@@ -283,10 +299,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             right: 16,
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-             onPressed: () {
-  Get.to(() => GuestHomeScreen());
-},
-
+              onPressed: () {
+                Get.to(() => GuestHomeScreen());
+              },
             ),
           ),
           // Display audio name at the top left
@@ -349,7 +364,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 }
 
 class VideoReelsItem extends StatefulWidget {
-  final CachedVideoPlayerController? controller;
+  final VideoPlayerController? controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final String documentId;
@@ -494,7 +509,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               child: SizedBox(
                 width: widget.controller!.value.size.width,
                 height: widget.controller!.value.size.height,
-                child: CachedVideoPlayer(widget.controller!),
+                child: VideoPlayer(widget.controller!),
               ),
             ),
           ),

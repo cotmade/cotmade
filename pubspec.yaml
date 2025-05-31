@@ -51,9 +51,9 @@ dependencies:
   share_plus:
   upgrader:
   dio: ^5.7.0
-  flutter_cached_video_player:
   flutter_sound:
   just_audio: ^0.9.43
+  flutter_cache_manager:
 
 dev_dependencies:
   flutter_test:
