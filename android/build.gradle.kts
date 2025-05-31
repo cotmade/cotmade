@@ -1,9 +1,9 @@
 // Root-level build.gradle.kts
 
-// Set the Kotlin version globally
-extra["kotlin_version"] = "1.8.0"
-
 buildscript {
+    // Define the Kotlin version here to make it accessible in the dependencies block
+    val kotlin_version = "1.8.0"
+
     repositories {
         // Google's Maven repository
         google()
@@ -16,7 +16,7 @@ buildscript {
         classpath("com.android.tools.build:gradle:7.3.0")
 
         // Kotlin Gradle Plugin
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${extra["kotlin_version"]}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
 
         // Google Services Plugin (for Firebase)
         classpath("com.google.gms:google-services:4.3.15")
