@@ -42,6 +42,6 @@ jobs:
         with:
           name: flutter-android-artifacts
           path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            build/outputs/apk/release/*.apk
+            build/outputs/bundle/release/*.aab
 
