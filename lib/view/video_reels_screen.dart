@@ -276,6 +276,18 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     },
                   ),
           ),
+
+          // Top-right positioned icon button
+          Positioned(
+            top: 50, // adjust for status bar
+            right: 16,
+            child: IconButton(
+              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+              onPressed: () {
+                GuestHomeScreen();
+              },
+            ),
+          ),
           // Display audio name at the top left
 
           if (_isSearchVisible)
@@ -486,39 +498,26 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
             ),
           ),
           Positioned(
-  top: 50,
-  left: 16,
-  right: 16, // This is important to let the Row stretch fully
-  child: Row(
-    children: [
-      // Left-side: Text that auto-truncates if too long
-      Expanded(
-        child: Text(
-          widget.audioName,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.normal,
-            fontSize: 13,
+            top: 50, // Adjust position as necessary
+            left: 16,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width *
+                    0.6, // 60% of screen width
+              ), // Adjust max width as needed
+              child: Text(
+                widget.audioName,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis, // Show "..." if too long
+                maxLines: 1, // Keep it to one line
+                softWrap: false,
+              ),
+            ),
           ),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-          softWrap: false,
-        ),
-      ),
-
-      // Right-side: IconButton
-      IconButton(
-        icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => GuestHomeScreen()),
-          );
-        },
-      ),
-    ],
-  ),
-),
           if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
           Positioned(
             bottom: 60,
