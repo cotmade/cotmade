@@ -11,7 +11,7 @@ import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plus.dart';
+import 'package:flutter_cached_video_player/flutter_cached_video_player.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
