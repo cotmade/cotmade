@@ -212,8 +212,16 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   @override
   void dispose() {
-    _controllers.forEach((key, controller) => controller.dispose());
-    _audioPlayers.forEach((key, player) => player.dispose());
+    _controllers.forEach((key, controller) {
+      controller.dispose();
+    });
+
+    _audioPlayers.forEach((key, player) async {
+      await player.stop();
+      player.dispose();
+    });
+    _audioPlayers.clear();
+
     _pageController.dispose();
     super.dispose();
   }
@@ -252,9 +260,33 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
                     scrollDirection: Axis.vertical,
-                    onPageChanged: (index) {
+                    onPageChanged: (index) async {
+                      // Pause previous video and audio
+                      if (_controllers[_currentIndex]?.value.isPlaying ??
+                          false) {
+                        _controllers[_currentIndex]?.pause();
+                      }
+                      await _audioPlayers[_currentIndex]?.pause();
+
                       _currentIndex = index;
-                      _preloadVideo(index); // Preload the current video
+
+                      // Preload the current video (if not preloaded)
+                      _preloadVideo(index);
+
+                      // Play the current video
+                      final controller = _controllers[index];
+                      if (controller != null &&
+                          controller.value.isInitialized) {
+                        controller.setVolume(_isMuted ? 0.0 : 1.0);
+                        controller.play();
+                      }
+
+                      // Play audio for the current video
+                      final videoData =
+                          _filteredVideos[index].data() as Map<String, dynamic>;
+                      _playAudio(index, videoData['audioName']);
+
+                      setState(() {}); // To update UI if needed
                     },
                     itemBuilder: (context, index) {
                       var videoData =
@@ -283,10 +315,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             right: 16,
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-             onPressed: () {
-  Get.to(() => GuestHomeScreen());
-},
-
+              onPressed: () {
+                Get.to(() => GuestHomeScreen());
+              },
             ),
           ),
           // Display audio name at the top left
@@ -419,7 +450,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   // Function to get image from Firebase Storage
   MemoryImage? displayImage;
 
-  getImageFromStorage(uid) async {
+  getImageFromStorage() async {
+    final uid = widget.videoData['uid'];
     try {
       final imageDataInBytes = await FirebaseStorage.instance
           .ref()
@@ -594,7 +626,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '$currency ${formatPrice(price)}/night',
+                                    'Price: $currency ${formatPrice(price)}/night',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -602,7 +634,16 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    '$city\n $country',
+                                    '$city',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    '$country',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -656,10 +697,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 ),
                 Column(
                   children: [
-                    MaterialButton(
-                      onPressed: () {
-                        UserProfilePage(uid: widget.videoData['uid']);
-                      },
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              UserProfilePage(uid: widget.videoData['uid']),
+                        ),
+                      ),
                       child: CircleAvatar(
                         backgroundColor: Colors.black,
                         radius: 30,
