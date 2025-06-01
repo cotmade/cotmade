@@ -216,8 +216,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       controller.dispose();
     });
 
-    _audioPlayers.forEach((key, player) async {
-      await player.stop();
+    // Stop audio players synchronously (can't await here)
+    _audioPlayers.forEach((key, player) {
+      player.stop(); // no await, just fire and forget
       player.dispose();
     });
     _audioPlayers.clear();
@@ -246,6 +247,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     await _loadVideos();
   }
 
+  Widget _buildNoResults() {
+    return Center(
+      child: Text(
+        'No videos found for your search',
+        style: TextStyle(fontSize: 14, color: Colors.white),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,7 +265,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           RefreshIndicator(
             onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
-                ? Center(child: CircularProgressIndicator())
+                ? Center(child: _buildNoResults())
                 : PageView.builder(
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
@@ -335,7 +345,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 style: TextStyle(
                     color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
-                  hintText: 'Search...',
+                  hintText: 'location...',
                   hintStyle: TextStyle(
                       color: Colors.white60), // Lighter color for hint text
                   filled: true,
@@ -738,16 +748,15 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       onPressed: _showMoreOptions,
                     ),
                     Opacity(
-  opacity: 0.0,
-  child: IconButton(
-    icon: Icon(
-      Icons.volume_off,
-      color: Colors.white,
-    ),
-    onPressed: widget.onToggleMute,
-  ),
-),
-
+                      opacity: 0.0,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.volume_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: widget.onToggleMute,
+                      ),
+                    ),
                   ],
                 ),
               ],
