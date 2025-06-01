@@ -267,16 +267,33 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
                     scrollDirection: Axis.vertical,
-                    onPageChanged: (index) async {
-                      // Stop and dispose old audio player if exists
-                      if (_audioPlayers.containsKey(_currentIndex)) {
-    await _audioPlayers[_currentIndex]?.stop();
-    await _audioPlayers[_currentIndex]?.dispose();
-    _audioPlayers.remove(_currentIndex);
-  }
+                   onPageChanged: (index) async {
+                      // Pause previous video and audio
+                      if (_controllers[_currentIndex]?.value.isPlaying ??
+                          false) {
+                        _controllers[_currentIndex]?.pause();
+                      }
+                      await _audioPlayers[_currentIndex]?.pause();
 
                       _currentIndex = index;
-                      _preloadVideo(index); // Preload the current video
+
+                      // Preload the current video (if not preloaded)
+                      _preloadVideo(index);
+
+                      // Play the current video
+                      final controller = _controllers[index];
+                      if (controller != null &&
+                          controller.value.isInitialized) {
+                        controller.setVolume(_isMuted ? 0.0 : 1.0);
+                        controller.play();
+                      }
+
+                      // Play audio for the current video
+                      final videoData =
+                          _filteredVideos[index].data() as Map<String, dynamic>;
+                      _playAudio(index, videoData['audioName']);
+
+                      setState(() {}); // To update UI if needed
                     },
                     itemBuilder: (context, index) {
                       var videoData =
@@ -440,7 +457,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   // Function to get image from Firebase Storage
   MemoryImage? displayImage;
 
-  getImageFromStorage(uid) async {
+  getImageFromStorage() async {
+    final uid = widget.videoData['uid'];
     try {
       final imageDataInBytes = await FirebaseStorage.instance
           .ref()
@@ -677,10 +695,19 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 ),
                 Column(
                   children: [
-                    MaterialButton(
-                      onPressed: () {
-                        UserProfilePage(uid: widget.videoData['uid']);
-                      },
+                    GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ViewPostingScreen(
+                                                  posting: PostingModel(
+                                                      id: widget.videoData[
+                                                          'postingId'])),
+                                        ),
+                                      );
+                                    },
                       child: CircleAvatar(
                         backgroundColor: Colors.black,
                         radius: 30,
@@ -713,13 +740,16 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       icon: Icon(Icons.more_vert, color: Colors.white),
                       onPressed: _showMoreOptions,
                     ),
-                    IconButton(
-                      icon: Icon(
-                        widget.isMuted ? Icons.volume_off : Icons.volume_up,
-                        color: Colors.white,
-                      ),
-                      onPressed: widget.onToggleMute,
-                    ),
+                    Opacity(
+  opacity: 0.0,
+  child: IconButton(
+    icon: Icon(
+      Icons.volume_off,
+      color: Colors.white,
+    ),
+    onPressed: widget.onToggleMute,
+  ),
+),
                   ],
                 ),
               ],
