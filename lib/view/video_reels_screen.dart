@@ -227,8 +227,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   @override
   void dispose() {
-    _controllers.forEach((key, controller) => controller.dispose());
-    _audioPlayers.forEach((key, player) => player.dispose());
+    _controllers.forEach((key, controller) {
+      controller.dispose();
+    });
+
+    // Stop audio players synchronously (can't await here)
+    _audioPlayers.forEach((key, player) {
+      player.stop(); // no await, just fire and forget
+      player.dispose();
+    });
+    _audioPlayers.clear();
+
     _pageController.dispose();
     super.dispose();
   }
@@ -253,6 +262,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     await _loadVideos();
   }
 
+  Widget _buildNoResults() {
+    return Center(
+      child: Text(
+        'No videos found for your search',
+        style: TextStyle(fontSize: 14, color: Colors.white),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -262,7 +280,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           RefreshIndicator(
             onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
-                ? Center(child: CircularProgressIndicator())
+                ? Center(child: _buildNoResults())
                 : PageView.builder(
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
