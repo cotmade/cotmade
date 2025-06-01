@@ -737,13 +737,17 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       icon: Icon(Icons.more_vert, color: Colors.white),
                       onPressed: _showMoreOptions,
                     ),
-                    IconButton(
-                      icon: Icon(
-                        widget.isMuted ? Icons.volume_off : Icons.volume_up,
-                        color: Colors.white,
-                      ),
-                      onPressed: widget.onToggleMute,
-                    ),
+                    Opacity(
+  opacity: 0.0,
+  child: IconButton(
+    icon: Icon(
+      Icons.volume_off,
+      color: Colors.white,
+    ),
+    onPressed: widget.onToggleMute,
+  ),
+),
+
                   ],
                 ),
               ],
