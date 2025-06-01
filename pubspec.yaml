@@ -50,7 +50,6 @@ dependencies:
   flutter_animate:
   share_plus:
   upgrader:
-  dio: ^5.7.0
   flutter_sound:
   just_audio:
   flutter_cache_manager:
