@@ -37,14 +37,11 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: 🔍 Locate APK and AAB
-        run: find . -type f \( -iname "*.apk" -o -iname "*.aab" \)
-
       - name: Upload APK and AAB
         uses: actions/upload-artifact@v4
         with:
           name: flutter-android-artifacts
           path: |
-            build/outputs/apk/release/*.apk
-            build/outputs/bundle/release/*.aab
+            android/build/outputs/apk/release/*.apk
+            android/build/outputs/bundle/release/*.aab
 
