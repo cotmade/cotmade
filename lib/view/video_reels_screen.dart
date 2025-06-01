@@ -77,7 +77,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     var videoUrl = videoData['reelsVideo'];
     var audioName = videoData['audioName'];
 
-    final filePath = await _cacheVideo(videoUrl);  // Cache video
+    final filePath = await _cacheVideo(videoUrl); // Cache video
     if (filePath != null) {
       final controller = VideoPlayerController.file(File(filePath));
       _controllers[index] = controller;
@@ -159,7 +159,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
       var videoUrl = videoData['reelsVideo'];
 
-      final filePath = await _cacheVideo(videoUrl);  // Cache video
+      final filePath = await _cacheVideo(videoUrl); // Cache video
       if (filePath != null) {
         final tempController = VideoPlayerController.file(File(filePath));
 
@@ -174,7 +174,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       }
     }
   }
-
 
   String formatSearchQuery(String query) {
     if (query.isEmpty) return query;
@@ -269,6 +268,12 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     itemCount: _filteredVideos.length,
                     scrollDirection: Axis.vertical,
                     onPageChanged: (index) {
+                      // Stop and dispose old audio player if exists
+  if (_audioPlayers.containsKey(_currentIndex)) {
+    await _audioPlayers[_currentIndex]?.stop();
+    await _audioPlayers[_currentIndex]?.dispose();
+    _audioPlayers.remove(_currentIndex);
+  }
                       _currentIndex = index;
                       _preloadVideo(index); // Preload the current video
                     },
