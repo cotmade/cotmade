@@ -210,22 +210,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     });
   }
 
+
   @override
-  void dispose() {
-    _controllers.forEach((key, controller) {
-      controller.dispose();
-    });
+void dispose() {
+  // Stop and dispose all audio players
+  _audioPlayers.forEach((key, player) {
+    player.stop();
+    player.dispose();
+  });
+  _audioPlayers.clear();
 
-    // Stop audio players synchronously (can't await here)
-    _audioPlayers.forEach((key, player) {
-      player.stop(); // no await, just fire and forget
-      player.dispose();
-    });
-    _audioPlayers.clear();
+  // Dispose all video controllers
+  _controllers.forEach((key, controller) {
+    controller.dispose();
+  });
+  _controllers.clear();
 
-    _pageController.dispose();
-    super.dispose();
-  }
+  _pageController.dispose();
+
+  super.dispose();
+}
 
   // Clear cache when refreshing
   Future<void> _clearCache() async {
@@ -541,7 +545,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
             ),
           ),
           Positioned(
-            top: 50, // Adjust position as necessary
+            top: 60, // Adjust position as necessary
             left: 16,
             child: Container(
               constraints: BoxConstraints(
@@ -549,7 +553,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     0.6, // 60% of screen width
               ), // Adjust max width as needed
               child: Text(
-                widget.audioName,
+                widget.audioName.split('.').first,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.normal,
