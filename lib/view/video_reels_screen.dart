@@ -7,6 +7,7 @@ import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
+import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
@@ -82,11 +83,21 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     controller.setLooping(true);
 
     // ✅ Volume control based on premium
-    if (premium == 3) {
-      controller.setVolume(1.0); // Let original video audio play
-    } else {
-      controller.setVolume(0.0); // Mute video and play custom audio
+    if (controller != null && controller.value.isInitialized) {
+      // Ensure volume is set based on premium and mute status
+      if (premium == 3) {
+        controller.setVolume(_isMuted
+            ? 0.0
+            : 1.0); // Play the original video sound, but respect mute status
+      } else {
+        controller
+            .setVolume(0.0); // Mute video sound when premium is less than 3
+      }
+
+      // Play the video
+      controller.play();
     }
+
     // controller.setVolume(0.0); // Muting video sound
 
     // Play the audio from the assets
@@ -95,7 +106,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
 
     // Ensure that video still plays regardless of audio
-controller.play();  // Always play the video, even if audioName is null or empty
+    // Always play the video, even if audioName is null or empty
 
     setState(() {});
 
