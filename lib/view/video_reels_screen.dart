@@ -346,8 +346,9 @@ void dispose() {
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
               onPressed: () {
-              _stopAllAudio();
-                Get.to(() => GuestHomeScreen());
+                _stopAllAudio();
+               Navigator.push(context, MaterialPageRoute(builder: (_) => GuestHomeScreen()));
+        
               },
             ),
           ),
