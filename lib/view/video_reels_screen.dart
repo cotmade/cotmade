@@ -99,6 +99,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
 
     // controller.setVolume(0.0); // Muting video sound
+    // Stop previous audio if any
+    _stopAudioForPreviousVideo(index);
 
     // Play the audio from the assets
     if (premium < 3 && audioName != null && audioName.isNotEmpty) {
@@ -129,6 +131,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         _audioPlayers[index]?.stop();
       }
     });
+  }
+
+  // Stop the audio of the previous video when swiping to the next one
+  void _stopAudioForPreviousVideo(int currentIndex) {
+    for (var key in _audioPlayers.keys) {
+      if (key != currentIndex) {
+        _audioPlayers[key]?.stop(); // Stop any previous audio
+      }
+    }
   }
 
   Future<void> _stopAllAudio() async {
@@ -330,7 +341,18 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       final controller = _controllers[index];
                       if (controller != null &&
                           controller.value.isInitialized) {
-                        controller.setVolume(_isMuted ? 0.0 : 1.0);
+                        var videoData = _filteredVideos[index].data()
+                            as Map<String, dynamic>;
+                        var premium = videoData['premium'] ?? 0;
+
+                        // Set volume based on premium value
+                        if (premium == 3) {
+                          controller.setVolume(_isMuted ? 0.0 : 1.0);
+                        } else {
+                          controller.setVolume(
+                              0.0); // Mute video sound when premium is less than 3
+                        }
+
                         controller.play();
                       }
 

@@ -252,7 +252,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'likes': 0,
         'premium': 1,
         'postId': fileName,
-        'audioName': _audioName, // Store the audio name
+        'audioName': audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID
         'reelsVideo': videoUrl,
         'time': Timestamp.now(),
