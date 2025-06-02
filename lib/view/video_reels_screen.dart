@@ -108,6 +108,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     });
   }
 
+  void _stopAllAudio() {
+  _audioPlayers.forEach((key, player) {
+    if (player.playing) {
+      player.stop();
+    }
+  });
+}
+
+@override
+void deactivate() {
+  super.deactivate();
+  print("deactivate() called — stopping audio immediately.");
+  _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+}
+
+
   // Play audio from assets
   void _playAudio(int index, String audioName) async {
     // Stop previous audio if any
@@ -330,6 +346,7 @@ void dispose() {
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
               onPressed: () {
+              _stopAllAudio();
                 Get.to(() => GuestHomeScreen());
               },
             ),
