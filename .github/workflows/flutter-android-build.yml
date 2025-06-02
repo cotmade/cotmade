@@ -20,7 +20,7 @@ jobs:
           channel: stable
 
       - name: Flutter clean
-	run: flutter clean
+        run: flutter clean
 
       - name: Flutter pub get
         run: flutter pub get
