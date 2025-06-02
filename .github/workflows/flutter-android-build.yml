@@ -18,6 +18,9 @@ jobs:
         with:
           flutter-version: '3.29.0'
           channel: stable
+      
+      - name: Delete build folders
+        run: rm -rf build android/app/build android/build      
 
       - name: Flutter clean
         run: flutter clean
