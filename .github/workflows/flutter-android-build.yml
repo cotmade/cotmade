@@ -19,6 +19,9 @@ jobs:
           flutter-version: '3.29.0'
           channel: stable
 
+      - name: Flutter clean
+	run: flutter clean
+
       - name: Flutter pub get
         run: flutter pub get
 
