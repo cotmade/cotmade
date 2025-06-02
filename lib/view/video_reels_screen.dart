@@ -7,7 +7,6 @@ import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
-import 'package:cotmade/view/guestScreens/video_cache_manager.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
