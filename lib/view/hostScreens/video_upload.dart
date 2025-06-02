@@ -249,6 +249,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'caption': caption, // Non-nullable string
         'email': email, // Non-nullable string
         'likes': 0,
+        'premium': 1,
         'postId': fileName,
         'audioName': _audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID

@@ -74,16 +74,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
     var audioName = videoData['audioName'];
+    var premium = videoData['premium'] ?? 0; // ✅ Get premium from reels doc
 
     final controller = CachedVideoPlayerController.network(videoUrl);
     _controllers[index] = controller;
 
     await controller.initialize();
     controller.setLooping(true);
-    controller.setVolume(0.0); // Muting video sound
+
+    // ✅ Volume control based on premium
+    if (premium == 3) {
+      controller.setVolume(1.0); // Let original video audio play
+    } else {
+      controller.setVolume(0.0); // Mute video and play custom audio
+    }
+    // controller.setVolume(0.0); // Muting video sound
 
     // Play the audio from the assets
-    _playAudio(index, audioName);
+    if (premium < 3 && audioName != null && audioName.isNotEmpty) {
+      _playAudio(index, audioName);
+    }
 
     setState(() {});
 
@@ -109,23 +119,21 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   Future<void> _stopAllAudio() async {
-  for (var player in _audioPlayers.values) {
-    if (player.playing) {
-      await player.stop();
+    for (var player in _audioPlayers.values) {
+      if (player.playing) {
+        await player.stop();
+      }
+      await player.dispose(); // 👈 Clean up memory
     }
-    await player.dispose(); // 👈 Clean up memory
+    _audioPlayers.clear();
   }
-  _audioPlayers.clear();
-}
 
-
-@override
-void deactivate() {
-  super.deactivate();
-  print("deactivate() called — stopping audio immediately.");
-  _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
-}
-
+  @override
+  void deactivate() {
+    super.deactivate();
+    print("deactivate() called — stopping audio immediately.");
+    _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+  }
 
   // Play audio from assets
   void _playAudio(int index, String audioName) async {
@@ -229,26 +237,25 @@ void deactivate() {
     });
   }
 
-
   @override
-void dispose() {
-  // Stop and dispose all audio players
-  _audioPlayers.forEach((key, player) {
-    player.stop();
-    player.dispose();
-  });
-  _audioPlayers.clear();
+  void dispose() {
+    // Stop and dispose all audio players
+    _audioPlayers.forEach((key, player) {
+      player.stop();
+      player.dispose();
+    });
+    _audioPlayers.clear();
 
-  // Dispose all video controllers
-  _controllers.forEach((key, controller) {
-    controller.dispose();
-  });
-  _controllers.clear();
+    // Dispose all video controllers
+    _controllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _controllers.clear();
 
-  _pageController.dispose();
+    _pageController.dispose();
 
-  super.dispose();
-}
+    super.dispose();
+  }
 
   // Clear cache when refreshing
   Future<void> _clearCache() async {
@@ -347,16 +354,15 @@ void dispose() {
             top: 50, // adjust for status bar
             right: 16,
             child: IconButton(
-  icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-  onPressed: () async {
-    await _stopAllAudio(); // ✅ ensures audio stops
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => GuestHomeScreen()),
-    );
-  },
-),
-
+              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+              onPressed: () async {
+                await _stopAllAudio(); // ✅ ensures audio stops
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => GuestHomeScreen()),
+                );
+              },
+            ),
           ),
           // Display audio name at the top left
 
@@ -577,7 +583,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     0.6, // 60% of screen width
               ), // Adjust max width as needed
               child: Text(
-                widget.audioName.split('.').first,
+                widget.audioName.split('.')[0],
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.normal,
@@ -599,13 +605,22 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            UserProfilePage(uid: widget.videoData['uid']),
-                      ),
-                    ),
+                    onTap: () {
+                      int premium =
+                          widget.videoData['premium'] ?? 0; // fallback if null
+                      if (premium != 3) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                UserProfilePage(uid: widget.videoData['uid']),
+                          ),
+                        );
+                      } else {
+                        // Do nothing or show a message
+                        print('Navigation disabled for premium=3 reels');
+                      }
+                    },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -736,13 +751,22 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              UserProfilePage(uid: widget.videoData['uid']),
-                        ),
-                      ),
+                      onTap: () {
+                        int premium = widget.videoData['premium'] ??
+                            0; // fallback if null
+                        if (premium != 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfilePage(uid: widget.videoData['uid']),
+                            ),
+                          );
+                        } else {
+                          // Do nothing or show a message
+                          print('Navigation disabled for premium=3 reels');
+                        }
+                      },
                       child: CircleAvatar(
                         backgroundColor: Colors.black,
                         radius: 30,
