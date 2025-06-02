@@ -108,13 +108,16 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     });
   }
 
-  void _stopAllAudio() {
-  _audioPlayers.forEach((key, player) {
+  Future<void> _stopAllAudio() async {
+  for (var player in _audioPlayers.values) {
     if (player.playing) {
-      player.stop();
+      await player.stop();
     }
-  });
+    await player.dispose(); // 👈 Clean up memory
+  }
+  _audioPlayers.clear();
 }
+
 
 @override
 void deactivate() {
@@ -344,13 +347,16 @@ void dispose() {
             top: 50, // adjust for status bar
             right: 16,
             child: IconButton(
-              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-              onPressed: () {
-                _stopAllAudio();
-               Navigator.push(context, MaterialPageRoute(builder: (_) => GuestHomeScreen()));
-        
-              },
-            ),
+  icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+  onPressed: () async {
+    await _stopAllAudio(); // ✅ ensures audio stops
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => GuestHomeScreen()),
+    );
+  },
+),
+
           ),
           // Display audio name at the top left
 
