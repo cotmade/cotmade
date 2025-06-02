@@ -225,21 +225,24 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   @override
-  void dispose() {
-    _controllers.forEach((key, controller) {
-      controller.dispose();
-    });
+void dispose() {
+  // Stop and dispose all audio players
+  _audioPlayers.forEach((key, player) {
+    player.stop();
+    player.dispose();
+  });
+  _audioPlayers.clear();
 
-    // Stop audio players synchronously (can't await here)
-    _audioPlayers.forEach((key, player) {
-      player.stop(); // no await, just fire and forget
-      player.dispose();
-    });
-    _audioPlayers.clear();
+  // Dispose all video controllers
+  _controllers.forEach((key, controller) {
+    controller.dispose();
+  });
+  _controllers.clear();
 
-    _pageController.dispose();
-    super.dispose();
-  }
+  _pageController.dispose();
+
+  super.dispose();
+}
 
   // Clear cache when refreshing
   Future<void> _clearCache() async {
