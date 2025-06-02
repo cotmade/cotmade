@@ -95,6 +95,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       _playAudio(index, audioName);
     }
 
+    // Ensure that video still plays regardless of audio
+controller.play();  // Always play the video, even if audioName is null or empty
+
     setState(() {});
 
     if (index == _currentIndex) {
