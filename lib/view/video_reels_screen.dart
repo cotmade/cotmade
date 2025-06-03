@@ -149,6 +149,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       await player.dispose(); // 👈 Clean up memory
     }
     _audioPlayers.clear();
+
+    // Pause and dispose all video controllers
+  for (var controller in _controllers.values) {
+    if (controller.value.isPlaying) await controller.pause();
+    await controller.dispose();
+  }
+  _controllers.clear();
   }
 
   @override
