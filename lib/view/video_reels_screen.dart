@@ -86,9 +86,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     if (controller != null && controller.value.isInitialized) {
       // Ensure volume is set based on premium and mute status
       if (premium >= 3) {
-        controller.setVolume(_isMuted
-            ? 0.0
-            : 1.0); // Play the original video sound, but respect mute status
+        controller.setVolume(
+            1.0); // Play the original video sound, but respect mute status
       } else {
         controller
             .setVolume(0.0); // Mute video sound when premium is less than 3
@@ -472,11 +471,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   int likes = 0;
   bool liked = false;
   bool showHeart = false;
+  late String uid;
 
   @override
   void initState() {
     super.initState();
     likes = widget.videoData['likes'] ?? 0;
+    uid = widget.videoData['uid'];
   }
 
   void _toggleLike() async {
@@ -517,9 +518,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
 
   // Function to get image from Firebase Storage
   MemoryImage? displayImage;
-
-  getImageFromStorage() async {
-    final uid = widget.videoData['uid'];
+  getImageFromStorage(uid) async {
     try {
       final imageDataInBytes = await FirebaseStorage.instance
           .ref()
