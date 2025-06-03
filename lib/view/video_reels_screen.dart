@@ -83,7 +83,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     controller.setLooping(true);
 
     // ✅ Volume control based on premium
-    if (controller != null && controller.value.isInitialized) {
+    if (controller.value.isInitialized) {
       // Ensure volume is set based on premium and mute status
       if (premium >= 3) {
         controller.setVolume(
@@ -338,22 +338,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                       // Play the current video
                       final controller = _controllers[index];
-                      if (controller != null && controller.value.isInitialized) {
-    // ✅ Set the volume based on premium and _isMuted
-    var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
-    var premium = videoData['premium'] ?? 0; // Get premium from the video data
+                      if (controller != null &&
+                          controller.value.isInitialized) {
+                        // ✅ Set the volume based on premium and _isMuted
+                        var videoData = _filteredVideos[index].data()
+                            as Map<String, dynamic>;
+                        var premium = videoData['premium'] ??
+                            0; // Get premium from the video data
 
-    if (premium >= 3) {
-      // Premium users can hear audio, so adjust based on mute status
-      controller.setVolume(1.0); // Set volume based on _isMuted
-    } else {
-      // Non-premium users: Always mute
-      controller.setVolume(0.0);
-    }
+                        if (premium >= 3) {
+                          // Premium users can hear audio, so adjust based on mute status
+                          controller
+                              .setVolume(1.0); // Set volume based on _isMuted
+                        } else {
+                          // Non-premium users: Always mute
+                          controller.setVolume(0.0);
+                        }
 
-    // Play the current video
-    controller.play();
-  }
+                        // Play the current video
+                        controller.play();
+                      }
 
                       // Play audio for the current video
                       final videoData =
@@ -483,12 +487,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   bool liked = false;
   bool showHeart = false;
   late String uid;
+  MemoryImage? displayImage;
 
   @override
   void initState() {
     super.initState();
     likes = widget.videoData['likes'] ?? 0;
     uid = widget.videoData['uid'];
+    getImageFromStorage(uid);
   }
 
   void _toggleLike() async {
@@ -528,7 +534,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   // Function to get image from Firebase Storage
-  MemoryImage? displayImage;
   getImageFromStorage(uid) async {
     try {
       final imageDataInBytes = await FirebaseStorage.instance
