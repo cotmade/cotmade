@@ -85,7 +85,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     // ✅ Volume control based on premium
     if (controller != null && controller.value.isInitialized) {
       // Ensure volume is set based on premium and mute status
-      if (premium == 3) {
+      if (premium >= 3) {
         controller.setVolume(_isMuted
             ? 0.0
             : 1.0); // Play the original video sound, but respect mute status
@@ -341,18 +341,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       final controller = _controllers[index];
                       if (controller != null &&
                           controller.value.isInitialized) {
-                        var videoData = _filteredVideos[index].data()
-                            as Map<String, dynamic>;
-                        var premium = videoData['premium'] ?? 0;
-
-                        // Set volume based on premium value
-                        if (premium == 3) {
-                          controller.setVolume(_isMuted ? 0.0 : 1.0);
-                        } else {
-                          controller.setVolume(
-                              0.0); // Mute video sound when premium is less than 3
-                        }
-
+                        controller.setVolume(_isMuted ? 0.0 : 1.0);
                         controller.play();
                       }
 
@@ -693,8 +682,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final data =
                                 snapshot.data!.data() as Map<String, dynamic>;
 
-                            var review = data['reviews'] ??
-                                []; // Default to an empty list if null
+                            //  var review = data['reviews'] ??
+                            //     []; // Default to an empty list if null
                             //  int numberOfReviews = review.length;
                             final price = data['price'] ?? 'unknown';
                             final city = data['city'] ?? 'Unknown City';
@@ -741,16 +730,24 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   SizedBox(height: 8),
                                   GestureDetector(
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ViewPostingScreen(
-                                                  posting: PostingModel(
-                                                      id: widget.videoData[
-                                                          'postingId'])),
-                                        ),
-                                      );
+                                      int premium =
+                                          widget.videoData['premium'] ?? 0;
+                                      if (premium != 3) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                ViewPostingScreen(
+                                                    posting: PostingModel(
+                                                        id: widget.videoData[
+                                                            'postingId'])),
+                                          ),
+                                        );
+                                      } else {
+                                        // Do nothing or show a message
+                                        print(
+                                            'Navigation disabled for premium=3 reels');
+                                      }
                                     },
                                     child: Container(
                                       padding: EdgeInsets.symmetric(
