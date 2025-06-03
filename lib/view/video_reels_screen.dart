@@ -338,11 +338,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                       // Play the current video
                       final controller = _controllers[index];
-                      if (controller != null &&
-                          controller.value.isInitialized) {
-                        controller.setVolume(_isMuted ? 0.0 : 1.0);
-                        controller.play();
-                      }
+                      if (controller != null && controller.value.isInitialized) {
+    // ✅ Set the volume based on premium and _isMuted
+    var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
+    var premium = videoData['premium'] ?? 0; // Get premium from the video data
+
+    if (premium >= 3) {
+      // Premium users can hear audio, so adjust based on mute status
+      controller.setVolume(1.0); // Set volume based on _isMuted
+    } else {
+      // Non-premium users: Always mute
+      controller.setVolume(0.0);
+    }
+
+    // Play the current video
+    controller.play();
+  }
 
                       // Play audio for the current video
                       final videoData =
