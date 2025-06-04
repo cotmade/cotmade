@@ -75,6 +75,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
     var audioName = videoData['audioName'];
+    var premium = videoData['premium'] ?? 0; // ✅ Get premium from reels doc
 
     final filePath = await _cacheVideo(videoUrl); // Cache video
     if (filePath != null) {
@@ -83,10 +84,30 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
       await controller.initialize();
       controller.setLooping(true);
-      controller.setVolume(0.0); // Muting video sound
+      // ✅ Volume control based on premium
+      if (controller.value.isInitialized) {
+        // Ensure volume is set based on premium and mute status
+        if (premium >= 3) {
+          controller.setVolume(
+              1.0); // Play the original video sound, but respect mute status
+        } else {
+          controller
+              .setVolume(0.0); // Mute video sound when premium is less than 3
+        }
+
+        // Play the video
+        controller.play();
+      }
+
+      // controller.setVolume(0.0); // Muting video sound
+      // Stop previous audio if any
+      _stopAudioForPreviousVideo(index);
 
       // Play the audio from the assets
-      _playAudio(index, audioName);
+      // Play the audio from the assets
+      if (premium < 3 && audioName != null && audioName.isNotEmpty) {
+        _playAudio(index, audioName);
+      }
 
       setState(() {});
 
@@ -113,10 +134,43 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
+  // Stop the audio of the previous video when swiping to the next one
+  void _stopAudioForPreviousVideo(int currentIndex) {
+    for (var key in _audioPlayers.keys) {
+      if (key != currentIndex) {
+        _audioPlayers[key]?.stop(); // Stop any previous audio
+      }
+    }
+  }
+
   // Cache the video file
   Future<String?> _cacheVideo(String videoUrl) async {
     final file = await cacheManager.getSingleFile(videoUrl);
     return file.path; // Return the local file path
+  }
+
+  Future<void> _stopAllAudio() async {
+    for (var player in _audioPlayers.values) {
+      if (player.playing) {
+        await player.stop();
+      }
+      await player.dispose(); // 👈 Clean up memory
+    }
+    _audioPlayers.clear();
+
+    // Pause and dispose all video controllers
+    for (var controller in _controllers.values) {
+      if (controller.value.isPlaying) await controller.pause();
+      await controller.dispose();
+    }
+    _controllers.clear();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+    print("deactivate() called — stopping audio immediately.");
+    _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
   }
 
   // Play audio from assets
@@ -225,24 +279,24 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   @override
-void dispose() {
-  // Stop and dispose all audio players
-  _audioPlayers.forEach((key, player) {
-    player.stop();
-    player.dispose();
-  });
-  _audioPlayers.clear();
+  void dispose() {
+    // Stop and dispose all audio players
+    _audioPlayers.forEach((key, player) {
+      player.stop();
+      player.dispose();
+    });
+    _audioPlayers.clear();
 
-  // Dispose all video controllers
-  _controllers.forEach((key, controller) {
-    controller.dispose();
-  });
-  _controllers.clear();
+    // Dispose all video controllers
+    _controllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _controllers.clear();
 
-  _pageController.dispose();
+    _pageController.dispose();
 
-  super.dispose();
-}
+    super.dispose();
+  }
 
   // Clear cache when refreshing
   Future<void> _clearCache() async {
@@ -287,7 +341,7 @@ void dispose() {
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
                     scrollDirection: Axis.vertical,
-                   onPageChanged: (index) async {
+                    onPageChanged: (index) async {
                       // Pause previous video and audio
                       if (_controllers[_currentIndex]?.value.isPlaying ??
                           false) {
@@ -304,7 +358,22 @@ void dispose() {
                       final controller = _controllers[index];
                       if (controller != null &&
                           controller.value.isInitialized) {
-                        controller.setVolume(_isMuted ? 0.0 : 1.0);
+                        // ✅ Set the volume based on premium and _isMuted
+                        var videoData = _filteredVideos[index].data()
+                            as Map<String, dynamic>;
+                        var premium = videoData['premium'] ??
+                            0; // Get premium from the video data
+
+                        if (premium >= 3) {
+                          // Premium users can hear audio, so adjust based on mute status
+                          controller
+                              .setVolume(1.0); // Set volume based on _isMuted
+                        } else {
+                          // Non-premium users: Always mute
+                          controller.setVolume(0.0);
+                        }
+
+                        // Play the current video
                         controller.play();
                       }
 
@@ -342,8 +411,12 @@ void dispose() {
             right: 16,
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-              onPressed: () {
-                Get.to(() => GuestHomeScreen());
+              onPressed: () async {
+                await _stopAllAudio(); // ✅ ensures audio stops
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => GuestHomeScreen()),
+                );
               },
             ),
           ),
@@ -362,7 +435,7 @@ void dispose() {
                 style: TextStyle(
                     color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
-                  hintText: 'Search...',
+                  hintText: 'location...',
                   hintStyle: TextStyle(
                       color: Colors.white60), // Lighter color for hint text
                   filled: true,
@@ -431,11 +504,15 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   int likes = 0;
   bool liked = false;
   bool showHeart = false;
+  late String uid;
+  MemoryImage? displayImage;
 
   @override
   void initState() {
     super.initState();
     likes = widget.videoData['likes'] ?? 0;
+    uid = widget.videoData['uid'];
+    getImageFromStorage(uid);
   }
 
   void _toggleLike() async {
@@ -475,10 +552,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   // Function to get image from Firebase Storage
-  MemoryImage? displayImage;
-
-  getImageFromStorage() async {
-    final uid = widget.videoData['uid'];
+  getImageFromStorage(uid) async {
     try {
       final imageDataInBytes = await FirebaseStorage.instance
           .ref()
@@ -558,7 +632,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
             ),
           ),
           Positioned(
-            top: 50, // Adjust position as necessary
+            top: 70, // Adjust position as necessary
             left: 16,
             child: Container(
               constraints: BoxConstraints(
@@ -566,7 +640,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                     0.6, // 60% of screen width
               ), // Adjust max width as needed
               child: Text(
-                widget.audioName,
+                widget.audioName.split('.')[0],
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.normal,
@@ -588,13 +662,22 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            UserProfilePage(uid: widget.videoData['uid']),
-                      ),
-                    ),
+                    onTap: () {
+                      int premium =
+                          widget.videoData['premium'] ?? 0; // fallback if null
+                      if (premium != 3) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                UserProfilePage(uid: widget.videoData['uid']),
+                          ),
+                        );
+                      } else {
+                        // Do nothing or show a message
+                        print('Navigation disabled for premium=3 reels');
+                      }
+                    },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -632,8 +715,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final data =
                                 snapshot.data!.data() as Map<String, dynamic>;
 
-                            var review = data['reviews'] ??
-                                []; // Default to an empty list if null
+                            // var review = data['reviews'] ??
+                            []; // Default to an empty list if null
                             //  int numberOfReviews = review.length;
                             final price = data['price'] ?? 'unknown';
                             final city = data['city'] ?? 'Unknown City';
@@ -653,7 +736,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '$currency ${formatPrice(price)}/night',
+                                    'Price: $currency ${formatPrice(price)}/night',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -661,7 +744,16 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    '$city\n $country',
+                                    '$city',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    '$country',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -671,16 +763,24 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                   SizedBox(height: 8),
                                   GestureDetector(
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ViewPostingScreen(
-                                                  posting: PostingModel(
-                                                      id: widget.videoData[
-                                                          'postingId'])),
-                                        ),
-                                      );
+                                      int premium =
+                                          widget.videoData['premium'] ?? 0;
+                                      if (premium != 3) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                ViewPostingScreen(
+                                                    posting: PostingModel(
+                                                        id: widget.videoData[
+                                                            'postingId'])),
+                                          ),
+                                        );
+                                      } else {
+                                        // Do nothing or show a message
+                                        print(
+                                            'Navigation disabled for premium=3 reels');
+                                      }
                                     },
                                     child: Container(
                                       padding: EdgeInsets.symmetric(
@@ -716,18 +816,22 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ViewPostingScreen(
-                                                  posting: PostingModel(
-                                                      id: widget.videoData[
-                                                          'postingId'])),
-                                        ),
-                                      );
-                                    },
+                      onTap: () {
+                        int premium = widget.videoData['premium'] ??
+                            0; // fallback if null
+                        if (premium != 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfilePage(uid: widget.videoData['uid']),
+                            ),
+                          );
+                        } else {
+                          // Do nothing or show a message
+                          print('Navigation disabled for premium=3 reels');
+                        }
+                      },
                       child: CircleAvatar(
                         backgroundColor: Colors.black,
                         radius: 30,
@@ -761,15 +865,15 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       onPressed: _showMoreOptions,
                     ),
                     Opacity(
-  opacity: 0.0,
-  child: IconButton(
-    icon: Icon(
-      Icons.volume_off,
-      color: Colors.white,
-    ),
-    onPressed: widget.onToggleMute,
-  ),
-),
+                      opacity: 0.0,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.volume_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: widget.onToggleMute,
+                      ),
+                    ),
                   ],
                 ),
               ],

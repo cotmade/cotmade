@@ -243,14 +243,16 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
       // Ensure non-null email and caption (use empty string if null)
       final email = user.email ?? ''; // Use empty string if email is null
       final caption = _caption ?? ''; // Use empty string if caption is null
+      final audioName = _audioName ?? ''; // Use empty string if caption is null
 
       // Save video metadata in Firestore, including the selected posting ID
       await _firestore.collection('reels').add({
         'caption': caption, // Non-nullable string
         'email': email, // Non-nullable string
         'likes': 0,
+        'premium': 1,
         'postId': fileName,
-        'audioName': _audioName, // Store the audio name
+        'audioName': audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID
         'reelsVideo': videoUrl,
         'time': Timestamp.now(),
