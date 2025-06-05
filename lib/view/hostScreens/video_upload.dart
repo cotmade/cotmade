@@ -10,7 +10,7 @@ import 'package:cotmade/model/app_constants.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -104,57 +104,60 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
   // Pick an audio file from assets
   Future<void> _pickAudio() async {
-    final audioFiles = [
-      'cinematic-intro.mp3',
-      'gospel-choir-heavenly.mp3',
-      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-    ];
+  final audioFiles = [
+    'cinematic-intro.mp3',
+    'gospel-choir-heavenly.mp3',
+    'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
+  ];
 
-    final selectedAudio = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          title: Text('Select Audio'),
-          children: audioFiles.map((audio) {
-            return SimpleDialogOption(
-              child: Text(audio),
-              onPressed: () {
-                Navigator.of(context)
-                    .pop(audio); // Just pop the dialog with the selection
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
+  final selectedAudio = await showDialog<String>(
+    context: context,
+    builder: (BuildContext context) {
+      return SimpleDialog(
+        title: Text('Select Audio'),
+        children: audioFiles.map((audio) {
+          return SimpleDialogOption(
+            child: Text(audio),
+            onPressed: () {
+              Navigator.of(context).pop(audio);
+            },
+          );
+        }).toList(),
+      );
+    },
+  );
 
-    if (selectedAudio != null) {
+  if (selectedAudio != null) {
+    setState(() {
+      _audioName = selectedAudio;
+    });
+
+    try {
+      // Stop previous if any
+      await _audioPlayer.stop();
+
+      // Play audio from assets
+      // audioplayers uses a special method to load assets:
+      await _audioPlayer.play(AssetSource(selectedAudio));
+
       setState(() {
-        _audioName = selectedAudio;
+        _isPlaying = true;
       });
 
-      try {
-        await _audioPlayer.setAsset('assets/audio/$selectedAudio');
-        await _audioPlayer.play();
+      _audioPlayer.onPlayerComplete.listen((event) {
         setState(() {
-          _isPlaying = true;
+          _isPlaying = false;
+          _audioFinished = true;
         });
-        _audioPlayer.playerStateStream.listen((state) {
-          if (state.processingState == ProcessingState.completed) {
-            setState(() {
-              _isPlaying = false;
-              _audioFinished = true;
-            });
-          }
-        });
-      } catch (e) {
-        print("Audio play error: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to play audio")),
-        );
-      }
+      });
+    } catch (e) {
+      print("Audio play error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to play audio")),
+      );
     }
   }
+}
 
   // Compress the video if its size exceeds 20MB
   Future<File?> _compressVideo(File videoFile) async {
