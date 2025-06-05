@@ -14,7 +14,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/hostScreens/withdraw_screen.dart';
 import 'package:cotmade/view/resetpassword_successful.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+//import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
@@ -24,13 +24,9 @@ class UserViewModel {
 
   signUp(email, password, firstName, lastName, country, state, mobileNumber,
       bio, imageFileOfUser) async {
-    var connectivityResult = await Connectivity().checkConnectivity();
+  //  var connectivityResult = await Connectivity().checkConnectivity();
 
-    if (connectivityResult == ConnectivityResult.none) {
-      // No internet connection
-      Get.snackbar("No Internet", "Please check your internet connection.");
-      return; // Return early if no internet
-    }
+  
     Get.snackbar("Please wait", "your account is being created");
 
     try {
