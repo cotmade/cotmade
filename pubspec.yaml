@@ -51,7 +51,6 @@ dependencies:
   share_plus:
   upgrader:
   flutter_sound:
-  just_audio:
   flutter_cache_manager:
   audioplayers:
 
