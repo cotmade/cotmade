@@ -17,6 +17,7 @@ import 'package:cotmade/view/resetpassword_successful.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 
 class UserViewModel {
   UserModel userModel = UserModel();
@@ -151,7 +152,7 @@ class UserViewModel {
       Get.snackbar("Logged-In", "You are logged in successfully.");
 
       // Navigate to the home screen after login
-      Get.to(GuestHomeScreen());
+      Get.to(VideoReelsPage());
     } on FirebaseAuthException catch (e) {
       // Handle Firebase authentication errors specifically
       String errorMessage = _handleAuthError(e);
