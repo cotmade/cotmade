@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/model/user_model.dart';
-//import 'package:cotmade/view/data/exception.dart';
+import 'package:cotmade/view/data/exception.dart';
 import 'package:cotmade/view/firebase_exceptions.dart';
 import 'package:cotmade/view/guestScreens/account_screen.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
@@ -17,12 +17,16 @@ import 'package:cotmade/view/resetpassword_successful.dart';
 //import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 
 class UserViewModel {
   UserModel userModel = UserModel();
 
   signUp(email, password, firstName, lastName, country, state, mobileNumber,
       bio, imageFileOfUser) async {
+  //  var connectivityResult = await Connectivity().checkConnectivity();
+
+  
     Get.snackbar("Please wait", "your account is being created");
 
     try {
@@ -51,7 +55,7 @@ class UserViewModel {
         });
 
         // Call sendWelcomeEmail after account is created
-        await sendWelcomeEmail(email, firstName, mobileNumber, currentUserID);
+        await sendWelcomeEmail(email, firstName, mobileNumber);
 
         Get.to(GuestHomeScreen());
         Get.snackbar("Congratulations", "your account has been created");
@@ -94,15 +98,14 @@ class UserViewModel {
         MemoryImage(imageFileOfUser.readAsBytesSync());
   }
 
-  Future<void> sendWelcomeEmail(String email, String firstName,
-      String mobileNumber, String currentUserID) async {
+  Future<void> sendWelcomeEmail(
+      String email, String firstName, String mobileNumber) async {
     final url = Uri.parse("https://cotmade.com/app/send_email.php");
 
     final response = await http.post(url, body: {
       "email": email,
       "firstName": firstName,
       "mobileNumber": mobileNumber,
-      "hostID": currentUserID,
     });
 
     if (response.statusCode == 200) {
@@ -145,7 +148,7 @@ class UserViewModel {
       Get.snackbar("Logged-In", "You are logged in successfully.");
 
       // Navigate to the home screen after login
-      Get.to(GuestHomeScreen());
+      Get.to(VideoReelsPage());
     } on FirebaseAuthException catch (e) {
       // Handle Firebase authentication errors specifically
       String errorMessage = _handleAuthError(e);

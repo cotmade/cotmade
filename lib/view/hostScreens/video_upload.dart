@@ -118,15 +118,9 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
           children: audioFiles.map((audio) {
             return SimpleDialogOption(
               child: Text(audio),
-              onPressed: () async {
-                Navigator.of(context).pop(audio);
-
-                try {
-                  await _audioPlayer.setAsset('assets/audio/$audio');
-                  await _audioPlayer.play();
-                } catch (e) {
-                  print("Audio play error: $e");
-                }
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(audio); // Just pop the dialog with the selection
               },
             );
           }).toList(),
@@ -138,6 +132,27 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
       setState(() {
         _audioName = selectedAudio;
       });
+
+      try {
+        await _audioPlayer.setAsset('assets/audio/$selectedAudio');
+        await _audioPlayer.play();
+        setState(() {
+          _isPlaying = true;
+        });
+        _audioPlayer.playerStateStream.listen((state) {
+          if (state.processingState == ProcessingState.completed) {
+            setState(() {
+              _isPlaying = false;
+              _audioFinished = true;
+            });
+          }
+        });
+      } catch (e) {
+        print("Audio play error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to play audio")),
+        );
+      }
     }
   }
 
