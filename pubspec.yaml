@@ -72,7 +72,9 @@ flutter:
   uses-material-design: true
   assets:
     - images/
-    - assets/audio/
+    - assets/audio/cinematic-intro.mp3
+    - assets/audio/gospel-choir-heavenly.mp3
+    - assets/audio/prazkhanalmusic__chimera-afro-tim-clap-loop.wav
   # assets:
   #  - images/a_dot_burr.jpeg
   #  - images/a_dot_ham.jpeg
