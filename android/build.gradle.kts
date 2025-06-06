@@ -13,7 +13,7 @@ buildscript {
 
     dependencies {
         // Android Gradle Plugin
-        classpath("com.android.tools.build:gradle:7.3.0")
+        classpath("com.android.tools.build:gradle:8.4.0")
 
         // Kotlin Gradle Plugin
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
