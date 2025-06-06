@@ -11,7 +11,6 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -24,7 +23,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FlutterSoundPlayer _flutterSoundPlayer = FlutterSoundPlayer();
 
   File? _videoFile;
   String? _audioName; // Track selected audio name
@@ -48,7 +46,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   void dispose() {
     _videoController?.dispose(); // Dispose video controller
     _audioPlayer.dispose(); // Dispose audio player
-    _flutterSoundPlayer.closePlayer();
     super.dispose();
   }
 
@@ -107,63 +104,43 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
   // Pick an audio file from assets/audio
   Future<void> _pickAudio() async {
-  final audioFiles = [
-    'cinematic-intro.mp3',
-    'gospel-choir-heavenly.mp3',
-    'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-  ];
+    final audioFiles = [
+      'cinematic-intro.mp3',
+      'gospel-choir-heavenly.mp3',
+      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
+    ];
 
-  final selectedAudio = await showDialog<String>(
-    context: context,
-    builder: (BuildContext context) {
-      return SimpleDialog(
-        title: Text('Select Audio'),
-        children: audioFiles.map((audio) {
-          return SimpleDialogOption(
-            child: Text(audio),
-            onPressed: () async {
-              Navigator.of(context).pop(audio);
+    final selectedAudio = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: Text('Select Audio'),
+          children: audioFiles.map((audio) {
+            return SimpleDialogOption(
+              child: Text(audio),
+              onPressed: () async {
+                Navigator.of(context).pop(audio);
 
-              try {
-                if (defaultTargetPlatform == TargetPlatform.android) {
-                  Codec codec;
-                  if (audio.toLowerCase().endsWith('.mp3')) {
-                    codec = Codec.mp3;
-                  } else if (audio.toLowerCase().endsWith('.wav')) {
-                    codec = Codec.pcm16WAV;
-                  } else {
-                    throw Exception('Unsupported audio format');
-                  }
-
-                  await _flutterSoundPlayer.openPlayer();
-                  await _flutterSoundPlayer.startPlayer(
-                    fromURI: 'assets/audio/$audio',
-                    codec: codec,
-                    whenFinished: () {
-                      print("Playback finished");
-                    },
-                  );
-                } else {
+                try {
                   await _audioPlayer.setAsset('assets/audio/$audio');
+                  await _audioPlayer.setVolume(1.0);
                   await _audioPlayer.play();
+                } catch (e) {
+                  print("Audio play error: $e");
                 }
-              } catch (e) {
-                print("Audio play error: $e");
-              }
-            },
-          );
-        }).toList(),
-      );
-    },
-  );
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
 
-  if (selectedAudio != null) {
-    setState(() {
-      _audioName = selectedAudio;
-    });
+    if (selectedAudio != null) {
+      setState(() {
+        _audioName = selectedAudio;
+      });
+    }
   }
-}
-
 
   // Compress the video if its size exceeds 20MB
   Future<File?> _compressVideo(File videoFile) async {
