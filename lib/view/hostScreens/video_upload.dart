@@ -102,7 +102,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     }
   }
 
-  // Pick an audio file from assets
+  // Pick an audio file from assets/audio
   Future<void> _pickAudio() async {
     final audioFiles = [
       'cinematic-intro.mp3',
