@@ -40,6 +40,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   void initState() {
     super.initState();
     _fetchUserPostings(); // Initialize audio player
+    _pickAudio();
   }
 
   @override
@@ -118,15 +119,9 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
           children: audioFiles.map((audio) {
             return SimpleDialogOption(
               child: Text(audio),
-              onPressed: () async {
-                Navigator.of(context).pop(audio);
-
-                try {
-                  await _audioPlayer.setAsset('assets/audio/$audio');
-                  await _audioPlayer.play();
-                } catch (e) {
-                  print("Audio play error: $e");
-                }
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(audio); // Just pop here with the selected audio
               },
             );
           }).toList(),
@@ -135,9 +130,17 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     );
 
     if (selectedAudio != null) {
-      setState(() {
-        _audioName = selectedAudio;
-      });
+      try {
+        // Set and play audio after the dialog closes
+        await _audioPlayer.setAsset('assets/audio/$selectedAudio');
+        await _audioPlayer.play();
+
+        setState(() {
+          _audioName = selectedAudio;
+        });
+      } catch (e) {
+        print("Audio play error: $e");
+      }
     }
   }
 
