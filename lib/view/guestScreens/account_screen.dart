@@ -76,7 +76,7 @@ class _AccountScreenState extends State<AccountScreen> {
         });
       }
     } catch (e) {
-      Get.snackbar("Error", "Failed to fetch user data.");
+    //  Get.snackbar("Error", "Failed to fetch user data.");
       setState(() {
         _isLoading = false;
       });
