@@ -104,60 +104,59 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
   // Pick an audio file from assets
   Future<void> _pickAudio() async {
-  final audioFiles = [
-    'cinematic-intro.mp3',
-    'gospel-choir-heavenly.mp3',
-    'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-  ];
+    final audioFiles = [
+      'cinematic-intro.mp3',
+      'gospel-choir-heavenly.mp3',
+      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
+    ];
 
-  final selectedAudio = await showDialog<String>(
-    context: context,
-    builder: (BuildContext context) {
-      return SimpleDialog(
-        title: Text('Select Audio'),
-        children: audioFiles.map((audio) {
-          return SimpleDialogOption(
-            child: Text(audio),
-            onPressed: () {
-              Navigator.of(context).pop(audio);
-            },
-          );
-        }).toList(),
-      );
-    },
-  );
+    final selectedAudio = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: Text('Select Audio'),
+          children: audioFiles.map((audio) {
+            return SimpleDialogOption(
+              child: Text(audio),
+              onPressed: () {
+                Navigator.of(context).pop(audio);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
 
-  if (selectedAudio != null) {
-    setState(() {
-      _audioName = selectedAudio;
-    });
-
-    try {
-      // Stop previous if any
-      await _audioPlayer.stop();
-
-      // Play audio from assets
-      // audioplayers uses a special method to load assets:
-      await _audioPlayer.play(AssetSource(selectedAudio));
-
+    if (selectedAudio != null) {
       setState(() {
-        _isPlaying = true;
+        _audioName = selectedAudio;
       });
 
-      _audioPlayer.onPlayerComplete.listen((event) {
+      try {
+        // Stop previous audio if any
+        await _audioPlayer.stop();
+
+        // Play audio from assets - specify the relative path correctly
+        await _audioPlayer.play(AssetSource('assets/audio/$selectedAudio'));
+
         setState(() {
-          _isPlaying = false;
-          _audioFinished = true;
+          _isPlaying = true;
         });
-      });
-    } catch (e) {
-      print("Audio play error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to play audio")),
-      );
+
+        _audioPlayer.onPlayerComplete.listen((event) {
+          setState(() {
+            _isPlaying = false;
+            _audioFinished = true;
+          });
+        });
+      } catch (e) {
+        print("Audio play error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to play audio")),
+        );
+      }
     }
   }
-}
 
   // Compress the video if its size exceeds 20MB
   Future<File?> _compressVideo(File videoFile) async {
