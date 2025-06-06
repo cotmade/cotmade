@@ -53,6 +53,7 @@ dependencies:
   flutter_sound:
   flutter_cache_manager:
   audioplayers:
+  just_audio:
 
 dev_dependencies:
   flutter_test:
