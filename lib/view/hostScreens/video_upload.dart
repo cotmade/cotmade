@@ -10,7 +10,7 @@ import 'package:cotmade/model/app_constants.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -118,8 +118,15 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
           children: audioFiles.map((audio) {
             return SimpleDialogOption(
               child: Text(audio),
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop(audio);
+
+                try {
+                  await _audioPlayer.setAsset('assets/audio/$audio');
+                  await _audioPlayer.play();
+                } catch (e) {
+                  print("Audio play error: $e");
+                }
               },
             );
           }).toList(),
@@ -131,30 +138,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
       setState(() {
         _audioName = selectedAudio;
       });
-
-      try {
-        // Stop previous audio if any
-        await _audioPlayer.stop();
-
-        // Play audio from assets - specify the relative path correctly
-        await _audioPlayer.play(AssetSource('assets/audio/$selectedAudio'));
-
-        setState(() {
-          _isPlaying = true;
-        });
-
-        _audioPlayer.onPlayerComplete.listen((event) {
-          setState(() {
-            _isPlaying = false;
-            _audioFinished = true;
-          });
-        });
-      } catch (e) {
-        print("Audio play error: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to play audio")),
-        );
-      }
     }
   }
 
@@ -260,14 +243,16 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
       // Ensure non-null email and caption (use empty string if null)
       final email = user.email ?? ''; // Use empty string if email is null
       final caption = _caption ?? ''; // Use empty string if caption is null
+      final audioName = _audioName ?? ''; // Use empty string if caption is null
 
       // Save video metadata in Firestore, including the selected posting ID
       await _firestore.collection('reels').add({
         'caption': caption, // Non-nullable string
         'email': email, // Non-nullable string
         'likes': 0,
+        'premium': 1,
         'postId': fileName,
-        'audioName': _audioName, // Store the audio name
+        'audioName': audioName, // Store the audio name
         'postingId': _selectedPostingId, // Store selected posting ID
         'reelsVideo': videoUrl,
         'time': Timestamp.now(),
