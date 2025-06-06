@@ -34,7 +34,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   List<Map<String, String>> _postings =
       []; // List to hold posting IDs and names
   // bool _audioFinished = false;
-  bool _isPlaying = false; // Audio player for preview
+  // bool _isPlaying = false; // Audio player for preview
 
   @override
   void initState() {
