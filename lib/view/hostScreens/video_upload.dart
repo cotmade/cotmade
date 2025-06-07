@@ -122,7 +122,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 Navigator.of(context).pop(audio);
 
                 try {
-                  await _audioPlayer.setAsset('assets/audio/$audio');
+                  await _audioPlayer.setAsset('images/$audio');
                   await _audioPlayer.play();
                 } catch (e) {
                   print("Audio play error: $e");
