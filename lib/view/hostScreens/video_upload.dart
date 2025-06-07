@@ -20,9 +20,6 @@ class VideoUploadPage extends StatefulWidget {
 class _VideoUploadPageState extends State<VideoUploadPage> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final ImagePicker _picker = ImagePicker();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   File? _videoFile;
   String? _audioName; // Track selected audio name
@@ -30,61 +27,14 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   String? _caption;
   bool _isUploading = false;
   bool _isTermsAccepted = false; // Track checkbox state
-  String? _selectedPostingId; // To hold the selected posting ID
-  List<Map<String, String>> _postings =
-      []; // List to hold posting IDs and names
   bool _audioFinished = false;
   bool _isPlaying = false; // Audio player for preview
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserPostings(); // Initialize audio player
-  }
 
   @override
   void dispose() {
     _videoController?.dispose(); // Dispose video controller
     _audioPlayer.dispose(); // Dispose audio player
     super.dispose();
-  }
-
-  // Fetch posting IDs from the current user's document
-  Future<void> _fetchUserPostings() async {
-    final user = _auth.currentUser;
-
-    if (user != null) {
-      try {
-        // Fetch the user's document from the 'users' collection
-        final userDoc =
-            await _firestore.collection('users').doc(user.uid).get();
-
-        if (userDoc.exists) {
-          // Fetch the posting IDs from the user's document
-          List<dynamic> postingIDs = userDoc['myPostingIDs'] ?? [];
-
-          // Query the 'postings' collection using the posting IDs
-          List<Map<String, String>> postings = [];
-          for (String postingId in postingIDs) {
-            final postingDoc =
-                await _firestore.collection('postings').doc(postingId).get();
-            if (postingDoc.exists) {
-              postings.add({
-                'id': postingId, // Document ID (posting ID)
-                'name': postingDoc[
-                    'name'], // Assuming there's a 'name' field in the posting document
-              });
-            }
-          }
-
-          setState(() {
-            _postings = postings; // Update the postings list
-          });
-        }
-      } catch (e) {
-        print("Error fetching postings: $e");
-      }
-    }
   }
 
   // Pick a video from the gallery
@@ -102,42 +52,42 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     }
   }
 
-  // Pick an audio file from assets
+  final List<String> audioFiles = [
+    'images/cinematic-intro.mp3',
+    'images/cinematic-intro.mp3',
+    'images/prazkhanalmusic__chimera-afro-tim-clap-loop.wav',
+  ];
+
+  String? _currentPlaying;
+
+  // Pick an audio file from assets/audio
   Future<void> _pickAudio() async {
-    final audioFiles = [
-      'cinematic-intro.mp3',
-      'gospel-choir-heavenly.mp3',
-      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-    ];
-
-    final selectedAudio = await showDialog<String>(
+    final selected = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          title: Text('Select Audio'),
-          children: audioFiles.map((audio) {
-            return SimpleDialogOption(
-              child: Text(audio),
-              onPressed: () async {
-                Navigator.of(context).pop(audio);
-
-                try {
-              await _audioPlayer.setAsset('assets/audio/$audio');
-                  await _audioPlayer.play();
-                } catch (e) {
-                  print("Audio play error: $e");
-                }
-              },
-            );
-          }).toList(),
-        );
-      },
+      builder: (context) => SimpleDialog(
+        title: const Text('Playlist'),
+        children: audioFiles.map((file) {
+          final fileName = file.split('/').last;
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, file),
+            child: Text(fileName),
+          );
+        }).toList(),
+      ),
     );
 
-    if (selectedAudio != null) {
-      setState(() {
-        _audioName = selectedAudio;
-      });
+    if (selected != null) {
+      try {
+        await _audioPlayer.setAsset(selected);
+        _audioPlayer.play();
+        setState(() {
+          _audioName = selected;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error playing audio: $e')),
+        );
+      }
     }
   }
 
@@ -158,112 +108,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     } catch (e) {
       print("Compression error: $e");
       return null;
-    }
-  }
-
-  // Upload video to Firebase Storage and store metadata in Firestore
-  Future<void> _uploadVideo() async {
-    if (_videoFile == null ||
-        _caption == null ||
-        _caption!.isEmpty ||
-        _selectedPostingId == null ||
-        !_isTermsAccepted) {
-      // Ensure terms are accepted
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            Text("Please accept the terms and conditions before uploading."),
-      ));
-      return; // Ensure there's a video, caption, and selected posting ID
-    }
-
-    // Set uploading state to true
-    setState(() {
-      _isUploading = true;
-    });
-
-    try {
-      final videoSize = await _videoFile!.length();
-      if (videoSize > 10 * 1024 * 1024) {
-        // If video size > 20MB, compress the video
-        File? compressedVideo = await _compressVideo(_videoFile!);
-        if (compressedVideo == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text("Compression failed or video is too large.")),
-          );
-          return;
-        }
-
-        final compressedSize = await compressedVideo.length();
-        if (compressedSize > 10 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text("Video size still exceeds 10MB after compression")),
-          );
-          return;
-        }
-
-        // Upload the compressed video
-        await _uploadToStorage(compressedVideo);
-      } else {
-        // Upload the original video if compression is not needed
-        await _uploadToStorage(_videoFile!);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    } finally {
-      // Reset the uploading state after upload is complete (success or failure)
-      setState(() {
-        _isUploading = false;
-      });
-    }
-  }
-
-  // Upload the video to Firebase Storage and save metadata in Firestore
-  Future<void> _uploadToStorage(File videoFile) async {
-    try {
-      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      final ref = _storage.ref().child('reels/$fileName');
-      final uploadTask = ref.putFile(videoFile);
-
-      // Get the download URL after upload completes
-      final snapshot = await uploadTask.whenComplete(() {});
-      final videoUrl = await snapshot.ref.getDownloadURL();
-
-      // Get user data
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw FirebaseAuthException(
-            code: "user-not-logged-in", message: "User is not logged in");
-      }
-
-      // Ensure non-null email and caption (use empty string if null)
-      final email = user.email ?? ''; // Use empty string if email is null
-      final caption = _caption ?? ''; // Use empty string if caption is null
-      final audioName = _audioName ?? ''; // Use empty string if caption is null
-
-      // Save video metadata in Firestore, including the selected posting ID
-      await _firestore.collection('reels').add({
-        'caption': caption, // Non-nullable string
-        'email': email, // Non-nullable string
-        'likes': 0,
-        'premium': 1,
-        'postId': fileName,
-        'audioName': audioName, // Store the audio name
-        'postingId': _selectedPostingId, // Store selected posting ID
-        'reelsVideo': videoUrl,
-        'time': Timestamp.now(),
-        'uid': user.uid,
-      });
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Video uploaded successfully")));
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Failed to upload video: $e")));
     }
   }
 
@@ -321,33 +165,6 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
               SizedBox(height: 20),
               Center(
-                child: _postings.isEmpty
-                    ? CircularProgressIndicator()
-                    : DropdownButton<String>(
-                        hint: Text("Select Posting"),
-                        value: _selectedPostingId,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedPostingId = newValue;
-                          });
-                        },
-                        items: _postings.map((posting) {
-                          return DropdownMenuItem<String>(
-                            value: posting['id'],
-                            child: Text(posting['name']!),
-                          );
-                        }).toList(),
-                      ),
-              ),
-              SizedBox(height: 20),
-              TextField(
-                onChanged: (value) {
-                  _caption = value;
-                },
-                decoration: InputDecoration(hintText: 'Enter video caption'),
-              ),
-              SizedBox(height: 20),
-              Center(
                 child: Row(
                   children: [
                     Checkbox(
@@ -368,14 +185,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 ),
               ),
               SizedBox(height: 20),
-              Center(
-                child: _isUploading
-                    ? Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                        onPressed: _uploadVideo,
-                        child: Text("submit"),
-                      ),
-              ),
+              Center(),
               SizedBox(height: 20),
               Text(
                 'End User License Agreement',
