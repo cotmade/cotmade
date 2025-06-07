@@ -102,43 +102,42 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     }
   }
 
-  final List<String> audioFiles = [
-    'assets/audio/cinematic-intro.mp3',
-    'assets/audio/gospel-choir-heavenly.mp3',
-    'assets/audio/prazkhanalmusic__chimera-afro-tim-clap-loop.wav',
-  ];
-
-  String? _currentPlaying;
-
-  // Pick an audio file from assets/audio
+  // Pick an audio file from assets
   Future<void> _pickAudio() async {
+    final audioFiles = [
+      'cinematic-intro.mp3',
+      'gospel-choir-heavenly.mp3',
+      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
+    ];
 
-    final selected = await showDialog<String>(
+    final selectedAudio = await showDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Playlist'),
-        children: audioFiles.map((file) {
-          final fileName = file.split('/').last;
-          return SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, file),
-            child: Text(fileName),
-          );
-        }).toList(),
-      ),
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: Text('Select Audio'),
+          children: audioFiles.map((audio) {
+            return SimpleDialogOption(
+              child: Text(audio),
+              onPressed: () async {
+                Navigator.of(context).pop(audio);
+
+                try {
+                  await _audioPlayer.setAsset('assets/audio/$audio');
+                  await _audioPlayer.play();
+                } catch (e) {
+                  print("Audio play error: $e");
+                }
+              },
+            );
+          }).toList(),
+        );
+      },
     );
 
-    if (selected != null) {
-      try {
-        await _audioPlayer.setAsset(selected);
-        _audioPlayer.play();
-        setState(() {
-          _currentPlaying = selected.split('/').last;
-        });
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error playing audio: $e')),
-        );
-      }
+    if (selectedAudio != null) {
+      setState(() {
+        _audioName = selectedAudio;
+      });
     }
   }
 
