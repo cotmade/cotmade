@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_compress/video_compress.dart';
-//import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -103,43 +103,44 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
   // Pick an audio file from assets/audio
   Future<void> _pickAudio() async {
-    final audioFiles = [
-      'cinematic-intro.mp3',
-      'gospel-choir-heavenly.mp3',
-      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-    ];
+  final List<String> audioFiles = [
+    'assets/audio/cinematic-intro.mp3',
+    'assets/audio/gospel-choir-heavenly.mp3',
+    'assets/audio/prazkhanalmusic__chimera-afro-tim-clap-loop.wav',
+  ];
 
-    final selectedAudio = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          title: Text('Select Audio'),
-          children: audioFiles.map((audio) {
-            return SimpleDialogOption(
-              child: Text(audio),
-              onPressed: () async {
-                Navigator.of(context).pop(audio);
+  final selectedAudio = await showDialog<String>(
+    context: context,
+    builder: (BuildContext context) {
+      return SimpleDialog(
+        title: Text('Select Audio'),
+        children: audioFiles.map((audio) {
+          final fileName = audio.split('/').last;
+          return SimpleDialogOption(
+            child: Text(fileName),
+            onPressed: () async {
+              Navigator.of(context).pop(audio);
 
-                try {
-                  await _audioPlayer.setAsset('assets/audio/$audio');
-                  await _audioPlayer.setVolume(1.0);
-                  await _audioPlayer.play();
-                } catch (e) {
-                  print("Audio play error: $e");
-                }
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
+              try {
+                await _audioPlayer.setAsset(audio);
+                await _audioPlayer.play();
+              } catch (e) {
+                print("Audio play error: $e");
+              }
+            },
+          );
+        }).toList(),
+      );
+    },
+  );
 
-    if (selectedAudio != null) {
-      setState(() {
-        _audioName = selectedAudio;
-      });
-    }
+  if (selectedAudio != null) {
+    setState(() {
+      _audioName = selectedAudio;
+    });
   }
+}
+
 
   // Compress the video if its size exceeds 20MB
   Future<File?> _compressVideo(File videoFile) async {
