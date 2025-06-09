@@ -13,8 +13,6 @@ import 'package:cotmade/view/onboarding_screen.dart';
 import 'dart:ui';
 import 'package:upgrader/upgrader.dart';
 
-import 'package:flutter/services.dart' show rootBundle;
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -75,12 +73,3 @@ class MyApp extends StatelessWidget {
         ));
   }
 }
-
-
-Future<void> printAssets() async {
-  final manifestContent =
-      await rootBundle.loadString('AssetManifest.json');
-  print('AssetManifest.json content:');
-  print(manifestContent);
-}
-
