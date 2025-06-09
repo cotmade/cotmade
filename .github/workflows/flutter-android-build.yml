@@ -1,9 +1,9 @@
-name: Flutter Android Build
+build-apk-branchname: Flutter Android Build
 
 on:
   push:
     branches:
-      - android-build
+      - build-apk-branch
 
 jobs:
   build:
