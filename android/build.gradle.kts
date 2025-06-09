@@ -2,7 +2,7 @@
 
 buildscript {
     // Define the Kotlin version here to make it accessible in the dependencies block
-    val kotlin_version = "1.8.22"
+    val kotlin_version = "1.9.20"
 
     repositories {
         // Google's Maven repository
