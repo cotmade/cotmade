@@ -73,7 +73,9 @@ flutter:
   uses-material-design: true
   assets:
     - images/
-    - audio/
+    - audio/cinematic-intro.mp3
+    - audio/audio1.mp3
+    - audio/prazkhanalmusic__chimera-afro-tim-clap-loop.wav
   
   # fonts:
   #   - family: Schyler
