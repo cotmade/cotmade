@@ -3,6 +3,7 @@ import 'package:flutter_faq/flutter_faq.dart';
 import 'package:cotmade/view/reelsScreen.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 
 class FaqScreen extends StatefulWidget {
   const FaqScreen({super.key});
@@ -52,7 +53,7 @@ class _FaqScreenState extends State<FaqScreen> {
               iconSize: 25.0,
               icon: Icon(Icons.video_collection_rounded),
               onPressed: () {
-                Get.to(ReelScreen());
+                Get.to(VideoReelsPage());
               }),
         ],
       ),
