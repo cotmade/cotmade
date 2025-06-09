@@ -1,4 +1,4 @@
-build-apk-branchname: Flutter Android Build
+name: Flutter Android Build
 
 on:
   push:
