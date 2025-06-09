@@ -104,7 +104,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
 
   final List<String> audioFiles = [
     'audio/cinematic-intro.mp3',
-    'audio/audio1.mp3',
+    'audio/gospel-choir-heavenly.mp3',
     'audio/prazkhanalmusic__chimera-afro-tim-clap-loop.wav',
   ];
 
