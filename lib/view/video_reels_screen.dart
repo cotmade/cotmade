@@ -21,7 +21,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
 
+final GlobalKey<_VideoReelsPageState> VideoReelsPageKey = GlobalKey<_VideoReelsPageState>();
 class VideoReelsPage extends StatefulWidget {
+   VideoReelsPage({Key? key}) : super(key: key);
+
   @override
   _VideoReelsPageState createState() => _VideoReelsPageState();
 }
@@ -771,8 +774,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     int premium = widget.videoData['premium'] ?? 0;
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (premium != 3) {
+          await VideoReelsPageKey.currentState?._stopAllAudio();
           Navigator.push(
             context,
             MaterialPageRoute(
