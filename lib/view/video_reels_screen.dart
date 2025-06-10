@@ -151,11 +151,11 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     _audioPlayers.clear();
 
     // Pause and dispose all video controllers
-  for (var controller in _controllers.values) {
-    if (controller.value.isPlaying) await controller.pause();
-    await controller.dispose();
-  }
-  _controllers.clear();
+    for (var controller in _controllers.values) {
+      if (controller.value.isPlaying) await controller.pause();
+      await controller.dispose();
+    }
+    _controllers.clear();
   }
 
   @override
@@ -750,41 +750,56 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),
-                                  GestureDetector(
-                                    onTap: () {
-                                      int premium =
-                                          widget.videoData['premium'] ?? 0;
-                                      if (premium != 3) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ViewPostingScreen(
-                                                    posting: PostingModel(
-                                                        id: widget.videoData[
-                                                            'postingId'])),
-                                          ),
-                                        );
-                                      } else {
-                                        // Do nothing or show a message
-                                        print(
-                                            'Navigation disabled for premium=3 reels');
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                          vertical: 8, horizontal: 8),
-                                      color: Colors.pinkAccent,
-                                      child: Text(
-                                        'Book Now',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                  StreamBuilder<DocumentSnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('postings')
+      .doc(widget.videoData['postingId'])
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (snapshot.hasError || !snapshot.hasData) {
+      return Text('Error loading posting data');
+    }
+
+    DocumentSnapshot postingSnapshot = snapshot.data!;
+    PostingModel cPosting = PostingModel(id: widget.videoData['postingId']);
+    cPosting.getPostingInfoFromSnapshot(postingSnapshot);
+
+    int premium = widget.videoData['premium'] ?? 0;
+
+    return GestureDetector(
+      onTap: () {
+        if (premium != 3) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ViewPostingScreen(posting: cPosting),
+            ),
+          );
+        } else {
+          // Optional: show a message or do nothing
+          print('Navigation disabled for premium=3 reels');
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        color: Colors.pinkAccent,
+        child: Text(
+          'Book Now',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+      ),
+    );
+  },
+)
+
                                   //  SizedBox(height: 8),
                                   //   Text(
                                   //    '$numberOfReviews Reviews',
