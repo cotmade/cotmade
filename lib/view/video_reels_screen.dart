@@ -507,6 +507,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     getImageFromStorage(uid);
   }
 
+  @override
+  void deactivate() {
+    super.deactivate();
+    print("deactivate() called — stopping audio immediately.");
+    VideoReelsPageKey.currentState?._stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+  }
+
   void _toggleLike() async {
     final reelRef =
         FirebaseFirestore.instance.collection('reels').doc(widget.documentId);
