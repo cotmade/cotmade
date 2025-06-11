@@ -392,6 +392,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                                 ?.setVolume(_isMuted ? 0.0 : 1.0);
                           });
                         },
+                        audioPlayer: _audioPlayers[index],
                       );
                     },
                   ),
@@ -478,6 +479,7 @@ class VideoReelsItem extends StatefulWidget {
   final String documentId;
   final VoidCallback onToggleMute;
   final String audioName;
+  final AudioPlayer? audioPlayer;
 
   VideoReelsItem({
     required this.controller,
@@ -486,6 +488,7 @@ class VideoReelsItem extends StatefulWidget {
     required this.documentId, // <–– ADD THIS
     required this.onToggleMute,
     required this.audioName,
+    this.audioPlayer, 
   });
 
   @override
@@ -507,11 +510,17 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     getImageFromStorage(uid);
   }
 
-  @override
-  void deactivate() {
-    super.deactivate();
-    print("deactivate() called — stopping audio immediately.");
-    VideoReelsPageKey.currentState?.stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+   @override
+  void dispose() {
+    // Stop audio when this widget is disposed
+    widget.audioPlayer?.stop();
+    widget.audioPlayer?.dispose();
+    super.dispose();
+  }
+
+  // Optionally, add a method to stop audio on demand
+  void stopAudio() {
+    widget.audioPlayer?.stop();
   }
 
   void _toggleLike() async {
@@ -661,8 +670,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () async {
-                    await VideoReelsPageKey.currentState?.stopAllAudio();
+                    onTap: () {
+                    stopAudio();
                       int premium =
                           widget.videoData['premium'] ?? 0; // fallback if null
                       if (premium != 3) {
@@ -782,8 +791,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     int premium = widget.videoData['premium'] ?? 0;
 
     return GestureDetector(
-      onTap: () async {
-      await VideoReelsPageKey.currentState?.stopAllAudio();
+      onTap: () {
+      stopAudio();
         if (premium != 3) {
           Navigator.push(
             context,
@@ -832,8 +841,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                      onTap: () async {
-                      await VideoReelsPageKey.currentState?.stopAllAudio();
+                      onTap: () {
+                      stopAudio();
                         int premium = widget.videoData['premium'] ??
                             0; // fallback if null
                         if (premium != 3) {
