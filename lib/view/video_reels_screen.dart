@@ -168,6 +168,14 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     stopAllAudio(); // Or _disposeMedia() if you want to clean everything
   }
 
+  // Add this function inside _VideoReelsPageState
+void stopAudioForIndex(int index) async {
+  if (_audioPlayers.containsKey(index)) {
+    await _audioPlayers[index]!.stop();
+  }
+}
+
+
   // Play audio from assets
   void _playAudio(int index, String audioName) async {
     // Stop previous audio if any
@@ -393,6 +401,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                           });
                         },
                         audioPlayer: _audioPlayers[index],
+                        stopAudio: () => stopAudioForIndex(index),
                       );
                     },
                   ),
@@ -480,16 +489,19 @@ class VideoReelsItem extends StatefulWidget {
   final VoidCallback onToggleMute;
   final String audioName;
   final AudioPlayer? audioPlayer;
+  final VoidCallback? stopAudio;
 
   VideoReelsItem({
+    Key? key,
     required this.controller,
     required this.videoData,
     required this.isMuted,
-    required this.documentId, // <–– ADD THIS
-    required this.onToggleMute,
+    required this.documentId,
     required this.audioName,
-    this.audioPlayer, 
-  });
+    required this.onToggleMute,
+    required this.audioPlayer,
+    this.stopAudio,  // Add it here, make optional if you want
+  }) : super(key: key);
 
   @override
   _VideoReelsItemState createState() => _VideoReelsItemState();
@@ -671,7 +683,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                    stopAudio();
+                    if (stopAudio != null) stopAudio!();
                       int premium =
                           widget.videoData['premium'] ?? 0; // fallback if null
                       if (premium != 3) {
@@ -842,7 +854,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                      stopAudio();
+                      if (stopAudio != null) stopAudio!();
                         int premium = widget.videoData['premium'] ??
                             0; // fallback if null
                         if (premium != 3) {
