@@ -65,8 +65,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     _cacheVideosInBackground(startFromIndex: 4);
   }
 
-  // Function to preload videos from the cache
-  // Function to preload videos from the cache
+  // Function to preload videos from the cacheimages
   void _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
