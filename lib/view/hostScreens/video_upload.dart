@@ -49,7 +49,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     super.dispose();
   }
 
-  // Fetch posting IDs from the current user's document
+  // Fetch posting IDs from the current user document
   Future<void> _fetchUserPostings() async {
     final user = _auth.currentUser;
 
