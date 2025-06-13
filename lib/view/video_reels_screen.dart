@@ -66,6 +66,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Function to preload videos from the cache
+  // Function to preload videos from the cache
   void _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
@@ -100,13 +101,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
       // controller.setVolume(0.0); // Muting video sound
       // Stop previous audio if any
-      // _stopAudioForPreviousVideo(index);
+      _stopAudioForPreviousVideo(index);
 
       // Play the audio from the assets
       // Play the audio from the assets
-      // if (premium < 3 && audioName != null && audioName.isNotEmpty) {
-      //   _playAudio(index, audioName);
-      //  }
+      if (premium < 3 && audioName != null && audioName.isNotEmpty) {
+        _playAudio(index, audioName);
+      }
 
       setState(() {});
 
@@ -117,30 +118,30 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       }
 
       // Add listener to stop audio when video ends
-      //  controller.addListener(() {
-      //  if (!controller.value.isPlaying) {
-      // Stop the audio when the video finishes
-      //   _audioPlayers[index]?.stop();
-      //   }
-      // });
+      controller.addListener(() {
+        if (!controller.value.isPlaying) {
+          // Stop the audio when the video finishes
+          _audioPlayers[index]?.stop();
+        }
+      });
 
       // Add another listener to pause audio when video pauses
-      //  controller.addListener(() {
-      //   if (controller.value.position == controller.value.duration) {
-      //      _audioPlayers[index]?.stop();
-      //    }
-      //  });
+      controller.addListener(() {
+        if (controller.value.position == controller.value.duration) {
+          _audioPlayers[index]?.stop();
+        }
+      });
     }
   }
 
   // Stop the audio of the previous video when swiping to the next one
-  /* void _stopAudioForPreviousVideo(int currentIndex) {
+  void _stopAudioForPreviousVideo(int currentIndex) {
     for (var key in _audioPlayers.keys) {
       if (key != currentIndex) {
         _audioPlayers[key]?.stop(); // Stop any previous audio
       }
     }
-  } */
+  }
 
   // Cache the video file
   Future<String?> _cacheVideo(String videoUrl) async {
@@ -148,7 +149,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return file.path; // Return the local file path
   }
 
-  /*Future<void> _stopAllAudio() async {
+  Future<void> _stopAllAudio() async {
     for (var player in _audioPlayers.values) {
       if (player.playing) {
         await player.stop();
@@ -163,13 +164,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       await controller.dispose();
     }
     _controllers.clear();
-  } */
+  }
 
   @override
   void deactivate() {
     super.deactivate();
     print("deactivate() called — stopping audio immediately.");
-    // _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+    _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
   }
 
   final List<String> audioFiles = [
@@ -179,7 +180,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   ];
 
 // Play audio by searching for the audioName in audioFiles
-  /* void _playAudio(int index, String audioName) async {
+   void _playAudio(int index, String audioName) async {
     // Stop previous audio if any
     if (_audioPlayers[index] != null) {
       await _audioPlayers[index]!.dispose();
@@ -217,7 +218,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     } catch (e) {
       print("Audio playback error: $e");
     }
-  } */
+  } 
 
   // Function to cache videos in the background
   void _cacheVideosInBackground({required int startFromIndex}) async {
@@ -395,7 +396,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       // Play audio for the current video
                       final videoData =
                           _filteredVideos[index].data() as Map<String, dynamic>;
-                      //  _playAudio(index, videoData['audioName']);
+                      _playAudio(index, videoData['audioName']);
 
                       setState(() {}); // To update UI if needed
                     },
@@ -427,7 +428,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
               onPressed: () async {
-                //  await _stopAllAudio(); // ✅ ensures audio stops
+                await _stopAllAudio(); // ✅ ensures audio stops
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => GuestHomeScreen()),
@@ -776,69 +777,41 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),
-                                  StreamBuilder<DocumentSnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('postings')
-                                        .doc(widget.videoData['postingId'])
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return Center(
-                                            child: CircularProgressIndicator());
-                                      }
-
-                                      if (snapshot.hasError ||
-                                          !snapshot.hasData) {
-                                        return Text(
-                                            'Error loading posting data');
-                                      }
-
-                                      DocumentSnapshot postingSnapshot =
-                                          snapshot.data!;
-                                      PostingModel cPosting = PostingModel(
-                                          id: widget.videoData['postingId']);
-                                      cPosting.getPostingInfoFromSnapshot(
-                                          postingSnapshot);
-
+                                  GestureDetector(
+                                    onTap: () {
                                       int premium =
                                           widget.videoData['premium'] ?? 0;
-
-                                      return GestureDetector(
-                                        onTap: () async {
-                                          //  await widget.stopAudio();
-                                          if (premium != 3) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ViewPostingScreen(
-                                                        posting: cPosting),
-                                              ),
-                                            );
-                                          } else {
-                                            // Optional: show a message or nothing
-                                            print(
-                                                'Navigation disabled for premium=3 reels');
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(
-                                              vertical: 8, horizontal: 8),
-                                          color: Colors.pinkAccent,
-                                          child: Text(
-                                            'Book Now',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                            ),
+                                      if (premium != 3) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                ViewPostingScreen(
+                                                    posting: PostingModel(
+                                                        id: widget.videoData[
+                                                            'postingId'])),
                                           ),
-                                        ),
-                                      );
+                                        );
+                                      } else {
+                                        // Do nothing or show a message
+                                        print(
+                                            'Navigation disabled for premium=3 reels');
+                                      }
                                     },
-                                  )
-
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 8),
+                                      color: Colors.pinkAccent,
+                                      child: Text(
+                                        'Book Now',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   //  SizedBox(height: 8),
                                   //   Text(
                                   //    '$numberOfReviews Reviews',
@@ -859,8 +832,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                      onTap: () async {
-                        //   await widget.stopAudio();
+                      onTap: () {
                         int premium = widget.videoData['premium'] ??
                             0; // fallback if null
                         if (premium != 3) {
