@@ -52,7 +52,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         .get();
 
     setState(() {
-      _allVideos = snapshot.docs; // Cache all videos locally
+      _allVideos = snapshot.docs; // Cache all video locally
       _filteredVideos = _allVideos; // Initially, show all videos
     });
 
