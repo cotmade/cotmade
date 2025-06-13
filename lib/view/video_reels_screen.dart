@@ -776,40 +776,68 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),
-                                  GestureDetector(
-                                    onTap: () {
+                                   StreamBuilder<DocumentSnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('postings')
+                                        .doc(widget.videoData['postingId'])
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Center(
+                                            child: CircularProgressIndicator());
+                                      }
+
+                                      if (snapshot.hasError ||
+                                          !snapshot.hasData) {
+                                        return Text(
+                                            'Error loading posting data');
+                                      }
+
+                                      DocumentSnapshot postingSnapshot =
+                                          snapshot.data!;
+                                      PostingModel cPosting = PostingModel(
+                                          id: widget.videoData['postingId']);
+                                      cPosting.getPostingInfoFromSnapshot(
+                                          postingSnapshot);
+
                                       int premium =
                                           widget.videoData['premium'] ?? 0;
-                                      if (premium != 3) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ViewPostingScreen(
-                                                    posting: PostingModel(
-                                                        id: widget.videoData[
-                                                            'postingId'])),
-                                          ),
-                                        );
-                                      } else {
-                                        // Do nothing or show a message
-                                        print(
-                                            'Navigation disabled for premium=3 reels');
-                                      }
+
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          if (premium != 3) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ViewPostingScreen(
+                                                        posting: cPosting),
+                                              ),
+                                            );
+                                          } else {
+                                            print(
+                                                'Navigation disabled for premium=3 reels');
+                                          }
+                                        },
+                                        child: premium != 3
+                                            ? Container(
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 8),
+                                                color: Colors.pinkAccent,
+                                                child: Text(
+                                                  'Book Now',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              )
+                                            : SizedBox
+                                                .shrink(), // Empty widget if premium == 3
+                                      );
                                     },
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                          vertical: 8, horizontal: 8),
-                                      color: Colors.pinkAccent,
-                                      child: Text(
-                                        'Book Now',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ),
                                   ),
                                   //  SizedBox(height: 8),
                                   //   Text(

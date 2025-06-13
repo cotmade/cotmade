@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
 
 class VideoUploadPage extends StatefulWidget {
   @override
@@ -49,7 +50,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     super.dispose();
   }
 
-  // Fetch posting IDs from the current user document
+  // Fetch posting IDs from the current user's document
   Future<void> _fetchUserPostings() async {
     final user = _auth.currentUser;
 
@@ -259,11 +260,39 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'uid': user.uid,
       });
 
+      await sendWelcomeEmail(
+          AppConstants.currentUser.email.toString(),
+          AppConstants.currentUser.getFullNameOfUser(),
+          audioName,
+          fileName,
+          videoUrl,
+          _selectedPostingId);
+
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Video uploaded successfully")));
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Failed to upload video: $e")));
+    }
+  }
+
+  Future<void> sendWelcomeEmail(String email, String fname, String audioName,
+      String fileName, String videoUrl, _selectedPostingId) async {
+    final url = Uri.parse("https://cotmade.com/app/send_email_videopost.php");
+
+    final response = await http.post(url, body: {
+      "email": email,
+      "fname": fname,
+      "music_name": audioName,
+      "userID": fileName,
+      "url": videoUrl,
+      "postingID": _selectedPostingId,
+    });
+
+    if (response.statusCode == 200) {
+      print("Email sent successfully");
+    } else {
+      print("Failed to send email: ${response.body}");
     }
   }
 
