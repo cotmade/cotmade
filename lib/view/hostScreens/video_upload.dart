@@ -103,42 +103,42 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
     }
   }
 
-  // Pick an audio file from assets
+  final List<String> audioFiles = [
+    'images/cinematic-intro.mp3',
+    'images/gospel-choir-heavenly.mp3',
+    'images/prazkhanalmusic__chimera-afro-tim-clap-loop.wav',
+  ];
+
+  String? _currentPlaying;
+
+  // Pick an audio file from assets/audio
   Future<void> _pickAudio() async {
-    final audioFiles = [
-      'cinematic-intro.mp3',
-      'gospel-choir-heavenly.mp3',
-      'prazkhanalmusic__chimera-afro-tim-clap-loop.wav'
-    ];
-
-    final selectedAudio = await showDialog<String>(
+    final selected = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          title: Text('Select Audio'),
-          children: audioFiles.map((audio) {
-            return SimpleDialogOption(
-              child: Text(audio),
-              onPressed: () async {
-                Navigator.of(context).pop(audio);
-
-                try {
-                  await _audioPlayer.setAsset('assets/audio/$audio');
-                  await _audioPlayer.play();
-                } catch (e) {
-                  print("Audio play error: $e");
-                }
-              },
-            );
-          }).toList(),
-        );
-      },
+      builder: (context) => SimpleDialog(
+        title: const Text('Playlist'),
+        children: audioFiles.map((file) {
+          final fileName = file.split('/').last;
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, file),
+            child: Text(fileName),
+          );
+        }).toList(),
+      ),
     );
 
-    if (selectedAudio != null) {
-      setState(() {
-        _audioName = selectedAudio;
-      });
+    if (selected != null) {
+      try {
+        await _audioPlayer.setAsset(selected);
+        _audioPlayer.play();
+        setState(() {
+          _audioName = selected;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error playing audio: $e')),
+        );
+      }
     }
   }
 
