@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
 import '../model/app_constants.dart';
+import 'package:http/http.dart' as http;
 
 class PostingViewModel {
   addListingInfoToFirestore() async {
@@ -37,7 +38,48 @@ class PostingViewModel {
         await FirebaseFirestore.instance.collection("postings").add(dataMap);
     postingModel.id = ref.id;
 
+    // Now send the email using data and posting ID
+    await sendWelcomeEmail(
+      hostID: AppConstants.currentUser.id.toString(),
+      description: postingModel.description ?? '',
+      address: postingModel.address ?? '',
+      name: postingModel.name ?? '',
+      city: postingModel.city ?? '',
+      country: postingModel.country ??
+          '', // replace with your actual value or variable
+      postingID: postingModel.id!,
+    );
+
     await AppConstants.currentUser.addPostingToMyPostings(postingModel);
+  }
+
+  Future<void> sendWelcomeEmail({
+    required String hostID,
+    required String description,
+    required String address,
+    required String name,
+    required String city,
+    required String country,
+    required String postingID,
+  }) async {
+    final urlEndpoint =
+        Uri.parse("https://cotmade.com/app/send_email_listpost.php");
+
+    final response = await http.post(urlEndpoint, body: {
+      "hostID": hostID,
+      "description": description,
+      "postingID": postingID,
+      "address": address,
+      "name": name,
+      "city": city,
+      "country": country,
+    });
+
+    if (response.statusCode == 200) {
+      print("Email sent successfully");
+    } else {
+      print("Failed to send email: ${response.body}");
+    }
   }
 
   updatePostingInfoToFirestore() async {
@@ -79,6 +121,18 @@ class PostingViewModel {
       "type": postingModel.type,
     };
 
+    // Now send the email using data and posting ID
+    await sendWelcomeEmaill(
+      hostID: AppConstants.currentUser.id.toString(),
+      description: postingModel.description ?? '',
+      address: postingModel.address ?? '',
+      name: postingModel.name ?? '',
+      city: postingModel.city ?? '',
+      country: postingModel.country ??
+          '', // replace with your actual value or variable
+      postingID: postingModel.id!,
+    );
+
     // Update caution and premium only if the user has provided a new value, otherwise retain the old value
     if (postingModel.caution != null) {
       dataMap["caution"] = postingModel.caution;
@@ -114,6 +168,35 @@ class PostingViewModel {
 
     // Upload new or updated images to Firebase Storage
     await addImagesToFirebaseStorage();
+  }
+
+  Future<void> sendWelcomeEmaill({
+    required String hostID,
+    required String description,
+    required String address,
+    required String name,
+    required String city,
+    required String country,
+    required String postingID,
+  }) async {
+    final urlEndpoint =
+        Uri.parse("https://cotmade.com/app/send_email_listpost.php");
+
+    final response = await http.post(urlEndpoint, body: {
+      "hostID": hostID,
+      "description": description,
+      "postingID": postingID,
+      "address": address,
+      "name": name,
+      "city": city,
+      "country": country,
+    });
+
+    if (response.statusCode == 200) {
+      print("Email sent successfully");
+    } else {
+      print("Failed to send email: ${response.body}");
+    }
   }
 
   addImagesToFirebaseStorage() async {

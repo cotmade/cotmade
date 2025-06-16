@@ -678,32 +678,32 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   child: GestureDetector(
                     onTap: () {
                     widget.stopAudio(); 
-                      int premium =
-                          widget.videoData['premium'] ?? 0; // fallback if null
-                      if (premium != 3) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                UserProfilePage(uid: widget.videoData['uid']),
-                          ),
-                        );
-                      } else {
-                        // Do nothing or show a message
-                        print('Navigation disabled for premium=3 reels');
-                      }
+                      int premium = widget.videoData['premium'] ??
+                            0; // fallback if null
+                        if (premium <= 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfilePage(uid: widget.videoData['uid']),
+                            ),
+                          );
+                        } else {
+                          // Do nothing or show a message
+                          print('Navigation disabled for premium=4 reels');
+                        }
                     },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        //  Text(
-                        //   widget.videoData['email'].split('@')[0],
-                        //   style: TextStyle(
-                        //    color: Colors.white,
-                        //   fontWeight: FontWeight.bold,
-                        //   fontSize: 16,
-                        //  ),
-                        // ),
+                          Text(
+                           widget.videoData['email'].split('@')[0],
+                           style: TextStyle(
+                            color: Colors.white,
+                           fontWeight: FontWeight.bold,
+                           fontSize: 16,
+                          ),
+                         ),
                         SizedBox(height: 8),
                         Text(
                           widget.videoData['caption'],
@@ -797,33 +797,39 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     int premium = widget.videoData['premium'] ?? 0;
 
     return GestureDetector(
-      onTap: () {
-      widget.stopAudio(); 
-        if (premium != 3) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ViewPostingScreen(posting: cPosting),
-            ),
-          );
-        } else {
-          // Optional: show a message or nothing
-          print('Navigation disabled for premium=3 reels');
-        }
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        color: Colors.pinkAccent,
-        child: Text(
-          'Book Now',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
-      ),
-    );
+                                        onTap: () async {
+                                        widget.stopAudio(); 
+                                          if (premium <= 3) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ViewPostingScreen(
+                                                        posting: cPosting),
+                                              ),
+                                            );
+                                          } else {
+                                            print(
+                                                'Navigation disabled for premium=4 reels');
+                                          }
+                                        },
+                                        child: premium <= 3
+                                            ? Container(
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 8),
+                                                color: Colors.pinkAccent,
+                                                child: Text(
+                                                  'Book Now',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              )
+                                            : SizedBox
+                                                .shrink(), // Empty widget if premium > 3
+                                      );
   },
 )
 
@@ -851,7 +857,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                       widget.stopAudio(); 
                         int premium = widget.videoData['premium'] ??
                             0; // fallback if null
-                        if (premium != 3) {
+                        if (premium <= 3) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -861,7 +867,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                           );
                         } else {
                           // Do nothing or show a message
-                          print('Navigation disabled for premium=3 reels');
+                          print('Navigation disabled for premium=4 reels');
                         }
                       },
                       child: CircleAvatar(
