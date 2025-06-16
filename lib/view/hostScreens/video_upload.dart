@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
 
 class VideoUploadPage extends StatefulWidget {
   @override
