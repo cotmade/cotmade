@@ -35,6 +35,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   bool _isMuted = true;
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
+  Set<String> _viewedVideoIds = {};
   final cacheManager = DefaultCacheManager(); // Cache manager for videos
 
   @override
@@ -130,6 +131,25 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           _audioPlayers[index]?.stop();
         }
       });
+    }
+  }
+
+  Future<void> _incrementViewCountIfNeeded(String videoDocId) async {
+    if (_viewedVideoIds.contains(videoDocId)) {
+      // Already counted in this session, skip
+      return;
+    }
+
+    final docRef =
+        FirebaseFirestore.instance.collection('reels').doc(videoDocId);
+
+    try {
+      await docRef.update({
+        'views': FieldValue.increment(1),
+      });
+      _viewedVideoIds.add(videoDocId);
+    } catch (e) {
+      print('Failed to increment view count for $videoDocId: $e');
     }
   }
 
@@ -365,6 +385,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       await _audioPlayers[_currentIndex]?.pause();
 
                       _currentIndex = index;
+
+                      _incrementViewCountIfNeeded(_filteredVideos[index].id);
 
                       // Preload the current video (if not preloaded)
                       _preloadVideo(index);
