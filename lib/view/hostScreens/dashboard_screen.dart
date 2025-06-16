@@ -294,6 +294,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         'id': doc.id,
         'caption': doc['caption'],
         'likes': doc['likes'] ?? 0,
+        'views': doc['views'] ?? 0,
       };
     }).toList();
 
