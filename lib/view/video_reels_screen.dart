@@ -39,6 +39,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   bool _isMuted = true;
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
+  Set<String> _viewedVideoIds = {};
 
   @override
   void initState() {
@@ -143,6 +144,25 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       }
     }
   }
+
+  Future<void> _incrementViewCountIfNeeded(String videoDocId) async {
+  if (_viewedVideoIds.contains(videoDocId)) {
+    // Already counted in this session, skip
+    return;
+  }
+
+  final docRef = FirebaseFirestore.instance.collection('reels').doc(videoDocId);
+  
+  try {
+    await docRef.update({
+      'views': FieldValue.increment(1),
+    });
+    _viewedVideoIds.add(videoDocId);
+  } catch (e) {
+    print('Failed to increment view count for $videoDocId: $e');
+  }
+}
+
 
   Future<void> stopAllAudio() async {
     for (var player in _audioPlayers.values) {
@@ -350,6 +370,8 @@ void stopAudioForIndex(int index) async {
                       await _audioPlayers[_currentIndex]?.pause();
 
                       _currentIndex = index;
+
+                      _incrementViewCountIfNeeded(_filteredVideos[index].id);
 
                       // Preload the current video (if not preloaded)
                       _preloadVideo(index);

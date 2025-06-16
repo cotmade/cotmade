@@ -429,6 +429,19 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                                 style: TextStyle(fontSize: 14)),
                           ],
                         ),
+
+                        SizedBox(height: 8),
+
+                        // Likes
+                        Row(
+                          children: [
+                            Icon(Icons.remove_red_eye,
+                                color: Colors.pinkAccent),
+                            SizedBox(width: 6),
+                            Text('${reel['views'] ?? 0} views',
+                                style: TextStyle(fontSize: 14)),
+                          ],
+                        ),
                         SizedBox(height: 8),
 
                         // Delete Button
