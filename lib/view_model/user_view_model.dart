@@ -24,9 +24,8 @@ class UserViewModel {
 
   signUp(email, password, firstName, lastName, country, state, mobileNumber,
       bio, imageFileOfUser) async {
-  //  var connectivityResult = await Connectivity().checkConnectivity();
+    //  var connectivityResult = await Connectivity().checkConnectivity();
 
-  
     Get.snackbar("Please wait", "your account is being created");
 
     try {
@@ -55,7 +54,7 @@ class UserViewModel {
         });
 
         // Call sendWelcomeEmail after account is created
-        await sendWelcomeEmail(email, firstName, mobileNumber);
+        await sendWelcomeEmail(email, firstName, mobileNumber, state, country, bio);
 
         Get.to(GuestHomeScreen());
         Get.snackbar("Congratulations", "your account has been created");
@@ -98,14 +97,17 @@ class UserViewModel {
         MemoryImage(imageFileOfUser.readAsBytesSync());
   }
 
-  Future<void> sendWelcomeEmail(
-      String email, String firstName, String mobileNumber) async {
+  Future<void> sendWelcomeEmail(String email, String firstName,
+      String mobileNumber, String state, String country, String bio) async {
     final url = Uri.parse("https://cotmade.com/app/send_email.php");
 
     final response = await http.post(url, body: {
       "email": email,
       "firstName": firstName,
       "mobileNumber": mobileNumber,
+      "state": state,
+      "country": country,
+      "bio": bio,
     });
 
     if (response.statusCode == 200) {

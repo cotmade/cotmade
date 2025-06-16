@@ -132,7 +132,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         await _audioPlayer.setAsset(selected);
         _audioPlayer.play();
         setState(() {
-          _audioName = selected;
+          _audioName = selected.split('/').last;
         });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -260,12 +260,13 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         'uid': user.uid,
       });
 
-      await sendWelcomeEmail(
+       await sendWelcomeEmail(
           AppConstants.currentUser.email.toString(),
           AppConstants.currentUser.getFullNameOfUser(),
           audioName,
           fileName,
           videoUrl,
+          caption,
           _selectedPostingId);
 
       ScaffoldMessenger.of(context)
@@ -277,7 +278,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   }
 
   Future<void> sendWelcomeEmail(String email, String fname, String audioName,
-      String fileName, String videoUrl, _selectedPostingId) async {
+      String fileName, String videoUrl, String caption, _selectedPostingId) async {
     final url = Uri.parse("https://cotmade.com/app/send_email_videopost.php");
 
     final response = await http.post(url, body: {
@@ -286,6 +287,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
       "music_name": audioName,
       "userID": fileName,
       "url": videoUrl,
+      "caption": caption,
       "postingID": _selectedPostingId,
     });
 

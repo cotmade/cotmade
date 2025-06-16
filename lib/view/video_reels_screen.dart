@@ -677,33 +677,31 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () {
-                      int premium =
-                          widget.videoData['premium'] ?? 0; // fallback if null
-                      if (premium != 3) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                UserProfilePage(uid: widget.videoData['uid']),
-                          ),
-                        );
-                      } else {
-                        // Do nothing or show a message
-                        print('Navigation disabled for premium=3 reels');
-                      }
-                    },
+  onTap: () {
+    int premium = widget.videoData['premium'] ?? 0; // fallback if null
+    if (premium <= 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => UserProfilePage(uid: widget.videoData['uid']),
+        ),
+      );
+    } else {
+      // Do nothing or show a message
+      print('Navigation disabled for premium=4 reels');
+    }
+  },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        //  Text(
-                        //   widget.videoData['email'].split('@')[0],
-                        //   style: TextStyle(
-                        //    color: Colors.white,
-                        //   fontWeight: FontWeight.bold,
-                        //   fontSize: 16,
-                        //  ),
-                        // ),
+                          Text(
+                           widget.videoData['email'].split('@')[0],
+                           style: TextStyle(
+                            color: Colors.white,
+                           fontWeight: FontWeight.bold,
+                           fontSize: 16,
+                          ),
+                         ),
                         SizedBox(height: 8),
                         Text(
                           widget.videoData['caption'],
@@ -805,38 +803,34 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                           widget.videoData['premium'] ?? 0;
 
                                       return GestureDetector(
-                                        onTap: () async {
-                                          if (premium != 3) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ViewPostingScreen(
-                                                        posting: cPosting),
-                                              ),
-                                            );
-                                          } else {
-                                            print(
-                                                'Navigation disabled for premium=3 reels');
-                                          }
-                                        },
-                                        child: premium != 3
-                                            ? Container(
-                                                padding: EdgeInsets.symmetric(
-                                                    vertical: 8, horizontal: 8),
-                                                color: Colors.pinkAccent,
-                                                child: Text(
-                                                  'Book Now',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                  ),
-                                                ),
-                                              )
-                                            : SizedBox
-                                                .shrink(), // Empty widget if premium == 3
-                                      );
+  onTap: () async {
+    if (premium <= 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ViewPostingScreen(posting: cPosting),
+        ),
+      );
+    } else {
+      print('Navigation disabled for premium=4 reels');
+    }
+  },
+  child: premium <= 3
+      ? Container(
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          color: Colors.pinkAccent,
+          child: Text(
+            'Book Now',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        )
+      : SizedBox.shrink(), // Empty widget if premium > 3
+);
+
                                     },
                                   ),
                                   //  SizedBox(height: 8),
@@ -859,37 +853,36 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                      onTap: () {
-                        int premium = widget.videoData['premium'] ??
-                            0; // fallback if null
-                        if (premium != 3) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  UserProfilePage(uid: widget.videoData['uid']),
-                            ),
-                          );
-                        } else {
-                          // Do nothing or show a message
-                          print('Navigation disabled for premium=3 reels');
-                        }
-                      },
-                      child: CircleAvatar(
-                        backgroundColor: Colors.black,
-                        radius: 30,
-                        child: displayImage != null
-                            ? CircleAvatar(
-                                backgroundImage: displayImage,
-                                radius: 29,
-                              )
-                            : Icon(
-                                Icons.account_circle,
-                                size: 30,
-                                color: Colors.white,
-                              ),
-                      ),
-                    ),
+  onTap: () {
+    int premium = widget.videoData['premium'] ?? 0; // fallback if null
+    if (premium <= 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => UserProfilePage(uid: widget.videoData['uid']),
+        ),
+      );
+    } else {
+      // Do nothing or show a message
+      print('Navigation disabled for premium=4 reels');
+    }
+  },
+  child: CircleAvatar(
+    backgroundColor: Colors.black,
+    radius: 30,
+    child: displayImage != null
+        ? CircleAvatar(
+            backgroundImage: displayImage,
+            radius: 29,
+          )
+        : Icon(
+            Icons.account_circle,
+            size: 30,
+            color: Colors.white,
+          ),
+  ),
+),
+
                     SizedBox(height: 10),
                     IconButton(
                       icon: Icon(
