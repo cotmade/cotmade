@@ -49,16 +49,19 @@ jobs:
         with:
           name: flutter-android-artifacts
           path: |
+            android/app/build/outputs/bundle/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
 
-      - name: Upload APK and AAB via uppy.sh
+      - name: 📤 Upload APK and AAB via uppy.sh
         run: |
           for file in \
-            build/app/outputs/flutter-apk/app-release.apk \
-            build/app/outputs/bundle/release/app-release.aab; do
+            android/build/app/outputs/flutter-apk/app-release.apk \
+            android/build/app/outputs/bundle/release/app-release.aab; do
+
             if [ -f "$file" ]; then
+              echo "📤 Uploading $file ..."
               url=$(curl --upload-file "$file" "https://uppy.sh/$(basename "$file")")
-              echo "✅ Uploaded $file → $url"
+              echo "✅ Uploaded: $url"
             else
               echo "❌ Not found: $file"
             fi
