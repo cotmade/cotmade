@@ -136,7 +136,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
         });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error playing audio: $e')),
+          SnackBar(content: Text('cannot select audio at this time: kindly proceed with your submission')),
         );
       }
     }

@@ -58,16 +58,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     });
 
     // Preload first 4 videos from the cache
-    for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
-      _preloadVideo(i);
-    }
+    Future.wait(List.generate(4, (i) {
+  if (i < _filteredVideos.length) {
+    return _preloadVideo(i);
+  }
+  return Future.value();
+}));
+
 
     // Start background caching for the rest of the videos
     _cacheVideosInBackground(startFromIndex: 4);
   }
 
   // Function to preload videos from the cacheimages
-  void _preloadVideo(int index) async {
+  Future <void> _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
         _controllers.containsKey(index)) return;
@@ -109,13 +113,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         _playAudio(index, audioName);
       }
 
-      setState(() {});
 
       if (index == _currentIndex) {
         Future.delayed(Duration(milliseconds: 300), () {
           controller.play();
         });
       }
+
+      if (mounted) {
+  setState(() {}); // Only update if widget still exists
+}
+
 
       // Add listener to stop audio when video ends
       controller.addListener(() {
@@ -241,16 +249,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to cache videos in the background
   void _cacheVideosInBackground({required int startFromIndex}) async {
-    for (int i = startFromIndex; i < _filteredVideos.length; i++) {
-      if (_controllers.containsKey(i)) continue; // already cached
+  List<Future> cacheTasks = [];
 
-      var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
-      var videoUrl = videoData['reelsVideo'];
+  for (int i = startFromIndex; i < _filteredVideos.length; i++) {
+    if (_controllers.containsKey(i)) continue;
 
-      final filePath = await _cacheVideo(videoUrl); // Cache video
+    var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
+    var videoUrl = videoData['reelsVideo'];
+
+    cacheTasks.add(_cacheVideo(videoUrl).then((filePath) async {
       if (filePath != null) {
         final tempController = VideoPlayerController.file(File(filePath));
-
         try {
           await tempController.initialize();
           await tempController.setLooping(true);
@@ -260,8 +269,12 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           print('Failed to cache video at $i: $e');
         }
       }
-    }
+    }));
   }
+
+  await Future.wait(cacheTasks);
+}
+
 
   String formatSearchQuery(String query) {
     if (query.isEmpty) return query;
