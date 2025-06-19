@@ -26,7 +26,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   File? _videoFile;
-  String? _audioName; //  selected audio name
+  String? _audioName; //  selected audio nam
   VideoPlayerController? _videoController; // Video controller
   String? _caption;
   bool _isUploading = false;
