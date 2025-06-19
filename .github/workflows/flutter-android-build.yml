@@ -55,8 +55,8 @@ jobs:
       - name: 📤 Upload APK and AAB via uppy.sh
         run: |
           for file in \
-            android/build/app/outputs/flutter-apk/app-release.apk \
-            android/build/app/outputs/bundle/release/app-release.aab; do
+            android/app/build/outputs/flutter-apk/app-release.apk \
+            android/app/build/outputs/bundle/release/app-release.aab; do
 
             if [ -f "$file" ]; then
               echo "📤 Uploading $file ..."
