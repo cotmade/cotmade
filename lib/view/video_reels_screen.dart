@@ -47,31 +47,29 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to load videos from Firestore and cache them locally
   Future<void> _loadVideos() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('reels')
-        .orderBy('time', descending: true)
-        .get();
+  FirebaseFirestore.instance
+      .collection('reels')
+      .orderBy('time', descending: true)
+      .get()
+      .then((snapshot) {
+    _allVideos = snapshot.docs;
+    _filteredVideos = _allVideos;
 
-    setState(() {
-      _allVideos = snapshot.docs; // Cache all video locally
-      _filteredVideos = _allVideos; // Initially, show all videos
-    });
+    setState(() {}); // Show UI immediately
 
-    // Preload first 4 videos from the cache
-    Future.wait(List.generate(4, (i) {
-  if (i < _filteredVideos.length) {
-    return _preloadVideo(i);
-  }
-  return Future.value();
-}));
+    // Preload first 4 videos in parallel
+    for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
+      _preloadVideo(i);
+    }
 
-
-    // Start background caching for the rest of the videos
+    // Cache rest in background
     _cacheVideosInBackground(startFromIndex: 4);
-  }
+  });
+}
+
 
   // Function to preload videos from the cacheimages
-  Future <void> _preloadVideo(int index) async {
+  void _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
         _controllers.containsKey(index)) return;
@@ -105,14 +103,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
       // controller.setVolume(0.0); // Muting video sound
       // Stop previous audio if any
-      _stopAudioForPreviousVideo(index);
+    //  _stopAudioForPreviousVideo(index);
 
       // Play the audio from the assets
       // Play the audio from the assets
       if (premium < 3 && audioName != null && audioName.isNotEmpty) {
-        _playAudio(index, audioName);
+     //   _playAudio(index, audioName);
       }
 
+      setState(() {});
 
       if (index == _currentIndex) {
         Future.delayed(Duration(milliseconds: 300), () {
@@ -120,26 +119,21 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         });
       }
 
-      if (mounted) {
-  setState(() {}); // Only update if widget still exists
-}
-
-
       // Add listener to stop audio when video ends
-      controller.addListener(() {
-        if (!controller.value.isPlaying) {
+   //   controller.addListener(() {
+    //    if (!controller.value.isPlaying) {
           // Stop the audio when the video finishes
-          _audioPlayers[index]?.stop();
-        }
-      });
+    //      _audioPlayers[index]?.stop();
+    //    }
+    //  });
 
       // Add another listener to pause audio when video pauses
-      controller.addListener(() {
-        if (controller.value.position == controller.value.duration) {
-          _audioPlayers[index]?.stop();
+    //  controller.addListener(() {
+     //   if (controller.value.position == controller.value.duration) {
+     //     _audioPlayers[index]?.stop();
         }
-      });
-    }
+    //  });
+  //  }
   }
 
   Future<void> _incrementViewCountIfNeeded(String videoDocId) async {
@@ -162,13 +156,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Stop the audio of the previous video when swiping to the next one
-  void _stopAudioForPreviousVideo(int currentIndex) {
-    for (var key in _audioPlayers.keys) {
-      if (key != currentIndex) {
-        _audioPlayers[key]?.stop(); // Stop any previous audio
-      }
-    }
-  }
+ // void _stopAudioForPreviousVideo(int currentIndex) {
+  //  for (var key in _audioPlayers.keys) {
+  //    if (key != currentIndex) {
+  //      _audioPlayers[key]?.stop(); // Stop any previous audio
+  //    }
+  //  }
+ // }
 
   // Cache the video file
   Future<String?> _cacheVideo(String videoUrl) async {
@@ -207,7 +201,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   ];
 
 // Play audio by searching for the audioName in audioFiles
-   void _playAudio(int index, String audioName) async {
+/*   void _playAudio(int index, String audioName) async {
     // Stop previous audio if any
     if (_audioPlayers[index] != null) {
       await _audioPlayers[index]!.dispose();
@@ -246,20 +240,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       print("Audio playback error: $e");
     }
   } 
+  */
 
   // Function to cache videos in the background
   void _cacheVideosInBackground({required int startFromIndex}) async {
-  List<Future> cacheTasks = [];
+    for (int i = startFromIndex; i < _filteredVideos.length; i++) {
+      if (_controllers.containsKey(i)) continue; // already cached
 
-  for (int i = startFromIndex; i < _filteredVideos.length; i++) {
-    if (_controllers.containsKey(i)) continue;
+      var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
+      var videoUrl = videoData['reelsVideo'];
 
-    var videoData = _filteredVideos[i].data() as Map<String, dynamic>;
-    var videoUrl = videoData['reelsVideo'];
-
-    cacheTasks.add(_cacheVideo(videoUrl).then((filePath) async {
+      final filePath = await _cacheVideo(videoUrl); // Cache video
       if (filePath != null) {
         final tempController = VideoPlayerController.file(File(filePath));
+
         try {
           await tempController.initialize();
           await tempController.setLooping(true);
@@ -269,12 +263,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           print('Failed to cache video at $i: $e');
         }
       }
-    }));
+    }
   }
-
-  await Future.wait(cacheTasks);
-}
-
 
   String formatSearchQuery(String query) {
     if (query.isEmpty) return query;
@@ -430,7 +420,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       // Play audio for the current video
                       final videoData =
                           _filteredVideos[index].data() as Map<String, dynamic>;
-                      _playAudio(index, videoData['audioName']);
+                    //  _playAudio(index, videoData['audioName']);
 
                       setState(() {}); // To update UI if needed
                     },
