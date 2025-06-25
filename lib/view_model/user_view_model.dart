@@ -18,6 +18,7 @@ import 'package:cotmade/view/resetpassword_successful.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 
 class UserViewModel {
   UserModel userModel = UserModel();
@@ -57,7 +58,7 @@ class UserViewModel {
         await sendWelcomeEmail(
             email, firstName, mobileNumber, state, country, bio);
 
-        Get.to(GuestHomeScreen());
+        Get.to(VideoReelsPage());
         Get.snackbar("Congratulations", "your account has been created");
       });
     } catch (e) {
