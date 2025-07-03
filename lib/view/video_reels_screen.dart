@@ -19,6 +19,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
+import 'package:cotmade/view/ai/cotmind_services.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -37,6 +38,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
   final cacheManager = DefaultCacheManager(); // Cache manager for videos
+  String _locationHint = '';
+  String _displayedHint = '';
+  Timer? _typewriterTimer;
 
   @override
   void initState() {
@@ -47,26 +51,25 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to load videos from Firestore and cache them locally
   Future<void> _loadVideos() async {
-  FirebaseFirestore.instance
-      .collection('reels')
-      .orderBy('time', descending: true)
-      .get()
-      .then((snapshot) {
-    _allVideos = snapshot.docs;
-    _filteredVideos = _allVideos;
+    FirebaseFirestore.instance
+        .collection('reels')
+        .orderBy('time', descending: true)
+        .get()
+        .then((snapshot) {
+      _allVideos = snapshot.docs;
+      _filteredVideos = _allVideos;
 
-    setState(() {}); // Show UI immediately
+      setState(() {}); // Show UI immediately
 
-    // Preload first 4 videos in parallel
-    for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
-      _preloadVideo(i);
-    }
+      // Preload first 4 videos in parallel
+      for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
+        _preloadVideo(i);
+      }
 
-    // Cache rest in background
-    _cacheVideosInBackground(startFromIndex: 4);
-  });
-}
-
+      // Cache rest in background
+      _cacheVideosInBackground(startFromIndex: 4);
+    });
+  }
 
   // Function to preload videos from the cacheimages
   void _preloadVideo(int index) async {
@@ -103,12 +106,12 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
       // controller.setVolume(0.0); // Muting video sound
       // Stop previous audio if any
-    //  _stopAudioForPreviousVideo(index);
+      //  _stopAudioForPreviousVideo(index);
 
       // Play the audio from the assets
       // Play the audio from the assets
       if (premium < 3 && audioName != null && audioName.isNotEmpty) {
-     //   _playAudio(index, audioName);
+        //   _playAudio(index, audioName);
       }
 
       setState(() {});
@@ -120,20 +123,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       }
 
       // Add listener to stop audio when video ends
-   //   controller.addListener(() {
-    //    if (!controller.value.isPlaying) {
-          // Stop the audio when the video finishes
-    //      _audioPlayers[index]?.stop();
-    //    }
-    //  });
+      //   controller.addListener(() {
+      //    if (!controller.value.isPlaying) {
+      // Stop the audio when the video finishes
+      //      _audioPlayers[index]?.stop();
+      //    }
+      //  });
 
       // Add another listener to pause audio when video pauses
-    //  controller.addListener(() {
-     //   if (controller.value.position == controller.value.duration) {
-     //     _audioPlayers[index]?.stop();
-        }
+      //  controller.addListener(() {
+      //   if (controller.value.position == controller.value.duration) {
+      //     _audioPlayers[index]?.stop();
+    }
     //  });
-  //  }
+    //  }
   }
 
   Future<void> _incrementViewCountIfNeeded(String videoDocId) async {
@@ -156,13 +159,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Stop the audio of the previous video when swiping to the next one
- // void _stopAudioForPreviousVideo(int currentIndex) {
+  // void _stopAudioForPreviousVideo(int currentIndex) {
   //  for (var key in _audioPlayers.keys) {
   //    if (key != currentIndex) {
   //      _audioPlayers[key]?.stop(); // Stop any previous audio
   //    }
   //  }
- // }
+  // }
 
   // Cache the video file
   Future<String?> _cacheVideo(String videoUrl) async {
@@ -273,51 +276,56 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text);
+    String queryText = _searchController.text.trim();
     if (queryText.isEmpty) {
       setState(() {
-        _filteredVideos = _allVideos; // Show all videos if query is empty
+        _filteredVideos = _allVideos;
+        _locationHint = '';
+        _displayedHint = '';
       });
       return;
     }
 
-    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('country', isGreaterThanOrEqualTo: queryText)
-        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    // Query for city as well
-    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('city', isGreaterThanOrEqualTo: queryText)
-        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    // Step 2: Get all matching postingIds from the postings collection
-    List<String> matchingPostingIds = [];
-    postingsSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
+    // Use Cotmind AI to normalize + log search
+    await CotmindService.logSearch(queryText);
+    final city = await CotmindService.normalizeCity(queryText);
+    final country = await CotmindService.normalizeCountry(queryText);
+    final hint = await CotmindService.getCityTip(city);
+    setState(() {
+      _locationHint = hint;
+      _displayedHint = '';
     });
+    _startTypewriterEffect();
 
-    citySnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+    List<String> postingIds = await CotmindService.getMatchingPostsByCity(city);
+    postingIds += await CotmindService.getMatchingPostsByCountry(country);
 
-    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
-        var videoData = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(videoData['postingId']);
+        final videoData = video.data() as Map<String, dynamic>;
+        return postingIds.contains(videoData['postingId']);
       }).toList();
+    });
+  }
+
+  void _startTypewriterEffect() {
+    _typewriterTimer?.cancel();
+    int i = 0;
+    _typewriterTimer = Timer.periodic(Duration(milliseconds: 40), (timer) {
+      if (i < _locationHint.length) {
+        setState(() {
+          _displayedHint += _locationHint[i];
+        });
+        i++;
+      } else {
+        timer.cancel();
+      }
     });
   }
 
   @override
   void dispose() {
+    _typewriterTimer?.cancel();
     // Stop and dispose all audio players
     _audioPlayers.forEach((key, player) {
       player.stop();
@@ -420,7 +428,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       // Play audio for the current video
                       final videoData =
                           _filteredVideos[index].data() as Map<String, dynamic>;
-                    //  _playAudio(index, videoData['audioName']);
+                      //  _playAudio(index, videoData['audioName']);
 
                       setState(() {}); // To update UI if needed
                     },
@@ -493,8 +501,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     onPressed: () {
                       setState(() {
                         _isSearchVisible = false;
-                        _filteredVideos =
-                            _allVideos; // Reset to show all videos
+                        _searchController.clear();
+                        _filteredVideos = _allVideos;
+                        _locationHint = '';
+                        _displayedHint = '';
                       });
                     },
                   ),
@@ -702,31 +712,33 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               children: [
                 Expanded(
                   child: GestureDetector(
-  onTap: () {
-    int premium = widget.videoData['premium'] ?? 0; // fallback if null
-    if (premium <= 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UserProfilePage(uid: widget.videoData['uid']),
-        ),
-      );
-    } else {
-      // Do nothing or show a message
-      print('Navigation disabled for premium=4 reels');
-    }
-  },
+                    onTap: () {
+                      int premium =
+                          widget.videoData['premium'] ?? 0; // fallback if null
+                      if (premium <= 3) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                UserProfilePage(uid: widget.videoData['uid']),
+                          ),
+                        );
+                      } else {
+                        // Do nothing or show a message
+                        print('Navigation disabled for premium=4 reels');
+                      }
+                    },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                          Text(
-                           widget.videoData['email'].split('@')[0],
-                           style: TextStyle(
+                        Text(
+                          widget.videoData['email'].split('@')[0],
+                          style: TextStyle(
                             color: Colors.white,
-                           fontWeight: FontWeight.bold,
-                           fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                         ),
+                        ),
                         SizedBox(height: 8),
                         Text(
                           widget.videoData['caption'],
@@ -799,7 +811,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   SizedBox(height: 8),
-                                   StreamBuilder<DocumentSnapshot>(
+                                  StreamBuilder<DocumentSnapshot>(
                                     stream: FirebaseFirestore.instance
                                         .collection('postings')
                                         .doc(widget.videoData['postingId'])
@@ -828,34 +840,38 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                           widget.videoData['premium'] ?? 0;
 
                                       return GestureDetector(
-  onTap: () async {
-    if (premium <= 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ViewPostingScreen(posting: cPosting),
-        ),
-      );
-    } else {
-      print('Navigation disabled for premium=4 reels');
-    }
-  },
-  child: premium <= 3
-      ? Container(
-          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          color: Colors.pinkAccent,
-          child: Text(
-            'Book Now',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
-          ),
-        )
-      : SizedBox.shrink(), // Empty widget if premium > 3
-);
-
+                                        onTap: () async {
+                                          if (premium <= 3) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ViewPostingScreen(
+                                                        posting: cPosting),
+                                              ),
+                                            );
+                                          } else {
+                                            print(
+                                                'Navigation disabled for premium=4 reels');
+                                          }
+                                        },
+                                        child: premium <= 3
+                                            ? Container(
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 8),
+                                                color: Colors.pinkAccent,
+                                                child: Text(
+                                                  'Book Now',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              )
+                                            : SizedBox
+                                                .shrink(), // Empty widget if premium > 3
+                                      );
                                     },
                                   ),
                                   //  SizedBox(height: 8),
@@ -878,36 +894,37 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-  onTap: () {
-    int premium = widget.videoData['premium'] ?? 0; // fallback if null
-    if (premium <= 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UserProfilePage(uid: widget.videoData['uid']),
-        ),
-      );
-    } else {
-      // Do nothing or show a message
-      print('Navigation disabled for premium=4 reels');
-    }
-  },
-  child: CircleAvatar(
-    backgroundColor: Colors.black,
-    radius: 30,
-    child: displayImage != null
-        ? CircleAvatar(
-            backgroundImage: displayImage,
-            radius: 29,
-          )
-        : Icon(
-            Icons.account_circle,
-            size: 30,
-            color: Colors.white,
-          ),
-  ),
-),
-
+                      onTap: () {
+                        int premium = widget.videoData['premium'] ??
+                            0; // fallback if null
+                        if (premium <= 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfilePage(uid: widget.videoData['uid']),
+                            ),
+                          );
+                        } else {
+                          // Do nothing or show a message
+                          print('Navigation disabled for premium=4 reels');
+                        }
+                      },
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black,
+                        radius: 30,
+                        child: displayImage != null
+                            ? CircleAvatar(
+                                backgroundImage: displayImage,
+                                radius: 29,
+                              )
+                            : Icon(
+                                Icons.account_circle,
+                                size: 30,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
                     SizedBox(height: 10),
                     IconButton(
                       icon: Icon(
