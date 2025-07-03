@@ -16,7 +16,6 @@ class CotmindService {
     'ng': 'nigeria',
     'sa': 'south africa',
     'gh': 'ghana',
-    'uk': 'united kingdom',
   };
 
   static final Map<String, String> _tipsCacheCity = {};
