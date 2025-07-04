@@ -47,6 +47,11 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     super.initState();
     _pageController = PageController();
     _loadVideos(); // Load videos from Firestore initially
+    _initializeCotmind();
+  }
+
+  Future<void> _initializeCotmind() async {
+    await CotmindService.loadDynamicSynonyms();
   }
 
   // Function to load videos from Firestore and cache them locally
@@ -311,6 +316,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   void _startTypewriterEffect() {
     _typewriterTimer?.cancel();
     int i = 0;
+    const prefix = '⎔'; // Cotmind's logo/icon
+    _displayedHint = prefix; // start with logo
+
     _typewriterTimer = Timer.periodic(Duration(milliseconds: 40), (timer) {
       if (i < _locationHint.length) {
         setState(() {
@@ -379,7 +387,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          RefreshIndicator(
+          if (_searchController.text.trim().isNotEmpty &&
+              _displayedHint.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(
+                _displayedHint,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(
+              child: RefreshIndicator(
             onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
                 ? Center(child: _buildNoResults())
@@ -451,7 +474,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       );
                     },
                   ),
-          ),
+          )),
 
           // Top-right positioned icon button
           Positioned(

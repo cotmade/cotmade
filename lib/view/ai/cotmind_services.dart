@@ -135,7 +135,7 @@ class CotmindService {
       if (doc.exists) return _tipsCacheCity[city] = doc['tip'];
       return _tipsCacheCity[city] = await _generateDynamicCityTip(city);
     } catch (_) {
-      return "🧠 Cotmind can’t generate a city tip right now.";
+      return "🧠 I can’t generate a city tip right now. Kindly try another word";
     }
   }
 
@@ -154,7 +154,7 @@ class CotmindService {
       return _tipsCacheCountry[country] =
           await _generateDynamicCountryTip(country);
     } catch (_) {
-      return "🧠 Cotmind can’t generate a country tip right now.";
+      return "🧠 I can’t generate a country tip right now. Kindly try another word";
     }
   }
 
@@ -174,7 +174,7 @@ class CotmindService {
 
     if (cnt > 100) return "🔥 $city is popular — $mood.";
     if (cnt > 20) return "🌟 $city is trending — $mood.";
-    return "🧠 $city is emerging — $mood.";
+    return "$city is emerging — $mood.";
   }
 
   /// Generate dynamic country tip
@@ -193,7 +193,7 @@ class CotmindService {
 
     if (cnt > 100) return "🔥 $country is hot — $mood.";
     if (cnt > 20) return "🌟 $country is gaining interest — $mood.";
-    return "🧠 $country is emerging — $mood.";
+    return "$country is emerging — $mood.";
   }
 
   /// Sentiment scoring for city
@@ -333,7 +333,7 @@ class CotmindService {
         .where('city', isGreaterThanOrEqualTo: city)
         .where('city', isLessThanOrEqualTo: city + '\uf8ff')
         .get();
-    return q.docs.map((d) => (d.data() as Map)['id'] as String).toList();
+    return q.docs.map((d) => d.id).toList(); // FIXED
   }
 
   /// Find posting IDs by country
@@ -343,7 +343,7 @@ class CotmindService {
         .where('country', isGreaterThanOrEqualTo: country)
         .where('country', isLessThanOrEqualTo: country + '\uf8ff')
         .get();
-    return q.docs.map((d) => (d.data() as Map)['id'] as String).toList();
+    return q.docs.map((d) => d.id).toList(); // FIXED
   }
 
   /// Simple fuzzy similarity (Jaccard)
