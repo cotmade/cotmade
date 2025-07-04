@@ -387,94 +387,100 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          if (_searchController.text.trim().isNotEmpty &&
-              _displayedHint.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Text(
-                _displayedHint,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontStyle: FontStyle.italic,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          Expanded(
-              child: RefreshIndicator(
-            onRefresh: _refreshVideos, // Trigger refresh when pulled
-            child: _filteredVideos.isEmpty
-                ? Center(child: _buildNoResults())
-                : PageView.builder(
-                    controller: _pageController,
-                    itemCount: _filteredVideos.length,
-                    scrollDirection: Axis.vertical,
-                    onPageChanged: (index) async {
-                      // Pause previous video and audio
-                      if (_controllers[_currentIndex]?.value.isPlaying ??
-                          false) {
-                        _controllers[_currentIndex]?.pause();
-                      }
-                      await _audioPlayers[_currentIndex]?.pause();
-
-                      _currentIndex = index;
-
-                      _incrementViewCountIfNeeded(_filteredVideos[index].id);
-
-                      // Preload the current video (if not preloaded)
-                      _preloadVideo(index);
-
-                      // Play the current video
-                      final controller = _controllers[index];
-                      if (controller != null &&
-                          controller.value.isInitialized) {
-                        // ✅ Set the volume based on premium and _isMuted
-                        var videoData = _filteredVideos[index].data()
-                            as Map<String, dynamic>;
-                        var premium = videoData['premium'] ??
-                            0; // Get premium from the video data
-
-                        if (premium >= 3) {
-                          // Premium users can hear audio, so adjust based on mute status
-                          controller
-                              .setVolume(1.0); // Set volume based on _isMuted
-                        } else {
-                          // Non-premium users: Always mute
-                          controller.setVolume(0.0);
-                        }
-
-                        // Play the current video
-                        controller.play();
-                      }
-
-                      // Play audio for the current video
-                      final videoData =
-                          _filteredVideos[index].data() as Map<String, dynamic>;
-                      //  _playAudio(index, videoData['audioName']);
-
-                      setState(() {}); // To update UI if needed
-                    },
-                    itemBuilder: (context, index) {
-                      var videoData =
-                          _filteredVideos[index].data() as Map<String, dynamic>;
-                      return VideoReelsItem(
-                        controller: _controllers[index],
-                        videoData: videoData,
-                        isMuted: _isMuted,
-                        documentId: _filteredVideos[index].id, // <–– NEW!
-                        audioName: videoData['audioName'], // Pass audio name
-                        onToggleMute: () {
-                          setState(() {
-                            _isMuted = !_isMuted;
-                            _controllers[_currentIndex]
-                                ?.setVolume(_isMuted ? 0.0 : 1.0);
-                          });
-                        },
-                      );
-                    },
+          Column(
+            children: [
+              if (_searchController.text.trim().isNotEmpty &&
+                  _displayedHint.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Text(
+                    _displayedHint,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-          )),
+                ),
+              Expanded(
+                  child: RefreshIndicator(
+                onRefresh: _refreshVideos, // Trigger refresh when pulled
+                child: _filteredVideos.isEmpty
+                    ? Center(child: _buildNoResults())
+                    : PageView.builder(
+                        controller: _pageController,
+                        itemCount: _filteredVideos.length,
+                        scrollDirection: Axis.vertical,
+                        onPageChanged: (index) async {
+                          // Pause previous video and audio
+                          if (_controllers[_currentIndex]?.value.isPlaying ??
+                              false) {
+                            _controllers[_currentIndex]?.pause();
+                          }
+                          await _audioPlayers[_currentIndex]?.pause();
+
+                          _currentIndex = index;
+
+                          _incrementViewCountIfNeeded(
+                              _filteredVideos[index].id);
+
+                          // Preload the current video (if not preloaded)
+                          _preloadVideo(index);
+
+                          // Play the current video
+                          final controller = _controllers[index];
+                          if (controller != null &&
+                              controller.value.isInitialized) {
+                            // ✅ Set the volume based on premium and _isMuted
+                            var videoData = _filteredVideos[index].data()
+                                as Map<String, dynamic>;
+                            var premium = videoData['premium'] ??
+                                0; // Get premium from the video data
+
+                            if (premium >= 3) {
+                              // Premium users can hear audio, so adjust based on mute status
+                              controller.setVolume(
+                                  1.0); // Set volume based on _isMuted
+                            } else {
+                              // Non-premium users: Always mute
+                              controller.setVolume(0.0);
+                            }
+
+                            // Play the current video
+                            controller.play();
+                          }
+
+                          // Play audio for the current video
+                          final videoData = _filteredVideos[index].data()
+                              as Map<String, dynamic>;
+                          //  _playAudio(index, videoData['audioName']);
+
+                          setState(() {}); // To update UI if needed
+                        },
+                        itemBuilder: (context, index) {
+                          var videoData = _filteredVideos[index].data()
+                              as Map<String, dynamic>;
+                          return VideoReelsItem(
+                            controller: _controllers[index],
+                            videoData: videoData,
+                            isMuted: _isMuted,
+                            documentId: _filteredVideos[index].id, // <–– NEW!
+                            audioName:
+                                videoData['audioName'], // Pass audio name
+                            onToggleMute: () {
+                              setState(() {
+                                _isMuted = !_isMuted;
+                                _controllers[_currentIndex]
+                                    ?.setVolume(_isMuted ? 0.0 : 1.0);
+                              });
+                            },
+                          );
+                        },
+                      ),
+              )),
+            ],
+          ),
 
           // Top-right positioned icon button
           Positioned(
