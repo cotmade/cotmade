@@ -230,7 +230,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         return;
       }
 
-      print("Play audio from: $audioPath");
+      print("Playing audio from: $audioPath");
 
       await player.setAsset(audioPath);
       await player.setLoopMode(LoopMode.one);
