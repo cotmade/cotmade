@@ -230,7 +230,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         return;
       }
 
-      print("Play audio from: $audioPath");
+      print("Playing audio from: $audioPath");
 
       await player.setAsset(audioPath);
       await player.setLoopMode(LoopMode.one);
@@ -391,16 +391,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             children: [
               if (_searchController.text.trim().isNotEmpty &&
                   _displayedHint.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Text(
-                    _displayedHint,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14,
+                Positioned(
+                  top:
+                      100, // 40 (top padding) + ~56 (TextField height) + 4 margin
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      _displayedHint,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontStyle: FontStyle.normal,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
                   ),
                 ),
               Expanded(
@@ -922,6 +932,30 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 ),
                 Column(
                   children: [
+                    GestureDetector(
+                        onTap: () {},
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black,
+                          radius: 25,
+                          child: Text(
+                            '⎔',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )),
+                    // SizedBox(height: 4),
+                    // Text(
+                    //  'cotmind AI',
+                    //  style: TextStyle(
+                    //    color: Colors.green,
+                    //    fontSize: 12,
+                    //    fontWeight: FontWeight.w500,
+                    //  ),
+                    // ),
+                    SizedBox(height: 10),
                     GestureDetector(
                       onTap: () {
                         int premium = widget.videoData['premium'] ??
