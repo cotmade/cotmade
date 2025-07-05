@@ -389,32 +389,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         children: [
           Column(
             children: [
-              if (_searchController.text.trim().isNotEmpty &&
-                  _displayedHint.isNotEmpty)
-                Positioned(
-                  top:
-                      100, // 40 (top padding) + ~56 (TextField height) + 4 margin
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _displayedHint,
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontStyle: FontStyle.normal,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
-                ),
-              Expanded(
-                  child: RefreshIndicator(
+              RefreshIndicator(
                 onRefresh: _refreshVideos, // Trigger refresh when pulled
                 child: _filteredVideos.isEmpty
                     ? Center(child: _buildNoResults())
@@ -488,7 +463,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                           );
                         },
                       ),
-              )),
+              ),
             ],
           ),
 
@@ -547,6 +522,31 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       });
                     },
                   ),
+                ),
+              ),
+            ),
+
+          // ✅ Displayed Hint (floating over video)
+          if (_searchController.text.trim().isNotEmpty &&
+              _displayedHint.isNotEmpty)
+            Positioned(
+              top: 100, // Just below the search bar
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _displayedHint,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.left,
                 ),
               ),
             ),
@@ -946,15 +946,17 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             ),
                           ),
                         )),
-                    // SizedBox(height: 4),
-                    // Text(
-                    //  'cotmind AI',
-                    //  style: TextStyle(
-                    //    color: Colors.green,
-                    //    fontSize: 12,
-                    //    fontWeight: FontWeight.w500,
-                    //  ),
-                    // ),
+                    SizedBox(height: 1),
+                    Text(
+                      'ask AI',
+                      style: TextStyle(
+                        backgroundColor: Colors.black,
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                     SizedBox(height: 10),
                     GestureDetector(
                       onTap: () {
