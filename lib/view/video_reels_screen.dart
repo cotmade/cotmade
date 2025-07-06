@@ -536,11 +536,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  padding: EdgeInsets.all(12),
+                  padding: EdgeInsets.all(1),
                   decoration: BoxDecoration(
                     color: Colors.black87,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.pinkAccent, width: 1),
+                    border: Border.all(color: Colors.black, width: 1),
                   ),
                   child: Text(
                     _displayedHint,
