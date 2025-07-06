@@ -281,7 +281,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = _searchController.text.trim();
+    String queryText = formatSearchQuery(_searchController.text.trim());
+
     if (queryText.isEmpty) {
       setState(() {
         _filteredVideos = _allVideos;
@@ -291,25 +292,54 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       return;
     }
 
-    // Use Cotmind AI to normalize + log search
     await CotmindService.logSearch(queryText);
+
+    // Normalize location data
     final city = await CotmindService.normalizeCity(queryText);
     final country = await CotmindService.normalizeCountry(queryText);
-    final hint = await CotmindService.getCityTip(city);
-    setState(() {
-      _locationHint = hint;
-      _displayedHint = '';
-    });
-    _startTypewriterEffect();
 
-    List<String> postingIds = await CotmindService.getMatchingPostsByCity(city);
-    postingIds += await CotmindService.getMatchingPostsByCountry(country);
+    final hint = city != null && city.isNotEmpty
+        ? await CotmindService.getCityTip(city)
+        : '';
+    if (_locationHint != hint) {
+      setState(() {
+        _locationHint = hint;
+        _displayedHint = '';
+      });
+      _startTypewriterEffect(); // only animate when there's a new hint
+    }
+
+    // Query Firestore for postings matching normalized city/country
+    final matchingPostingIds = <String>{};
+
+    if (city != null && city.isNotEmpty) {
+      final citySnap = await FirebaseFirestore.instance
+          .collection('postings')
+          .where('city', isGreaterThanOrEqualTo: city)
+          .where('city', isLessThanOrEqualTo: city + '\uf8ff')
+          .get();
+      matchingPostingIds.addAll(citySnap.docs
+          .map((doc) => (doc.data() as Map<String, dynamic>)['id'] ?? ''));
+    }
+
+    if (country != null && country.isNotEmpty) {
+      final countrySnap = await FirebaseFirestore.instance
+          .collection('postings')
+          .where('country', isGreaterThanOrEqualTo: country)
+          .where('country', isLessThanOrEqualTo: country + '\uf8ff')
+          .get();
+      matchingPostingIds.addAll(countrySnap.docs
+          .map((doc) => (doc.data() as Map<String, dynamic>)['id'] ?? ''));
+    }
+
+    // Filter _allVideos by postingId
+    final filtered = _allVideos.where((video) {
+      final videoData = video.data() as Map<String, dynamic>;
+      return matchingPostingIds.contains(videoData['postingId']);
+    }).toList();
 
     setState(() {
-      _filteredVideos = _allVideos.where((video) {
-        final videoData = video.data() as Map<String, dynamic>;
-        return postingIds.contains(videoData['postingId']);
-      }).toList();
+      _filteredVideos = filtered;
     });
   }
 
@@ -385,8 +415,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
+      body: Stack(children: [
         RefreshIndicator(
           onRefresh: _refreshVideos, // Trigger refresh when pulled
           child: _filteredVideos.isEmpty
@@ -531,7 +560,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       _displayedHint,
                       style: TextStyle(
                         color: Colors.white70,
-                        fontStyle: FontStyle.italic,
+                        fontStyle: FontStyle.normal,
                         fontSize: 14,
                       ),
                     ),
@@ -935,14 +964,17 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                           ),
                         )),
                     SizedBox(height: 1),
-                    Text(
-                      'ask AI',
-                      style: TextStyle(
-                        backgroundColor: Colors.black,
-                        color: Colors.green,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        fontStyle: FontStyle.italic,
+                    Container(
+                      width: 15, // Wider than the text
+                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      color: Colors.black, // Background color
+                      child: Text(
+                        'ask AI',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     SizedBox(height: 10),
