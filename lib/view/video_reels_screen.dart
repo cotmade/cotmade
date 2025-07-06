@@ -230,7 +230,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         return;
       }
 
-      print("Play audio from: $audioPath");
+      print("Playing audio from: $audioPath");
 
       await player.setAsset(audioPath);
       await player.setLoopMode(LoopMode.one);
@@ -530,23 +530,29 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           if (_searchController.text.trim().isNotEmpty &&
               _displayedHint.isNotEmpty)
             Positioned(
-              top: 100, // Just below the search bar
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _displayedHint,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 14,
+              top: 100,
+              left: 2,
+              right: 2,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.pinkAccent, width: 1),
                   ),
-                  textAlign: TextAlign.left,
+                  child: Text(
+                    _displayedHint,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.left,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
