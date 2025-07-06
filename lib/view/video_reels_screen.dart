@@ -387,168 +387,159 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Column(
-            children: [
-              RefreshIndicator(
-                onRefresh: _refreshVideos, // Trigger refresh when pulled
-                child: _filteredVideos.isEmpty
-                    ? Center(child: _buildNoResults())
-                    : PageView.builder(
-                        controller: _pageController,
-                        itemCount: _filteredVideos.length,
-                        scrollDirection: Axis.vertical,
-                        onPageChanged: (index) async {
-                          // Pause previous video and audio
-                          if (_controllers[_currentIndex]?.value.isPlaying ??
-                              false) {
-                            _controllers[_currentIndex]?.pause();
-                          }
-                          await _audioPlayers[_currentIndex]?.pause();
+        RefreshIndicator(
+          onRefresh: _refreshVideos, // Trigger refresh when pulled
+          child: _filteredVideos.isEmpty
+              ? Center(child: _buildNoResults())
+              : PageView.builder(
+                  controller: _pageController,
+                  itemCount: _filteredVideos.length,
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: (index) async {
+                    // Pause previous video and audio
+                    if (_controllers[_currentIndex]?.value.isPlaying ?? false) {
+                      _controllers[_currentIndex]?.pause();
+                    }
+                    await _audioPlayers[_currentIndex]?.pause();
 
-                          _currentIndex = index;
+                    _currentIndex = index;
 
-                          _incrementViewCountIfNeeded(
-                              _filteredVideos[index].id);
+                    _incrementViewCountIfNeeded(_filteredVideos[index].id);
 
-                          // Preload the current video (if not preloaded)
-                          _preloadVideo(index);
+                    // Preload the current video (if not preloaded)
+                    _preloadVideo(index);
 
-                          // Play the current video
-                          final controller = _controllers[index];
-                          if (controller != null &&
-                              controller.value.isInitialized) {
-                            // ✅ Set the volume based on premium and _isMuted
-                            var videoData = _filteredVideos[index].data()
-                                as Map<String, dynamic>;
-                            var premium = videoData['premium'] ??
-                                0; // Get premium from the video data
+                    // Play the current video
+                    final controller = _controllers[index];
+                    if (controller != null && controller.value.isInitialized) {
+                      // ✅ Set the volume based on premium and _isMuted
+                      var videoData =
+                          _filteredVideos[index].data() as Map<String, dynamic>;
+                      var premium = videoData['premium'] ??
+                          0; // Get premium from the video data
 
-                            if (premium >= 3) {
-                              // Premium users can hear audio, so adjust based on mute status
-                              controller.setVolume(
-                                  1.0); // Set volume based on _isMuted
-                            } else {
-                              // Non-premium users: Always mute
-                              controller.setVolume(0.0);
-                            }
+                      if (premium >= 3) {
+                        // Premium users can hear audio, so adjust based on mute status
+                        controller
+                            .setVolume(1.0); // Set volume based on _isMuted
+                      } else {
+                        // Non-premium users: Always mute
+                        controller.setVolume(0.0);
+                      }
 
-                            // Play the current video
-                            controller.play();
-                          }
+                      // Play the current video
+                      controller.play();
+                    }
 
-                          // Play audio for the current video
-                          final videoData = _filteredVideos[index].data()
-                              as Map<String, dynamic>;
-                          //  _playAudio(index, videoData['audioName']);
+                    // Play audio for the current video
+                    final videoData =
+                        _filteredVideos[index].data() as Map<String, dynamic>;
+                    //  _playAudio(index, videoData['audioName']);
 
-                          setState(() {}); // To update UI if needed
-                        },
-                        itemBuilder: (context, index) {
-                          var videoData = _filteredVideos[index].data()
-                              as Map<String, dynamic>;
-                          return VideoReelsItem(
-                            controller: _controllers[index],
-                            videoData: videoData,
-                            isMuted: _isMuted,
-                            documentId: _filteredVideos[index].id, // <–– NEW!
-                            audioName:
-                                videoData['audioName'], // Pass audio name
-                            onToggleMute: () {
-                              setState(() {
-                                _isMuted = !_isMuted;
-                                _controllers[_currentIndex]
-                                    ?.setVolume(_isMuted ? 0.0 : 1.0);
-                              });
-                            },
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-
-          // Top-right positioned icon button
-          Positioned(
-            top: 50, // adjust for status bar
-            right: 16,
-            child: IconButton(
-              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-              onPressed: () async {
-                await _stopAllAudio(); // ✅ ensures audio stops
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => GuestHomeScreen()),
-                );
-              },
-            ),
-          ),
-          // Display audio name at the top left
-
-          // SearchBar + Hint combined in one Column
-if (_isSearchVisible)
-  Positioned(
-    top: 40,
-    left: 16,
-    right: 16,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 🔍 Search Input
-        TextField(
-          controller: _searchController,
-          onChanged: (value) {
-            _filterVideos();
-          },
-          style: TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'location...',
-            hintStyle: TextStyle(color: Colors.white60),
-            filled: true,
-            fillColor: Colors.black,
-            border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.pinkAccent, width: 2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            suffixIcon: IconButton(
-              icon: Icon(Icons.close, color: Colors.white),
-              onPressed: () {
-                setState(() {
-                  _isSearchVisible = false;
-                  _searchController.clear();
-                  _filteredVideos = _allVideos;
-                  _locationHint = '';
-                  _displayedHint = '';
-                });
-              },
-            ),
-          ),
+                    setState(() {}); // To update UI if needed
+                  },
+                  itemBuilder: (context, index) {
+                    var videoData =
+                        _filteredVideos[index].data() as Map<String, dynamic>;
+                    return VideoReelsItem(
+                      controller: _controllers[index],
+                      videoData: videoData,
+                      isMuted: _isMuted,
+                      documentId: _filteredVideos[index].id, // <–– NEW!
+                      audioName: videoData['audioName'], // Pass audio name
+                      onToggleMute: () {
+                        setState(() {
+                          _isMuted = !_isMuted;
+                          _controllers[_currentIndex]
+                              ?.setVolume(_isMuted ? 0.0 : 1.0);
+                        });
+                      },
+                    );
+                  },
+                ),
         ),
 
-        // 💡 Hint text just below the search bar
-        if (_searchController.text.trim().isNotEmpty &&
-            _displayedHint.isNotEmpty)
-          Container(
-            margin: EdgeInsets.only(top: 8),
-            padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border.all(color: Colors.black, width: 1),
-            ),
-            child: Text(
-              _displayedHint,
-              style: TextStyle(
-                color: Colors.white70,
-                fontStyle: FontStyle.italic,
-                fontSize: 14,
-              ),
-            ),
+        // Top-right positioned icon button
+        Positioned(
+          top: 50, // adjust for status bar
+          right: 16,
+          child: IconButton(
+            icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+            onPressed: () async {
+              await _stopAllAudio(); // ✅ ensures audio stops
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => GuestHomeScreen()),
+              );
+            },
           ),
-      ],
-    ),
-  )]),
+        ),
+        // Display audio name at the top left
 
-           
-      
+        // SearchBar + Hint combined in one Column
+        if (_isSearchVisible)
+          Positioned(
+            top: 40,
+            left: 16,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🔍 Search Input
+                TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    _filterVideos();
+                  },
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'location...',
+                    hintStyle: TextStyle(color: Colors.white60),
+                    filled: true,
+                    fillColor: Colors.black,
+                    border: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.pinkAccent, width: 2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _isSearchVisible = false;
+                          _searchController.clear();
+                          _filteredVideos = _allVideos;
+                          _locationHint = '';
+                          _displayedHint = '';
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                // 💡 Hint text just below the search bar
+                if (_searchController.text.trim().isNotEmpty &&
+                    _displayedHint.isNotEmpty)
+                  Container(
+                    margin: EdgeInsets.only(top: 8),
+                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      border: Border.all(color: Colors.black, width: 1),
+                    ),
+                    child: Text(
+                      _displayedHint,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          )
+      ]),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
