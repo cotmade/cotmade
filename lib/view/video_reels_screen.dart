@@ -484,79 +484,71 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           ),
           // Display audio name at the top left
 
-          if (_isSearchVisible)
-            Positioned(
-              top: 40,
-              left: 16,
-              right: 16,
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  _filterVideos(); // Filter the cached videos based on the search query
-                },
-                style: TextStyle(
-                    color: Colors.white), // Text color inside the field
-                decoration: InputDecoration(
-                  hintText: 'location...',
-                  hintStyle: TextStyle(
-                      color: Colors.white60), // Lighter color for hint text
-                  filled: true,
-                  fillColor: Colors.black, // Background color of the TextField
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: Colors.pinkAccent,
-                        width: 2), // Pink accent border
-                    borderRadius:
-                        BorderRadius.circular(8), // Optional: rounded corners
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.close,
-                        color: Colors.white), // Close icon in white
-                    onPressed: () {
-                      setState(() {
-                        _isSearchVisible = false;
-                        _searchController.clear();
-                        _filteredVideos = _allVideos;
-                        _locationHint = '';
-                        _displayedHint = '';
-                      });
-                    },
-                  ),
-                ),
-              ),
+          // SearchBar + Hint combined in one Column
+if (_isSearchVisible)
+  Positioned(
+    top: 40,
+    left: 16,
+    right: 16,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 🔍 Search Input
+        TextField(
+          controller: _searchController,
+          onChanged: (value) {
+            _filterVideos();
+          },
+          style: TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'location...',
+            hintStyle: TextStyle(color: Colors.white60),
+            filled: true,
+            fillColor: Colors.black,
+            border: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.pinkAccent, width: 2),
+              borderRadius: BorderRadius.circular(8),
             ),
+            suffixIcon: IconButton(
+              icon: Icon(Icons.close, color: Colors.white),
+              onPressed: () {
+                setState(() {
+                  _isSearchVisible = false;
+                  _searchController.clear();
+                  _filteredVideos = _allVideos;
+                  _locationHint = '';
+                  _displayedHint = '';
+                });
+              },
+            ),
+          ),
+        ),
 
-          // ✅ Displayed Hint (floating over video)
-          if (_searchController.text.trim().isNotEmpty &&
-              _displayedHint.isNotEmpty)
-            Positioned(
-              top: 100,
-              left: 2,
-              right: 2,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: EdgeInsets.all(1),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    border: Border.all(color: Colors.black, width: 1),
-                  ),
-                  child: Text(
-                    _displayedHint,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.left,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+        // 💡 Hint text just below the search bar
+        if (_searchController.text.trim().isNotEmpty &&
+            _displayedHint.isNotEmpty)
+          Container(
+            margin: EdgeInsets.only(top: 8),
+            padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              border: Border.all(color: Colors.black, width: 1),
+            ),
+            child: Text(
+              _displayedHint,
+              style: TextStyle(
+                color: Colors.white70,
+                fontStyle: FontStyle.italic,
+                fontSize: 14,
               ),
             ),
-        ],
-      ),
+          ),
+      ],
+    ),
+  )]),
+
+           
+      
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
