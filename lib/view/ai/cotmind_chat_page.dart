@@ -24,10 +24,18 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
       _isLoading = true;
     });
 
-    final reply = await CotmindConversationEngine.respond(input);
+    final CotmindResponse reply =
+        await CotmindConversationEngine.respond(input);
 
     setState(() {
-      _messages.add({'role': 'cotmind', 'text': reply});
+      // Add Cotmind's main reply message
+      _messages.add({'role': 'cotmind', 'text': reply.message});
+
+      // Add each video as its own message with role 'video'
+      for (var video in reply.videos) {
+        _messages.add({'role': 'video', 'text': video});
+      }
+
       _isLoading = false;
     });
 
@@ -44,26 +52,60 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    _messages.clear(); // Clear memory on exit
+    _messages.clear();
     super.dispose();
   }
 
   Widget _buildMessage(Map<String, String> msg) {
-    final isUser = msg['role'] == 'user';
+    final role = msg['role'];
+    final text = msg['text'] ?? '';
+
+    if (role == 'video') {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.orange[100],
+            borderRadius: BorderRadius.circular(10),
+          ),
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
+          child: Row(
+            children: [
+              Icon(Icons.video_library, color: Colors.orange[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.orange[900],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final isUser = role == 'user';
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.blueAccent : Colors.grey[200],
+          color: isUser ? Colors.grey[200] : Colors.black,
           borderRadius: BorderRadius.circular(12),
         ),
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         child: Text(
-          msg['text'] ?? '',
-          style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+          text,
+          style: TextStyle(color: isUser ? Colors.black : Colors.green),
         ),
       ),
     );
@@ -98,7 +140,7 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: const InputDecoration(
-                        hintText: "Ask about a vibe, place, or mood...",
+                        hintText: "ask me anything regarding booking",
                         border: OutlineInputBorder(),
                       ),
                     ),

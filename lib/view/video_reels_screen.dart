@@ -314,15 +314,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
     QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
         .collection('postings')
-        .where('country', isGreaterThanOrEqualTo: queryText)
-        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .where('country', isEqualTo: country)
         .get();
 
     // Query for city as well
     QuerySnapshot citySnapshot = await FirebaseFirestore.instance
         .collection('postings')
-        .where('city', isGreaterThanOrEqualTo: queryText)
-        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .where('country', isEqualTo: city)
         .get();
 
     // Step 2: Get all matching postingIds from the postings collection
@@ -967,14 +965,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             '⎔',
                             style: TextStyle(
                               color: Colors.green,
-                              fontSize: 24,
+                              fontSize: 30,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         )),
-                    SizedBox(height: 1),
+                    // SizedBox(height: 1),
                     Container(
-                      width: 105, // Wider than the text
+                      width: 75, // Wider than the text
                       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       color: Colors.black, // Background color
                       child: Text(

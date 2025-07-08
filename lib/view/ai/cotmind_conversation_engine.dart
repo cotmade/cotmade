@@ -1,8 +1,15 @@
 import 'package:cotmade/view/ai/cotmind_services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class CotmindResponse {
+  final String message;
+  final List<String> videos;
+
+  CotmindResponse({required this.message, this.videos = const []});
+}
+
 class CotmindConversationEngine {
-  static Future<String> respond(String input) async {
+  static Future<CotmindResponse> respond(String input) async {
     final normalizedCity = await CotmindService.normalizeCity(input);
     final normalizedCountry = await CotmindService.normalizeCountry(input);
     final tone = CotmindService.detectTone(input);
@@ -29,7 +36,7 @@ class CotmindConversationEngine {
           hasCity ? "📍 *$normalizedCity*" : "🌍 *$normalizedCountry*";
       String message = "$prefix is trending — $vibe. Tip: $tip";
 
-// 🔍 Step 1: Query postings for videos
+      // 🔍 Step 1: Query postings for documents matching city/country
       QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
           .collection('postings')
           .where(hasCity ? 'city' : 'country', isGreaterThanOrEqualTo: location)
@@ -37,34 +44,29 @@ class CotmindConversationEngine {
               isLessThanOrEqualTo: location + '\uf8ff')
           .get();
 
-// 🔄 Step 2: Collect posting IDs
-      List<String> postingIds = postingsSnapshot.docs.map((doc) {
-        var data = doc.data() as Map<String, dynamic>;
-        return data['id'] as String;
-      }).toList();
+      if (postingsSnapshot.docs.isEmpty) {
+        return CotmindResponse(message: message);
+      }
 
-// 🎥 Step 3: Query videos that match posting IDs
-      QuerySnapshot videoSnapshot = await FirebaseFirestore.instance
-          .collection('videos') // Or whatever your collection is named
+      // 🔄 Step 2: Collect posting document IDs
+      List<String> postingIds =
+          postingsSnapshot.docs.map((doc) => doc.id).toList();
+
+      // 🎥 Step 3: Query reels collection for videos with postingId in postingIds
+      QuerySnapshot reelsSnapshot = await FirebaseFirestore.instance
+          .collection('reels') // assuming 'reels' collection has videos
           .where('postingId',
-              whereIn:
-                  postingIds.take(10).toList()) // Firestore limit workaround
+              whereIn: postingIds.take(10).toList()) // Firestore limit
           .limit(2)
           .get();
 
-// 📦 Step 4: Extract video info
-      if (videoSnapshot.docs.isNotEmpty) {
-        final videos = videoSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return data['title'] ??
-              data['url'] ??
-              'Video'; // Customize what you want to show
-        }).toList();
+      // 📦 Step 4: Extract video info (title or url)
+      List<String> reels = reelsSnapshot.docs.map<String>((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['url'] as String;
+      }).toList();
 
-        message += "\n🎬 Suggested videos: ${videos.join(', ')}";
-      }
-
-      return message;
+      return CotmindResponse(message: message, videos: reels);
     }
 
     if (tone == 'calm' || tone == 'energetic') {
@@ -78,12 +80,42 @@ class CotmindConversationEngine {
       }
 
       if (matches.isNotEmpty) {
-        return tone == 'calm'
+        final message = tone == 'calm'
             ? "😌 You might enjoy these peaceful cities: ${matches.join(', ')}."
             : "🎉 Feeling hyped? These buzzing places might be your vibe: ${matches.join(', ')}.";
+        return CotmindResponse(message: message);
       }
     }
 
-    return "👋 Hey! Ask me about a city, country, or your travel vibe — like 'fun places in SA' or 'calm cities near Nigeria'.";
+    String getDynamicGreeting({String? userInput, String? tone}) {
+      final hour = DateTime.now().hour;
+      String timeGreeting;
+
+      if (hour < 12) {
+        timeGreeting = "Good morning";
+      } else if (hour < 18) {
+        timeGreeting = "Good afternoon";
+      } else {
+        timeGreeting = "Good evening";
+      }
+
+      String vibePart = "";
+
+      if (tone == 'calm') {
+        vibePart = "Looking for some peaceful spots?";
+      } else if (tone == 'energetic') {
+        vibePart = "Ready for some exciting adventures?";
+      } else if (userInput != null && userInput.isNotEmpty) {
+        vibePart = "Tell me more about \"$userInput\" or ask for travel vibes!";
+      } else {
+        vibePart = "Ask me about a city, country, or your travel vibe!";
+      }
+
+      return "$timeGreeting! 👋 $vibePart";
+    }
+
+    return CotmindResponse(
+      message: getDynamicGreeting(userInput: input, tone: tone),
+    );
   }
 }

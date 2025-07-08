@@ -128,14 +128,11 @@ class CotmindService {
     if (_tipsCacheCity.containsKey(city)) return _tipsCacheCity[city]!;
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('cotmindTipsCities')
-          .doc(city)
-          .get();
-      if (doc.exists) return _tipsCacheCity[city] = doc['tip'];
-      return _tipsCacheCity[city] = await _generateDynamicCityTip(city);
-    } catch (_) {
-      return "I can’t generate a city tip right now. Kindly try another word";
+      final generated = await _generateDynamicCityTip(city);
+      return _tipsCacheCity[city] = generated;
+    } catch (e) {
+      print("City tip generation failed: $e");
+      return "I can't generate a tip right now";
     }
   }
 
@@ -154,7 +151,7 @@ class CotmindService {
       return _tipsCacheCountry[country] =
           await _generateDynamicCountryTip(country);
     } catch (_) {
-      return "I can’t generate a country tip right now. Kindly try another word";
+      return "I can't generate a tip right now.";
     }
   }
 
