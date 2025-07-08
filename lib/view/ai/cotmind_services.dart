@@ -83,7 +83,7 @@ class CotmindService {
     final cityNorm = await normalizeCity(query);
     final country = _inferCountryFromCity(cityNorm);
     final countryNorm = await normalizeCountry(country);
-    final tone = _detectTone(query);
+    final tone = detectTone(query);
     final now = Timestamp.now();
 
     await FirebaseFirestore.instance.collection('searchLogs').add({
@@ -102,7 +102,7 @@ class CotmindService {
   }
 
   /// Tone detection
-  static String _detectTone(String text) {
+  static String detectTone(String text) {
     final lower = text.toLowerCase();
     if (lower.contains('quiet') || lower.contains('peace')) return 'calm';
     if (lower.contains('party') || lower.contains('fun')) return 'energetic';
@@ -135,7 +135,7 @@ class CotmindService {
       if (doc.exists) return _tipsCacheCity[city] = doc['tip'];
       return _tipsCacheCity[city] = await _generateDynamicCityTip(city);
     } catch (_) {
-      return "🧠 I can’t generate a city tip right now. Kindly try another word";
+      return "I can’t generate a city tip right now. Kindly try another word";
     }
   }
 
@@ -154,7 +154,7 @@ class CotmindService {
       return _tipsCacheCountry[country] =
           await _generateDynamicCountryTip(country);
     } catch (_) {
-      return "🧠 I can’t generate a country tip right now. Kindly try another word";
+      return "I can’t generate a country tip right now. Kindly try another word";
     }
   }
 

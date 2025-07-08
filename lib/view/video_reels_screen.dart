@@ -20,6 +20,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
 import 'package:cotmade/view/ai/cotmind_services.dart';
+import 'package:cotmade/view/ai/cotmind_chat_page.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -310,36 +311,38 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
 
     // Query Firestore for postings matching normalized city/country
-    final matchingPostingIds = <String>{};
+    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('country', isGreaterThanOrEqualTo: queryText)
+        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
 
-    if (city != null && city.isNotEmpty) {
-      final citySnap = await FirebaseFirestore.instance
-          .collection('postings')
-          .where('city', isGreaterThanOrEqualTo: city)
-          .where('city', isLessThanOrEqualTo: city + '\uf8ff')
-          .get();
-      matchingPostingIds.addAll(citySnap.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['id'] ?? ''));
-    }
+    // Query for city as well
+    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('city', isGreaterThanOrEqualTo: queryText)
+        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
 
-    if (country != null && country.isNotEmpty) {
-      final countrySnap = await FirebaseFirestore.instance
-          .collection('postings')
-          .where('country', isGreaterThanOrEqualTo: country)
-          .where('country', isLessThanOrEqualTo: country + '\uf8ff')
-          .get();
-      matchingPostingIds.addAll(countrySnap.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['id'] ?? ''));
-    }
+    // Step 2: Get all matching postingIds from the postings collection
+    List<String> matchingPostingIds = [];
+    postingsSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
 
-    // Filter _allVideos by postingId
-    final filtered = _allVideos.where((video) {
-      final videoData = video.data() as Map<String, dynamic>;
-      return matchingPostingIds.contains(videoData['postingId']);
-    }).toList();
+    citySnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
 
+    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
-      _filteredVideos = filtered;
+      _filteredVideos = _allVideos.where((video) {
+        var videoData = video.data() as Map<String, dynamic>;
+        return matchingPostingIds.contains(videoData['postingId']);
+      }).toList();
     });
   }
 
@@ -950,7 +953,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 Column(
                   children: [
                     GestureDetector(
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const CotmindChatPage()),
+                          );
+                        },
                         child: CircleAvatar(
                           backgroundColor: Colors.black,
                           radius: 25,
@@ -965,7 +974,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                         )),
                     SizedBox(height: 1),
                     Container(
-                      width: 15, // Wider than the text
+                      width: 105, // Wider than the text
                       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       color: Colors.black, // Background color
                       child: Text(
