@@ -160,7 +160,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       });
       _viewedVideoIds.add(videoDocId);
     } catch (e) {
-      print('Fail to increment view count for $videoDocId: $e');
+      print('Failed to increment view count for $videoDocId: $e');
     }
   }
 
