@@ -160,7 +160,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       });
       _viewedVideoIds.add(videoDocId);
     } catch (e) {
-      print('Fail to increment view count for $videoDocId: $e');
+      print('Failed to increment view count for $videoDocId: $e');
     }
   }
 
@@ -295,47 +295,37 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     await CotmindService.logSearch(queryText);
 
-    // Normalize location data
     final city = await CotmindService.normalizeCity(queryText);
     final country = await CotmindService.normalizeCountry(queryText);
 
-    final hint = city != null && city.isNotEmpty
-        ? await CotmindService.getCityTip(city)
-        : '';
+    final hint = city.isNotEmpty ? await CotmindService.getCityTip(city) : '';
     if (_locationHint != hint) {
       setState(() {
         _locationHint = hint;
         _displayedHint = '';
       });
-      _startTypewriterEffect(); // only animate when there's a new hint
+      _startTypewriterEffect();
     }
 
-    // Query Firestore for postings matching normalized city/country
-    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
     QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
         .collection('postings')
         .where('country', isEqualTo: country)
         .get();
 
-    // Query for city as well
     QuerySnapshot citySnapshot = await FirebaseFirestore.instance
         .collection('postings')
-        .where('country', isEqualTo: city)
+        .where('city', isEqualTo: city) // FIXED
         .get();
 
-    // Step 2: Get all matching postingIds from the postings collection
-    List<String> matchingPostingIds = [];
-    postingsSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+    Set<String> matchingPostingIds = {};
 
-    citySnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+    for (var doc in postingsSnapshot.docs) {
+      matchingPostingIds.add(doc.id); // or use data['id'] if that’s correct
+    }
+    for (var doc in citySnapshot.docs) {
+      matchingPostingIds.add(doc.id);
+    }
 
-    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         var videoData = video.data() as Map<String, dynamic>;

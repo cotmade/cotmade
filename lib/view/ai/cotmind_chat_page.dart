@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cotmade/view/ai/cotmind_conversation_engine.dart';
 
@@ -9,10 +10,38 @@ class CotmindChatPage extends StatefulWidget {
 }
 
 class _CotmindChatPageState extends State<CotmindChatPage> {
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
+
+  String _thinkingText = 'Thinking';
+  Timer? _thinkingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoGreet();
+  }
+
+  void _autoGreet() async {
+    final res = await CotmindConversationEngine.respond('');
+    setState(() => _messages.add({'role': 'cotmind', 'text': res.message}));
+  }
+
+  void _startThinking() {
+    int dots = 0;
+    _thinkingTimer?.cancel();
+    _thinkingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      dots = (dots + 1) % 4;
+      setState(() => _thinkingText = 'Thinking${'.' * dots}');
+    });
+  }
+
+  void _stopThinking() {
+    _thinkingTimer?.cancel();
+    setState(() => _thinkingText = 'Thinking');
+  }
 
   void _sendMessage() async {
     final input = _controller.text.trim();
@@ -24,18 +53,15 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
       _isLoading = true;
     });
 
-    final CotmindResponse reply =
-        await CotmindConversationEngine.respond(input);
+    _startThinking();
+    final reply = await CotmindConversationEngine.respond(input);
+    _stopThinking();
 
     setState(() {
-      // Add Cotmind's main reply message
       _messages.add({'role': 'cotmind', 'text': reply.message});
-
-      // Add each video as its own message with role 'video'
-      for (var video in reply.videos) {
-        _messages.add({'role': 'video', 'text': video});
+      for (var v in reply.videos) {
+        _messages.add({'role': 'video', 'text': v});
       }
-
       _isLoading = false;
     });
 
@@ -52,14 +78,12 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    _messages.clear();
+    _thinkingTimer?.cancel();
     super.dispose();
   }
 
   Widget _buildMessage(Map<String, String> msg) {
-    final role = msg['role'];
-    final text = msg['text'] ?? '';
-
+    final role = msg['role'], text = msg['text']!;
     if (role == 'video') {
       return Align(
         alignment: Alignment.centerLeft,
@@ -68,25 +92,15 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.orange[100],
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
-          constraints:
-              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
-          child: Row(
-            children: [
-              Icon(Icons.video_library, color: Colors.orange[700]),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    color: Colors.orange[900],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: Row(children: [
+            const Icon(Icons.video_library, color: Colors.orange),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(text,
+                    style: const TextStyle(fontWeight: FontWeight.w600))),
+          ]),
         ),
       );
     }
@@ -98,11 +112,9 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.grey[200] : Colors.black,
+          color: isUser ? Colors.grey[900] : Colors.black,
           borderRadius: BorderRadius.circular(12),
         ),
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         child: Text(
           text,
           style: TextStyle(color: isUser ? Colors.black : Colors.green),
@@ -115,47 +127,42 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Chat with Cotmind")),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _messages.length,
-              itemBuilder: (ctx, i) => _buildMessage(_messages[i]),
-            ),
+      body: Column(children: [
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            itemCount: _messages.length,
+            itemBuilder: (ctx, i) => _buildMessage(_messages[i]),
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: CircularProgressIndicator(),
-            ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(
-                        hintText: "ask me anything regarding booking",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
+        ),
+        if (_isLoading)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(_thinkingText,
+                style: const TextStyle(
+                    fontStyle: FontStyle.italic, color: Colors.grey)),
+          ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
+                  decoration: const InputDecoration(
+                    hintText: "Ask me anything",
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: _sendMessage,
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send)),
+            ]),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
