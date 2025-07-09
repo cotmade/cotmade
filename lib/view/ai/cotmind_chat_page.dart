@@ -73,25 +73,16 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
     _stopThinking();
 
     setState(() {
-      // Add cotmind message with empty text to prepare for typewriter effect
       _messages.add({'role': 'cotmind', 'text': ''});
-      for (var v in reply.videos) {
-        _messages.add({'role': 'video', 'text': v});
-      }
-      _isLoading = false;
     });
 
     if (reply.typewriter) {
       await _showTypewriterEffect(reply.message);
     } else {
-      // If no typewriter effect, just fill message immediately
+      // fill immediately
       final idx = _messages
-          .indexWhere((msg) => msg['role'] == 'cotmind' && msg['text'] == '');
-      if (idx != -1) {
-        setState(() {
-          _messages[idx]['text'] = reply.message;
-        });
-      }
+          .lastIndexWhere((m) => m['role'] == 'cotmind' && m['text'] == '');
+      if (idx != -1) _messages[idx]['text'] = reply.message;
     }
 
     Future.delayed(const Duration(milliseconds: 200), () {
@@ -141,12 +132,12 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.grey : Colors.black,
+          color: isUser ? Colors.grey : Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           text,
-          style: TextStyle(color: isUser ? Colors.black : Colors.green),
+          style: TextStyle(color: isUser ? Colors.black : Colors.black),
         ),
       ),
     );
