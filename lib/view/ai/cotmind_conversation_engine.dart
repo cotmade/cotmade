@@ -1,216 +1,270 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cotmade/view/ai/cotmind_services.dart';
+import 'package:collection/collection.dart';
+import 'dart:math';
+
+// Simple Levenshtein distance for fuzzy matching
+int levenshtein(String s, String t) {
+  final m = s.length, n = t.length;
+  if (m == 0) return n;
+  if (n == 0) return m;
+  List<List<int>> dp = List.generate(m + 1, (_) => List.filled(n + 1, 0));
+  for (int i = 0; i <= m; i++) dp[i][0] = i;
+  for (int j = 0; j <= n; j++) dp[0][j] = j;
+  for (int i = 1; i <= m; i++) {
+    for (int j = 1; j <= n; j++) {
+      dp[i][j] = min(
+        dp[i - 1][j] + 1,
+        min(dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + (s[i - 1] == t[j - 1] ? 0 : 1)),
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+enum Intent { askMore, searchLocation, searchAmenities, reset, unknown }
+
+class ConversationState {
+  Intent intent = Intent.unknown;
+  String? city;
+  String? country;
+  List<String> amenities = [];
+  bool awaitingLocation = false;
+  bool awaitingAmenities = false;
+
+  void reset() {
+    intent = Intent.unknown;
+    city = null;
+    country = null;
+    amenities = [];
+    awaitingLocation = false;
+    awaitingAmenities = false;
+  }
+}
 
 class CotmindResponse {
   final String message;
   final List<String> videos;
   final bool typewriter;
 
-  CotmindResponse({
-    required this.message,
-    this.videos = const [],
-    this.typewriter = false,
-  });
+  CotmindResponse(
+      {required this.message, this.videos = const [], this.typewriter = false});
 }
 
 class CotmindConversationEngine {
-  static String? _lastCity;
-  static String? _lastCountry;
-  static List<String> _lastTags = [];
+  static final ConversationState _state = ConversationState();
 
   static Future<CotmindResponse> respond(String input, {String? uid}) async {
-    final lowerInput = input.toLowerCase();
-    final tone = CotmindService.detectTone(input);
-    final tags = _extractTags(input);
+    final text = input.trim();
+    final lower = text.toLowerCase();
 
-    if (lowerInput.contains("reset") || lowerInput.contains("start over")) {
-      _lastCity = null;
-      _lastCountry = null;
-      _lastTags = [];
+    // Reset?
+    if (lower.contains("reset") || lower.contains("start over")) {
+      _state.reset();
       return CotmindResponse(
-        message: "Alright, starting fresh! What vibe are you feeling today?",
+        message:
+            "✅ Conversation reset. What destination or vibe are you interested in?",
         typewriter: true,
       );
     }
 
-    if (lowerInput.contains("more") ||
-        lowerInput.contains("tell me") ||
-        lowerInput.contains("what else") ||
-        lowerInput.contains("again")) {
-      if (_lastCity != null || _lastCountry != null) {
-        final loc = _lastCity ?? _lastCountry!;
-        final isCity = _lastCity != null;
+    // If awaiting location slot:
+    if (_state.awaitingLocation) {
+      _state.city = text;
+      _state.awaitingLocation = false;
+      // Hand off to full search
+      _state.intent = Intent.searchLocation;
+    }
 
-        final tip = await CotmindService.getTip(loc, isCity: isCity);
-        final vibeScore =
-            await CotmindService.getSentiment(loc, isCity: isCity);
-        final vibe = _getVibeFromScore(vibeScore);
+    // If awaiting amenities:
+    if (_state.awaitingAmenities) {
+      _state.amenities = _extractAmenities(text);
+      _state.awaitingAmenities = false;
+      _state.intent = Intent.searchAmenities;
+    }
 
-        final postingsSnap = await FirebaseFirestore.instance
-            .collection('postings')
-            .where(isCity ? 'city' : 'country', isEqualTo: loc)
-            .get();
-
-        List<String> postingIds = postingsSnap.docs.map((d) => d.id).toList();
-        final reelsSnap = await FirebaseFirestore.instance
-            .collection('reels')
-            .where('postingId', whereIn: postingIds)
-            .orderBy('time', descending: true)
-            .limit(2)
-            .get();
-
-        final videos = reelsSnap.docs
-            .map((d) => (d.data() as Map<String, dynamic>)['url'] as String)
-            .toList();
-
-        final message =
-            "${isCity ? "📍" : "🌍"} *$loc*\nTip: $tip\nVibe: *$vibe*\n\n"
-            "${videos.isEmpty ? "No more videos for this place right now." : "Watch more 👇"}";
-
-        return CotmindResponse(
-          message: message,
-          videos: videos,
-          typewriter: true,
-        );
+    // Determine intent if not slot-filling
+    if (_state.intent == Intent.unknown) {
+      if (lower.contains("more") ||
+          lower.contains("tell me") ||
+          lower.contains("again")) {
+        _state.intent = Intent.askMore;
+      } else if (_hasPlaceMention(lower)) {
+        _state.intent = Intent.searchLocation;
+      } else if (_extractAmenities(lower).isNotEmpty) {
+        _state.intent = Intent.searchAmenities;
       }
     }
 
-    final normalizedCity = await CotmindService.normalizeCity(input);
-    final normalizedCountry = await CotmindService.normalizeCountry(input);
-    final hasCity = normalizedCity != input;
-    final hasCountry = normalizedCountry != input;
+    switch (_state.intent) {
+      case Intent.askMore:
+        _state.intent = Intent.unknown;
+        return _handleAskMore();
 
-    if (hasCity || hasCountry) {
-      final location = hasCity ? normalizedCity : normalizedCountry;
-      final isCity = hasCity;
+      case Intent.searchLocation:
+        return _handleSearchLocation(text);
 
-      final tip = await CotmindService.getTip(location, isCity: isCity);
-      final vibeScore =
-          await CotmindService.getSentiment(location, isCity: isCity);
-      final vibe = _getVibeFromScore(vibeScore);
+      case Intent.searchAmenities:
+        return _handleSearchAmenities(text, uid);
 
-      final postingsSnap = await FirebaseFirestore.instance
-          .collection('postings')
-          .where(isCity ? 'city' : 'country', isEqualTo: location)
-          .get();
+      case Intent.reset:
+        // already handled above
+        break;
 
-      if (postingsSnap.docs.isEmpty) {
+      default:
         return CotmindResponse(
-          message: "No listings found for *$location* yet. Try another place.",
+          message: _getDynamicGreeting(),
           typewriter: true,
         );
-      }
+    }
 
-      final postingIds = postingsSnap.docs.map((d) => d.id).toList();
-      final reelsSnap = await FirebaseFirestore.instance
-          .collection('reels')
-          .where('postingId', whereIn: postingIds)
-          .orderBy('time', descending: true)
-          .limit(2)
-          .get();
+    return CotmindResponse(message: "Hmm, I'm not sure!", typewriter: true);
+  }
 
-      final videos = reelsSnap.docs
-          .map((d) => (d.data() as Map<String, dynamic>)['url'] as String)
-          .toList();
-
-      _lastCity = isCity ? location : null;
-      _lastCountry = isCity ? null : location;
-      _lastTags = tags;
-
-      final message =
-          "${isCity ? "📍 *$normalizedCity*" : "🌍 *$normalizedCountry*"} — vibe is *$vibe*. Tip: $tip\n\n"
-          "${videos.isEmpty ? "No video previews available yet." : "Here are some listings 👇"}";
-
+  // Handle "tell me more"
+  static Future<CotmindResponse> _handleAskMore() async {
+    if (_state.city != null || _state.country != null) {
+      final loc = _state.city ?? _state.country!;
+      final isCity = _state.city != null;
+      return _fetchPostingsAndVideos(
+          loc, isCity, "Here are more videos for $loc 👇");
+    } else {
       return CotmindResponse(
-        message: message,
-        videos: videos,
+        message: "Which place would you like more videos of?",
+        typewriter: true,
+      );
+    }
+  }
+
+  // Location search
+  static Future<CotmindResponse> _handleSearchLocation(String text) async {
+    final normalizedCity = await CotmindService.normalizeCity(text);
+    final normalizedCountry = await CotmindService.normalizeCountry(text);
+    final hasCity = normalizedCity != text.toLowerCase();
+    final hasCountry = normalizedCountry != text.toLowerCase();
+
+    if (!hasCity && !hasCountry) {
+      // Fuzzy prompt for missing place
+      _state.awaitingLocation = true;
+      return CotmindResponse(
+        message:
+            "I didn't catch the city or country name. Could you specify which destination?",
         typewriter: true,
       );
     }
 
-    if (tags.isNotEmpty || tone == 'calm' || tone == 'energetic') {
-      Query query = FirebaseFirestore.instance.collection('postings');
+    _state.city = hasCity ? normalizedCity : null;
+    _state.country = hasCountry && !hasCity ? normalizedCountry : null;
+    _state.intent = Intent.unknown;
 
-      for (var tag in tags) {
-        query = query.where('amenities', arrayContains: tag);
-      }
+    final loc = _state.city ?? _state.country!;
+    final isCity = _state.city != null;
+    return _fetchPostingsAndVideos(
+        loc, isCity, "Here are video options for $loc 👇");
+  }
 
-      final postingsSnap = await query.get();
-      if (postingsSnap.docs.isEmpty) {
-        return CotmindResponse(
-          message:
-              "I couldn't find any postings matching that description right now.",
-          typewriter: true,
-        );
-      }
-
-      final postingIds = postingsSnap.docs.map((d) => d.id).toList();
-      final reelsSnap = await FirebaseFirestore.instance
-          .collection('reels')
-          .where('postingId', whereIn: postingIds)
-          .orderBy('time', descending: true)
-          .limit(2)
-          .get();
-
-      final videos = reelsSnap.docs
-          .map((d) => (d.data() as Map<String, dynamic>)['url'] as String)
-          .toList();
-
-      _lastCity = null;
-      _lastCountry = null;
-      _lastTags = tags;
-
-      final message =
-          "🔎 I found postings based on your description — take a look 👇";
+  // Amenity search
+  static Future<CotmindResponse> _handleSearchAmenities(
+      String text, String? uid) async {
+    final ams = _extractAmenities(text);
+    if (ams.isEmpty) {
+      _state.awaitingAmenities = true;
       return CotmindResponse(
-        message: message,
-        videos: videos,
+        message:
+            "What features are you looking for? (e.g. pool, wifi, breakfast)",
+        typewriter: true,
+      );
+    }
+    _state.amenities = ams;
+    _state.intent = Intent.unknown;
+
+    if (_state.city == null && _state.country == null) {
+      _state.awaitingLocation = true;
+      return CotmindResponse(
+        message:
+            "Great! Amenities noted: ${ams.join(", ")}. Which city or country should I search?",
         typewriter: true,
       );
     }
 
-    return CotmindResponse(
-      message: _getDynamicGreeting(input: input, tone: tone),
-      typewriter: true,
-    );
+    final loc = _state.city ?? _state.country!;
+    final isCity = _state.city != null;
+    return _fetchPostingsAndVideos(
+        loc, isCity, "Search results in $loc with ${ams.join(", ")} 👇",
+        filterAmenities: ams, uid: uid);
   }
 
-  static List<String> _extractTags(String input) {
-    final lower = input.toLowerCase();
-    final tags = <String>[];
-    if (lower.contains("pool")) tags.add("pool");
-    if (lower.contains("wifi") || lower.contains("internet")) tags.add("wifi");
-    if (lower.contains("beach")) tags.add("beach");
-    if (lower.contains("breakfast")) tags.add("breakfast");
-    if (lower.contains("kid") || lower.contains("family")) tags.add("family");
-    if (lower.contains("luxury")) tags.add("luxury");
-    return tags;
+  // Core function to get postings & videos
+  static Future<CotmindResponse> _fetchPostingsAndVideos(
+      String loc, bool isCity, String prefix,
+      {List<String>? filterAmenities, String? uid}) async {
+    // fetch postings
+    var query = FirebaseFirestore.instance
+        .collection('postings')
+        .where(isCity ? 'city' : 'country', isEqualTo: loc);
+    if (filterAmenities != null) {
+      for (var a in filterAmenities) {
+        query = query.where('amenities', arrayContains: a);
+      }
+    }
+    final snaps = await query.get();
+    if (snaps.docs.isEmpty) {
+      return CotmindResponse(
+          message: "No listings found for $loc.", typewriter: true);
+    }
+    final ids = snaps.docs.map((d) => d.id).toList();
+
+    final reelSnap = await FirebaseFirestore.instance
+        .collection('reels')
+        .where('postingId', whereIn: ids)
+        .orderBy('time', descending: true)
+        .limit(2)
+        .get();
+    final videos =
+        reelSnap.docs.map((d) => (d.data() as Map)['url'] as String).toList();
+
+    // personal profile ranking
+    if (uid != null) {
+      final profile = await CotmindService.getUserTasteProfile(uid);
+      // You could reorder 'snaps' based on profile here
+    }
+
+    final vibeScore = await CotmindService.getSentiment(loc, isCity: isCity);
+    final vibe = _getVibeFromScore(vibeScore);
+    final tip = await CotmindService.getTip(loc, isCity: isCity);
+
+    final message =
+        "$prefix\n📍 $loc — vibe: *$vibe*\nTip: $tip\n\n${videos.isEmpty ? 'No videos available.' : 'Watch these 👇'}";
+    return CotmindResponse(message: message, videos: videos, typewriter: true);
   }
 
-  static String _getVibeFromScore(double score) {
-    return score > 1.2
-        ? "energetic"
-        : score < 0.8
-            ? "calm"
-            : "balanced";
+  static List<String> _extractAmenities(String input) {
+    final known = ['pool', 'wifi', 'beach', 'breakfast', 'family', 'luxury'];
+    return known
+        .where((k) => levenshtein(input, k) <= 2 || input.contains(k))
+        .toList();
   }
 
-  static String _getDynamicGreeting({String? input, String? tone}) {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? "Good morning"
-        : hour < 18
-            ? "Good afternoon"
-            : "Good evening";
+  static bool _hasPlaceMention(String input) {
+    // fuzzy match against a small list
+    final places = ['lagos', 'nigeria', 'paris', 'france'];
+    return places.any((p) => levenshtein(input, p) <= 2 || input.contains(p));
+  }
 
-    String vibePart = tone == 'calm'
-        ? "Looking for peaceful accommodations?"
-        : tone == 'energetic'
-            ? "Seeking something lively?"
-            : (input != null && input.isNotEmpty)
-                ? "Tell me what you want — I’ll look it up!"
-                : "Ask me about a place, price, or amenity!";
+  static String _getVibeFromScore(double s) => s > 1.2
+      ? 'energetic'
+      : s < 0.8
+          ? 'calm'
+          : 'balanced';
 
-    return "$greeting! 👋 $vibePart";
+  static String _getDynamicGreeting() {
+    final h = DateTime.now().hour;
+    final g = h < 12
+        ? 'Good morning'
+        : h < 18
+            ? 'Good afternoon'
+            : 'Good evening';
+    return "$g! 👋 What kind of trip are you planning today?";
   }
 }
