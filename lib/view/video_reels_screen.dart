@@ -136,7 +136,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       //    }
       //  });
 
-      // Add another listener to pause audio when video pauses
+      // Add another listener to paus audio when video pauses
       //  controller.addListener(() {
       //   if (controller.value.position == controller.value.duration) {
       //     _audioPlayers[index]?.stop();
