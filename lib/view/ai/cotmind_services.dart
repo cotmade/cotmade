@@ -142,6 +142,7 @@ class CotmindService {
 
   // 🧠 Generate AI-style city tip (stores tip)
   static Future<String> generateCityTip(String city) async {
+    city = city.trim().toLowerCase();
     final sentiment = await getSentiment(city, isCity: true);
 
     final vibe = sentiment > 1.2
@@ -162,6 +163,8 @@ class CotmindService {
 
   // 🧠 Generate AI-style country tip (stores tip)
   static Future<String> generateCountryTip(String country) async {
+    country = country.trim().toLowerCase(); // normalize
+
     final sentiment = await getSentiment(country, isCity: false);
 
     final vibe = sentiment > 1.2
@@ -172,10 +175,15 @@ class CotmindService {
 
     final tip = _generateLocalTravelTip(country, vibe, isCity: false);
 
-    await FirebaseFirestore.instance
-        .collection('cotmindTipsCountries')
-        .doc(country)
-        .set({'tip': tip});
+    try {
+      await FirebaseFirestore.instance
+          .collection('cotmindTipsCountries')
+          .doc(country)
+          .set({'tip': tip});
+      print("✅ Tip created for country: $country");
+    } catch (e) {
+      print("❌ Failed to create tip: $e");
+    }
 
     return tip;
   }

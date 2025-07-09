@@ -132,7 +132,7 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.grey : Colors.white,
+          color: isUser ? Colors.grey[300] : Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(

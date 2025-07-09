@@ -160,7 +160,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       });
       _viewedVideoIds.add(videoDocId);
     } catch (e) {
-      print('Fail to increment view count for $videoDocId: $e');
+      print('Failed to increment view count for $videoDocId: $e');
     }
   }
 
@@ -970,7 +970,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                         )),
                     // SizedBox(height: 1),
                     Container(
-                      width: 55, // Wider than the text
+                      width: 48, // Wider than the text
                       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       color: Colors.black, // Background color
                       child: Text(
