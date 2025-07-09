@@ -24,6 +24,21 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
     _autoGreet();
   }
 
+  Future<void> _showTypewriterEffect(String fullText) async {
+    final index = _messages
+        .indexWhere((msg) => msg['role'] == 'cotmind' && msg['text'] == '');
+    if (index == -1) return;
+
+    for (int i = 1; i <= fullText.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 30));
+      if (!mounted) return;
+
+      setState(() {
+        _messages[index]['text'] = fullText.substring(0, i);
+      });
+    }
+  }
+
   void _autoGreet() async {
     final res = await CotmindConversationEngine.respond('');
     setState(() => _messages.add({'role': 'cotmind', 'text': res.message}));
@@ -58,12 +73,26 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
     _stopThinking();
 
     setState(() {
-      _messages.add({'role': 'cotmind', 'text': reply.message});
+      // Add cotmind message with empty text to prepare for typewriter effect
+      _messages.add({'role': 'cotmind', 'text': ''});
       for (var v in reply.videos) {
         _messages.add({'role': 'video', 'text': v});
       }
       _isLoading = false;
     });
+
+    if (reply.typewriter) {
+      await _showTypewriterEffect(reply.message);
+    } else {
+      // If no typewriter effect, just fill message immediately
+      final idx = _messages
+          .indexWhere((msg) => msg['role'] == 'cotmind' && msg['text'] == '');
+      if (idx != -1) {
+        setState(() {
+          _messages[idx]['text'] = reply.message;
+        });
+      }
+    }
 
     Future.delayed(const Duration(milliseconds: 200), () {
       _scrollController.animateTo(
@@ -112,7 +141,7 @@ class _CotmindChatPageState extends State<CotmindChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.grey[900] : Colors.black,
+          color: isUser ? Colors.grey : Colors.black,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(

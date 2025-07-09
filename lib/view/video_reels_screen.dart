@@ -38,7 +38,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
-  final cacheManager = DefaultCacheManager(); // Cache manage for videos
+  final cacheManager = DefaultCacheManager(); // Cache manager for videos
   String _locationHint = '';
   String _displayedHint = '';
   Timer? _typewriterTimer;
@@ -282,9 +282,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text.trim());
+    String rawQuery = _searchController.text.trim();
 
-    if (queryText.isEmpty) {
+    if (rawQuery.isEmpty) {
       setState(() {
         _filteredVideos = _allVideos;
         _locationHint = '';
@@ -293,12 +293,23 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       return;
     }
 
+    String queryText = formatSearchQuery(rawQuery);
+
+    // Log search + normalize inputs
     await CotmindService.logSearch(queryText);
 
-    final city = await CotmindService.normalizeCity(queryText);
-    final country = await CotmindService.normalizeCountry(queryText);
+    final normalizedCity = await CotmindService.normalizeCity(queryText);
+    final normalizedCountry = await CotmindService.normalizeCountry(queryText);
 
-    final hint = city.isNotEmpty ? await CotmindService.getCityTip(city) : '';
+    // Try to get city tip first; fallback to country
+    String hint = await CotmindService.getTip(normalizedCity, isCity: true);
+
+    // Optional fallback if city tip is not meaningful
+    if (hint.trim().isEmpty || hint.contains("No tips")) {
+      hint = await CotmindService.getTip(normalizedCountry, isCity: false);
+    }
+
+    // Show hint if it changed
     if (_locationHint != hint) {
       setState(() {
         _locationHint = hint;
@@ -307,29 +318,26 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       _startTypewriterEffect();
     }
 
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+    // Get matching postings
+    final cityPostings = await FirebaseFirestore.instance
         .collection('postings')
-        .where('country', isEqualTo: country)
+        .where('city', isEqualTo: normalizedCity)
         .get();
 
-    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
+    final countryPostings = await FirebaseFirestore.instance
         .collection('postings')
-        .where('city', isEqualTo: city) // FIXED
+        .where('country', isEqualTo: normalizedCountry)
         .get();
 
-    Set<String> matchingPostingIds = {};
+    final matchingPostingIds = <String>{};
+    for (var doc in cityPostings.docs) matchingPostingIds.add(doc.id);
+    for (var doc in countryPostings.docs) matchingPostingIds.add(doc.id);
 
-    for (var doc in postingsSnapshot.docs) {
-      matchingPostingIds.add(doc.id); // or use data['id'] if that’s correct
-    }
-    for (var doc in citySnapshot.docs) {
-      matchingPostingIds.add(doc.id);
-    }
-
+    // Filter video list based on matching postings
     setState(() {
       _filteredVideos = _allVideos.where((video) {
-        var videoData = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(videoData['postingId']);
+        final data = video.data() as Map<String, dynamic>;
+        return matchingPostingIds.contains(data['postingId']);
       }).toList();
     });
   }
@@ -962,7 +970,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                         )),
                     // SizedBox(height: 1),
                     Container(
-                      width: 75, // Wider than the text
+                      width: 55, // Wider than the text
                       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       color: Colors.black, // Background color
                       child: Text(
