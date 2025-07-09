@@ -68,7 +68,6 @@ class CotmindConversationEngine {
 
     _state.conversationHistory.add("User: $text");
 
-    // Reset
     if (lower.contains("reset") || lower.contains("start over")) {
       _state.reset();
       return CotmindResponse(
@@ -78,7 +77,6 @@ class CotmindConversationEngine {
       );
     }
 
-    // Greet once
     if (!_state.hasGreeted) {
       _state.hasGreeted = true;
       return CotmindResponse(
@@ -88,29 +86,26 @@ class CotmindConversationEngine {
       );
     }
 
-    // Small talk
     if (_isSmallTalk(lower)) {
       final reply = _getRandomSmallTalkReply();
       _state.conversationHistory.add("Bot: $reply");
       return CotmindResponse(message: reply, typewriter: true);
     }
 
-    // Emotion detection
     final mood = _detectMood(lower);
     if (mood == 'positive') {
       return CotmindResponse(
-        message: "Love that energy! 😄 Where to next?",
+        message: "Love that energy! 😄 Got a dream spot in mind?",
         typewriter: true,
       );
     } else if (mood == 'negative') {
       return CotmindResponse(
         message:
-            "Let's find something to lift your spirits 🌿 Any place you'd love to explore?",
+            "Let’s plan something uplifting 💫 Where do you want to escape to?",
         typewriter: true,
       );
     }
 
-    // Awaiting slot fill
     if (_state.awaitingLocation) {
       _state.city = text;
       _state.awaitingLocation = false;
@@ -123,7 +118,6 @@ class CotmindConversationEngine {
       _state.intent = Intent.searchAmenities;
     }
 
-    // Determine intent
     if (_state.intent == Intent.unknown) {
       if (lower.contains("more") || lower.contains("again")) {
         _state.intent = Intent.askMore;
@@ -145,17 +139,12 @@ class CotmindConversationEngine {
       case Intent.searchAmenities:
         return _handleSearchAmenities(text, uid);
 
-      case Intent.reset:
-        break;
-
       default:
         return CotmindResponse(
           message: _getFallbackResponse(),
           typewriter: true,
         );
     }
-
-    return CotmindResponse(message: "Hmm, I'm not sure!", typewriter: true);
   }
 
   static Future<CotmindResponse> _handleAskMore() async {
@@ -182,7 +171,7 @@ class CotmindConversationEngine {
       _state.awaitingLocation = true;
       return CotmindResponse(
         message:
-            "I didn’t catch the city or country name. Could you tell me where you’d like to go?",
+            "I didn’t catch the city or country name. Could you tell me where you’d like to go?\n${_suggestSampleDestinations()}",
         typewriter: true,
       );
     }
@@ -203,7 +192,7 @@ class CotmindConversationEngine {
       _state.awaitingAmenities = true;
       return CotmindResponse(
         message:
-            "What kind of features are you looking for? (e.g., pool, wifi, breakfast)",
+            "What kind of features are you looking for? (e.g., pool, wifi, breakfast, spa)",
         typewriter: true,
       );
     }
@@ -246,7 +235,8 @@ class CotmindConversationEngine {
     final snaps = await query.get();
     if (snaps.docs.isEmpty) {
       return CotmindResponse(
-        message: "Hmm, I found no listings in $loc. Want to try another place?",
+        message:
+            "Hmm, I found no listings in $loc. Want to try another place or change filters like 'luxury' or 'family'?",
         typewriter: true,
       );
     }
@@ -259,8 +249,10 @@ class CotmindConversationEngine {
         .limit(2)
         .get();
 
-    final videos =
-        reelSnap.docs.map((d) => (d.data() as Map)['url'] as String).toList();
+    final videos = reelSnap.docs
+        .map((d) => (d.data() as Map)['reelsVideo'] as String?)
+        .whereType<String>()
+        .toList();
 
     final vibeScore = await CotmindService.getSentiment(loc, isCity: isCity);
     final vibe = _getVibeFromScore(vibeScore);
@@ -279,14 +271,37 @@ class CotmindConversationEngine {
   }
 
   static List<String> _extractAmenities(String input) {
-    final known = ['pool', 'wifi', 'beach', 'breakfast', 'family', 'luxury'];
+    final known = [
+      'pool',
+      'wifi',
+      'beach',
+      'breakfast',
+      'family',
+      'luxury',
+      'spa',
+      'gym',
+      'bar',
+      'parking',
+      'pet-friendly',
+      'air conditioning',
+      'balcony',
+      'fireplace'
+    ];
     return known
         .where((k) => levenshtein(input, k) <= 2 || input.contains(k))
         .toList();
   }
 
   static bool _hasPlaceMention(String input) {
-    final places = ['lagos', 'nigeria', 'paris', 'france'];
+    final places = [
+      'lagos',
+      'nigeria',
+      'paris',
+      'france',
+      'bali',
+      'barcelona',
+      'cape town'
+    ];
     return places.any((p) => levenshtein(input, p) <= 2 || input.contains(p));
   }
 
@@ -301,16 +316,34 @@ class CotmindConversationEngine {
       "Hi there! 🌍 Planning a trip?",
       "Always happy to chat! Where are we headed?",
       "Just dreaming of sunny beaches ☀️ You?",
-      "Cotmind here at your service 🧳"
+      "Cotmind here at your service 🧳",
+      "What’s the vibe today — beach, city, or nature? 🌊🏙️🌲",
+      _getDynamicGreeting()
     ];
     return replies[Random().nextInt(replies.length)];
   }
 
+  static String _getDynamicGreeting() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    if (hour < 12) return "Good morning! 🌅 Ready to explore somewhere new?";
+    if (hour < 18) return "Good afternoon! ☀️ Any destination in mind?";
+    return "Good evening! 🌙 Let’s find your next adventure.";
+  }
+
   static String _detectMood(String input) {
-    final joy = ['happy', 'excited', 'yay', 'great'];
-    final sad = ['sad', 'tired', 'bored', 'lonely'];
-    if (joy.any((w) => input.contains(w))) return 'positive';
-    if (sad.any((w) => input.contains(w))) return 'negative';
+    final positive = [
+      'happy',
+      'excited',
+      'yay',
+      'great',
+      'awesome',
+      'fun',
+      'joy'
+    ];
+    final negative = ['sad', 'tired', 'bored', 'lonely', 'stressed', 'anxious'];
+    if (positive.any((w) => input.contains(w))) return 'positive';
+    if (negative.any((w) => input.contains(w))) return 'negative';
     return 'neutral';
   }
 
@@ -330,11 +363,24 @@ class CotmindConversationEngine {
     return phrases[Random().nextInt(phrases.length)];
   }
 
+  static String _suggestSampleDestinations() {
+    final samples = [
+      'Lagos 🇳🇬',
+      'Bali 🇮🇩',
+      'Barcelona 🇪🇸',
+      'Paris 🇫🇷',
+      'Cape Town 🇿🇦'
+    ];
+    return "Need ideas? How about: ${samples.join(", ")}?";
+  }
+
   static String _getFallbackResponse() {
     final replies = [
       "Could you tell me a bit more? Are you looking for a city, a vibe, or something fun to do?",
-      "Hmm, I'm not sure I caught that. Are you planning a trip or just exploring?",
+      "Hmm, I’m not sure I caught that. Are you planning a trip or just exploring?",
       "Want me to surprise you with a trending destination? 🎯",
+      "Not sure what that means... Maybe name a place you’d love to visit?",
+      "I didn’t quite get that. Could you rephrase or give me a hint like 'beach', 'mountains', or 'Europe'?",
     ];
     return replies[Random().nextInt(replies.length)];
   }

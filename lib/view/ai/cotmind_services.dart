@@ -143,29 +143,55 @@ class CotmindService {
   // 🧠 Generate AI-style city tip (stores tip)
   static Future<String> generateCityTip(String city) async {
     city = city.trim().toLowerCase();
+
+    final count = await _getSearchCount(city, isCity: true);
     final sentiment = await getSentiment(city, isCity: true);
 
-    final vibe = sentiment > 1.2
-        ? "buzzing energy"
-        : sentiment < 0.8
-            ? "peaceful atmosphere"
-            : "balanced lifestyle";
+    String trend;
+    if (count > 200) {
+      trend = "a trending hotspot";
+    } else if (count > 50) {
+      trend = "growing in popularity";
+    } else if (count > 0) {
+      trend = "starting to attract attention";
+    } else {
+      trend = "quiet and under the radar";
+    }
 
-    final tip = _generateLocalTravelTip(city, vibe, isCity: true);
+    final mood = sentiment > 1.2
+        ? "full of energy and buzz"
+        : sentiment < 0.8
+            ? "relaxing and peaceful"
+            : "a balanced mix of calm and liveliness";
+
+    final tags = _cityTags[city] ?? [];
+    final tagDesc = tags.isNotEmpty
+        ? "Known for its ${tags.take(2).join(' and ')}"
+        : "Full of hidden gems";
+
+    final tip =
+        "$city is $trend. It's $mood. $tagDesc — definitely worth exploring!";
 
     await FirebaseFirestore.instance
         .collection('cotmindTipsCities')
         .doc(city)
-        .set({'tip': tip});
+        .set({
+      'tip': tip,
+      'count': count,
+      'sentiment': sentiment,
+      'tags': tags,
+      'updatedAt': FieldValue.serverTimestamp()
+    });
 
     return tip;
   }
 
   // 🧠 Generate AI-style country tip (stores tip)
   static Future<String> generateCountryTip(String country) async {
-    country = country.trim().toLowerCase(); // normalize
+    country = country.trim().toLowerCase();
 
     final sentiment = await getSentiment(country, isCity: false);
+    final searchCount = await _getSearchCount(country, isCity: false);
 
     final vibe = sentiment > 1.2
         ? "upbeat adventures"
@@ -173,7 +199,8 @@ class CotmindService {
             ? "relaxing escapes"
             : "a mix of cultures and energy";
 
-    final tip = _generateLocalTravelTip(country, vibe, isCity: false);
+    final tip =
+        "$country is trending with $searchCount recent searches. Expect $vibe — from culture to nature, it's worth exploring!";
 
     try {
       await FirebaseFirestore.instance
@@ -191,17 +218,37 @@ class CotmindService {
   // 💬 Rule-based AI-like tip generator (offline fallback)
   static String _generateLocalTravelTip(String place, String vibe,
       {bool isCity = true}) {
-    final suggestions = [
-      "$place is a gem! If you're into culture, food and chill vibes, you're in for a treat.",
-      "$place is perfect for travelers seeking $vibe moments.",
-      "Discover the local charm of $place — a destination known for its $vibe.",
-      "$place offers unforgettable experiences for curious minds.",
-      "Looking for something new? $place's $vibe might surprise you.",
-      "Whether you're exploring or unwinding, $place is the right spot.",
+    final adjectives = [
+      'vibrant',
+      'charming',
+      'bustling',
+      'relaxing',
+      'cultural',
+      'lively',
+      'dynamic',
+      'scenic'
+    ];
+    final experiences = [
+      'local markets',
+      'beaches',
+      'historic sites',
+      'nightlife',
+      'food scenes',
+      'hidden gems'
+    ];
+    final endings = [
+      "you'll love every moment here.",
+      "it's perfect for curious explorers.",
+      "you'll find something new each day.",
+      "it has something for everyone.",
     ];
 
-    final index = DateTime.now().millisecondsSinceEpoch % suggestions.length;
-    return suggestions[index];
+    final adjective = adjectives[DateTime.now().second % adjectives.length];
+    final experience =
+        experiences[DateTime.now().millisecond % experiences.length];
+    final ending = endings[DateTime.now().second % endings.length];
+
+    return "$place offers a $adjective atmosphere with $vibe vibes — don't miss the $experience, $ending";
   }
 
   // 🧠 Load dynamic synonyms from Firebase at app startup
@@ -382,4 +429,48 @@ class CotmindService {
     'accra': ['beach', 'energetic', 'party'],
     'london': ['nightlife', 'energetic'],
   };
+
+  static Future<void> refreshAllCityTips() async {
+    final countsSnap =
+        await FirebaseFirestore.instance.collection('searchCountsByCity').get();
+
+    for (final doc in countsSnap.docs) {
+      final city = doc.id;
+      await generateCityTip(city); // This regenerates the tip
+    }
+  }
+
+  static Future<void> refreshAllCountryTips() async {
+    final countsSnap = await FirebaseFirestore.instance
+        .collection('searchCountsByCountry')
+        .get();
+
+    for (final doc in countsSnap.docs) {
+      final country = doc.id;
+      await generateCountryTip(country); // This regenerates the tip
+    }
+  }
+
+  // 🔢 Fetch search count from Firebase (searchCountsByCity or searchCountsByCountry)
+  // 🔢 Fetch search count from Firebase (searchCountsByCity or searchCountsByCountry)
+  static Future<int> _getSearchCount(String location,
+      {required bool isCity}) async {
+    final collection = isCity ? 'searchCountsByCity' : 'searchCountsByCountry';
+    final docId = location.trim().toLowerCase();
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(docId)
+          .get();
+
+      if (doc.exists && doc.data()?['count'] != null) {
+        return (doc.data()!['count'] as num).toInt();
+      }
+    } catch (e) {
+      print("⚠️ Error fetching count for $location from $collection: $e");
+    }
+
+    return 0; // fallback if no data found
+  }
 }
