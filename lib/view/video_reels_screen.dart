@@ -581,7 +581,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             _isSearchVisible = !_isSearchVisible;
           });
         },
-        backgroundColor: Colors.black, // Set the background color to black
+        backgroundColor: Colors.black, // Set the background colo to black
         child: Icon(
           _isSearchVisible ? Icons.close : Icons.search,
           color: Colors.white, // Set the icon color to white
