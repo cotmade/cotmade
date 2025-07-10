@@ -136,7 +136,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       //    }
       //  });
 
-      // Add another listener to paused audio when video pauses
+      // Add another listener to pause audio when video pauses
       //  controller.addListener(() {
       //   if (controller.value.position == controller.value.duration) {
       //     _audioPlayers[index]?.stop();
@@ -160,7 +160,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       });
       _viewedVideoIds.add(videoDocId);
     } catch (e) {
-      print('Fail to increment view count for $videoDocId: $e');
+      print('Failed to increment view count for $videoDocId: $e');
     }
   }
 
@@ -188,7 +188,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
     _audioPlayers.clear();
 
-    // Pause and dispose all video controllers
+    // Paus and dispose all video controllers
     for (var controller in _controllers.values) {
       if (controller.value.isPlaying) await controller.pause();
       await controller.dispose();
@@ -280,7 +280,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return query[0].toUpperCase() + query.substring(1).toLowerCase();
   }
 
-  // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
     String rawQuery = _searchController.text.trim();
 
@@ -295,21 +294,19 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     String queryText = formatSearchQuery(rawQuery);
 
-    // Log search + normalize inputs
     await CotmindService.logSearch(queryText);
 
     final normalizedCity = await CotmindService.normalizeCity(queryText);
     final normalizedCountry = await CotmindService.normalizeCountry(queryText);
 
-    // Try to get city tip first; fallback to country
+    // Generate tip and get hint
+    await CotmindService.generateCityTip(normalizedCity);
     String hint = await CotmindService.getTip(normalizedCity, isCity: true);
 
-    // Optional fallback if city tip is not meaningful
     if (hint.trim().isEmpty || hint.contains("No tips")) {
       hint = await CotmindService.getTip(normalizedCountry, isCity: false);
     }
 
-    // Show hint if it changed
     if (_locationHint != hint) {
       setState(() {
         _locationHint = hint;
@@ -318,7 +315,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       _startTypewriterEffect();
     }
 
-    // Get matching postings
+    // Fetch postings matching city or country
     final cityPostings = await FirebaseFirestore.instance
         .collection('postings')
         .where('city', isEqualTo: normalizedCity)
@@ -333,12 +330,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     for (var doc in cityPostings.docs) matchingPostingIds.add(doc.id);
     for (var doc in countryPostings.docs) matchingPostingIds.add(doc.id);
 
-    // Filter video list based on matching postings
+    if (matchingPostingIds.isEmpty) {
+      // No matching postings found
+      setState(() {
+        _filteredVideos = [];
+      });
+      return;
+    }
+
+    // Fetch videos whose postingId is in matchingPostingIds
+    final videosSnapshot = await FirebaseFirestore.instance
+        .collection('videos')
+        .where('postingId', whereIn: matchingPostingIds.toList())
+        .get();
+
     setState(() {
-      _filteredVideos = _allVideos.where((video) {
-        final data = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(data['postingId']);
-      }).toList();
+      _filteredVideos = videosSnapshot.docs;
     });
   }
 

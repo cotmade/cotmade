@@ -268,6 +268,35 @@ class CotmindService {
     }
   }
 
+  // 📊 Refresh all city tips from counts
+  static Future<void> refreshAllCityTips() async {
+    final countsSnap =
+        await FirebaseFirestore.instance.collection('searchCountsByCity').get();
+
+    for (final doc in countsSnap.docs) {
+      final city = doc.id;
+      await generateCityTip(city);
+    }
+  }
+
+  // 📊 Refresh all country tips from counts
+  static Future<void> refreshAllCountryTips() async {
+    final countsSnap = await FirebaseFirestore.instance
+        .collection('searchCountsByCountry')
+        .get();
+
+    for (final doc in countsSnap.docs) {
+      final country = doc.id;
+      await generateCountryTip(country);
+    }
+  }
+
+  // 🔄 Refresh all tips (cities + countries)
+  static Future<void> refreshAllTips() async {
+    await refreshAllCityTips();
+    await refreshAllCountryTips();
+  }
+
   // 📝 Log user search for analytics (tone + normalized location)
   static Future<void> logSearch(String query) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -429,27 +458,6 @@ class CotmindService {
     'accra': ['beach', 'energetic', 'party'],
     'london': ['nightlife', 'energetic'],
   };
-
-  static Future<void> refreshAllCityTips() async {
-    final countsSnap =
-        await FirebaseFirestore.instance.collection('searchCountsByCity').get();
-
-    for (final doc in countsSnap.docs) {
-      final city = doc.id;
-      await generateCityTip(city); // This regenerates the tip
-    }
-  }
-
-  static Future<void> refreshAllCountryTips() async {
-    final countsSnap = await FirebaseFirestore.instance
-        .collection('searchCountsByCountry')
-        .get();
-
-    for (final doc in countsSnap.docs) {
-      final country = doc.id;
-      await generateCountryTip(country); // This regenerates the tip
-    }
-  }
 
   // 🔢 Fetch search count from Firebase (searchCountsByCity or searchCountsByCountry)
   // 🔢 Fetch search count from Firebase (searchCountsByCity or searchCountsByCountry)

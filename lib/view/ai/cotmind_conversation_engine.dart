@@ -13,8 +13,10 @@ int levenshtein(String s, String t) {
     for (int j = 1; j <= n; j++) {
       dp[i][j] = min(
         dp[i - 1][j] + 1,
-        min(dp[i][j - 1] + 1,
-            dp[i - 1][j - 1] + (s[i - 1] == t[j - 1] ? 0 : 1)),
+        min(
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + (s[i - 1] == t[j - 1] ? 0 : 1),
+        ),
       );
     }
   }
@@ -68,6 +70,7 @@ class CotmindConversationEngine {
 
     _state.conversationHistory.add("User: $text");
 
+    // Reset conversation
     if (lower.contains("reset") || lower.contains("start over")) {
       _state.reset();
       return CotmindResponse(
@@ -77,21 +80,24 @@ class CotmindConversationEngine {
       );
     }
 
+    // Greet once
     if (!_state.hasGreeted) {
       _state.hasGreeted = true;
       return CotmindResponse(
         message:
-            "Hey there! 👋 I'm Cotmind, your travel buddy. Where are you thinking of going, or what kind of vibe do you want?",
+            "Hey there! 👋 I'm Cotmind, your travel buddy. Dreaming of a beach, city, or mountain escape? Where to?",
         typewriter: true,
       );
     }
 
+    // Small talk handling
     if (_isSmallTalk(lower)) {
       final reply = _getRandomSmallTalkReply();
       _state.conversationHistory.add("Bot: $reply");
       return CotmindResponse(message: reply, typewriter: true);
     }
 
+    // Mood detection for positive/negative sentiment
     final mood = _detectMood(lower);
     if (mood == 'positive') {
       return CotmindResponse(
@@ -106,44 +112,94 @@ class CotmindConversationEngine {
       );
     }
 
+    // Handle awaiting inputs first
     if (_state.awaitingLocation) {
       _state.city = text;
+      _state.country = null; // reset country if user specifies city now
       _state.awaitingLocation = false;
       _state.intent = Intent.searchLocation;
-    }
-
-    if (_state.awaitingAmenities) {
-      _state.amenities = _extractAmenities(text);
+    } else if (_state.awaitingAmenities) {
+      final ams = _extractAmenities(text);
+      if (ams.isEmpty) {
+        // Still no amenities, ask again
+        return CotmindResponse(
+          message:
+              "Sorry, I still didn't catch any features. Examples: pool, wifi, breakfast, spa.",
+          typewriter: true,
+        );
+      }
+      _state.amenities = ams;
       _state.awaitingAmenities = false;
       _state.intent = Intent.searchAmenities;
     }
 
-    if (_state.intent == Intent.unknown) {
-      if (lower.contains("more") || lower.contains("again")) {
-        _state.intent = Intent.askMore;
-      } else if (_hasPlaceMention(lower)) {
-        _state.intent = Intent.searchLocation;
-      } else if (_extractAmenities(lower).isNotEmpty) {
-        _state.intent = Intent.searchAmenities;
-      }
+    // Infer type keywords like 'luxury', 'family', etc.
+    final typeKeywords = ['luxury', 'budget', 'family', 'romantic'];
+    final detectedType = typeKeywords.firstWhere(
+      (t) => lower.contains(t),
+      orElse: () => '',
+    );
+    if (detectedType.isNotEmpty) {
+      _state.type = detectedType;
     }
 
+    // If intent unknown, try to infer it from input
+    if (_state.intent == Intent.unknown) {
+      await _inferIntentFromInput(lower);
+    }
+
+    // Now handle intents
     switch (_state.intent) {
       case Intent.askMore:
-        _state.intent = Intent.unknown;
+        _state.intent = Intent.unknown; // reset for next
         return _handleAskMore();
 
       case Intent.searchLocation:
+        _state.intent = Intent.unknown;
         return _handleSearchLocation(text);
 
       case Intent.searchAmenities:
+        _state.intent = Intent.unknown;
         return _handleSearchAmenities(text, uid);
 
       default:
+        print(
+            "⚠️ Fallback triggered. State: intent=${_state.intent}, city=${_state.city}, country=${_state.country}, amenities=${_state.amenities}");
         return CotmindResponse(
           message: _getFallbackResponse(),
           typewriter: true,
         );
+    }
+  }
+
+  static Future<void> _inferIntentFromInput(String text) async {
+    final amenities = _extractAmenities(text);
+    final city = await CotmindService.normalizeCity(text);
+    final country = await CotmindService.normalizeCountry(text);
+    final hasPlace = (city != null && city.isNotEmpty) ||
+        (country != null && country.isNotEmpty);
+
+    if (text.contains("more") || text.contains("again")) {
+      _state.intent = Intent.askMore;
+      return;
+    }
+
+    if (hasPlace) {
+      _state.city = city;
+      _state.country = country;
+    }
+
+    if (amenities.isNotEmpty) {
+      _state.amenities = amenities;
+    }
+
+    if (hasPlace && amenities.isNotEmpty) {
+      _state.intent = Intent.searchAmenities;
+    } else if (hasPlace) {
+      _state.intent = Intent.searchLocation;
+    } else if (amenities.isNotEmpty) {
+      _state.intent = Intent.searchAmenities;
+      _state.awaitingLocation = true;
     }
   }
 
@@ -152,7 +208,10 @@ class CotmindConversationEngine {
       final loc = _state.city ?? _state.country!;
       final isCity = _state.city != null;
       return _fetchPostingsAndVideos(
-          loc, isCity, "Here are more videos for $loc 👇");
+        loc,
+        isCity,
+        "Here are more videos for $loc 👇",
+      );
     } else {
       return CotmindResponse(
         message: "Which place would you like more videos of?",
@@ -164,8 +223,9 @@ class CotmindConversationEngine {
   static Future<CotmindResponse> _handleSearchLocation(String text) async {
     final normalizedCity = await CotmindService.normalizeCity(text);
     final normalizedCountry = await CotmindService.normalizeCountry(text);
-    final hasCity = normalizedCity != text.toLowerCase();
-    final hasCountry = normalizedCountry != text.toLowerCase();
+    final hasCity = normalizedCity != null && normalizedCity.isNotEmpty;
+    final hasCountry =
+        normalizedCountry != null && normalizedCountry.isNotEmpty;
 
     if (!hasCity && !hasCountry) {
       _state.awaitingLocation = true;
@@ -178,7 +238,6 @@ class CotmindConversationEngine {
 
     _state.city = hasCity ? normalizedCity : null;
     _state.country = hasCountry && !hasCity ? normalizedCountry : null;
-    _state.intent = Intent.unknown;
 
     final loc = _state.city ?? _state.country!;
     final isCity = _state.city != null;
@@ -197,7 +256,6 @@ class CotmindConversationEngine {
       );
     }
     _state.amenities = ams;
-    _state.intent = Intent.unknown;
 
     if (_state.city == null && _state.country == null) {
       _state.awaitingLocation = true;
@@ -218,7 +276,7 @@ class CotmindConversationEngine {
   static Future<CotmindResponse> _fetchPostingsAndVideos(
       String loc, bool isCity, String prefix,
       {List<String>? filterAmenities, String? uid}) async {
-    var query = FirebaseFirestore.instance
+    Query query = FirebaseFirestore.instance
         .collection('postings')
         .where(isCity ? 'city' : 'country', isEqualTo: loc);
 
@@ -242,6 +300,7 @@ class CotmindConversationEngine {
     }
 
     final ids = snaps.docs.map((d) => d.id).toList();
+
     final reelSnap = await FirebaseFirestore.instance
         .collection('reels')
         .where('postingId', whereIn: ids)
@@ -264,8 +323,27 @@ class CotmindConversationEngine {
     ];
     final filterSummary = filters.isNotEmpty ? ' (${filters.join(', ')})' : '';
 
-    final msg =
-        "$prefix\n📍 $loc$filterSummary — vibe: *$vibe*\nTip: $tip\n\n${videos.isEmpty ? 'No videos available yet.' : 'Watch these 👇'}";
+    String msg = "$prefix\n📍 $loc$filterSummary — vibe: *$vibe*\nTip: $tip";
+
+    if (videos.isEmpty) {
+      final listingsSummary = snaps.docs
+          .map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final title = data['title'] ?? 'Accommodation';
+            final description = data['description'] ?? 'No description';
+            final price = data['price'] != null
+                ? "\$${data['price']}"
+                : "Price on request";
+            return "• *$title* — $description ($price)";
+          })
+          .take(3)
+          .join("\n");
+
+      msg +=
+          "\n\nNo videos found, but here are some listings:\n$listingsSummary";
+    } else {
+      msg += "\n\nWatch these 👇";
+    }
 
     return CotmindResponse(message: msg, videos: videos, typewriter: true);
   }
@@ -287,22 +365,8 @@ class CotmindConversationEngine {
       'balcony',
       'fireplace'
     ];
-    return known
-        .where((k) => levenshtein(input, k) <= 2 || input.contains(k))
-        .toList();
-  }
-
-  static bool _hasPlaceMention(String input) {
-    final places = [
-      'lagos',
-      'nigeria',
-      'paris',
-      'france',
-      'bali',
-      'barcelona',
-      'cape town'
-    ];
-    return places.any((p) => levenshtein(input, p) <= 2 || input.contains(p));
+    final tokens = input.toLowerCase().split(RegExp(r'\W+'));
+    return known.where((k) => tokens.contains(k.toLowerCase())).toList();
   }
 
   static bool _isSmallTalk(String input) {
@@ -326,62 +390,65 @@ class CotmindConversationEngine {
   static String _getDynamicGreeting() {
     final now = DateTime.now();
     final hour = now.hour;
-    if (hour < 12) return "Good morning! 🌅 Ready to explore somewhere new?";
-    if (hour < 18) return "Good afternoon! ☀️ Any destination in mind?";
-    return "Good evening! 🌙 Let’s find your next adventure.";
+    if (hour < 12) return "Good morning! Ready to explore?";
+    if (hour < 18) return "Good afternoon! Where to next?";
+    return "Good evening! Dreaming of a getaway?";
   }
 
   static String _detectMood(String input) {
-    final positive = [
-      'happy',
-      'excited',
-      'yay',
+    final positiveWords = [
       'great',
       'awesome',
-      'fun',
-      'joy'
+      'love',
+      'happy',
+      'fantastic',
+      'nice'
     ];
-    final negative = ['sad', 'tired', 'bored', 'lonely', 'stressed', 'anxious'];
-    if (positive.any((w) => input.contains(w))) return 'positive';
-    if (negative.any((w) => input.contains(w))) return 'negative';
+    final negativeWords = ['bad', 'sad', 'hate', 'tired', 'bored', 'upset'];
+    if (positiveWords.any((w) => input.contains(w))) return 'positive';
+    if (negativeWords.any((w) => input.contains(w))) return 'negative';
     return 'neutral';
   }
 
-  static String _getVibeFromScore(double s) => s > 1.2
-      ? 'energetic'
-      : s < 0.8
-          ? 'calm'
-          : 'balanced';
+  static String _getFallbackResponse() {
+    if (_state.awaitingLocation) {
+      return "Could you tell me which city or country you're interested in?";
+    } else if (_state.awaitingAmenities) {
+      return "What kind of features are you looking for? (e.g., pool, wifi, breakfast)";
+    }
 
-  static String _getRandomSearchIntro(String loc) {
-    final phrases = [
-      "Let’s explore some cool spots in $loc 🔍",
-      "Here’s what I found in $loc 👇",
-      "Check out these places in $loc 🎥",
-      "$loc looks like a great choice! Here's what I found 👇"
+    final suggestions = [
+      "Could you tell me more? Are you looking for a beach, city escape, or mountain getaway?",
+      "I’m not quite sure what you mean. Try something like 'luxury spots in Paris' or 'places with wifi in Lagos'.",
+      "Need help deciding? Just say 'surprise me' or name any place!",
     ];
-    return phrases[Random().nextInt(phrases.length)];
+    return suggestions[Random().nextInt(suggestions.length)];
   }
 
   static String _suggestSampleDestinations() {
     final samples = [
-      'Lagos 🇳🇬',
-      'Bali 🇮🇩',
-      'Barcelona 🇪🇸',
-      'Paris 🇫🇷',
-      'Cape Town 🇿🇦'
+      "Try typing: 'Paris', 'Bali', or 'Kenya'.",
+      "Try: 'New York', 'Tokyo', or 'Maldives'.",
+      "For example: 'Santorini', 'Sydney', or 'Cape Town'."
     ];
-    return "Need ideas? How about: ${samples.join(", ")}?";
+    return samples[Random().nextInt(samples.length)];
   }
 
-  static String _getFallbackResponse() {
-    final replies = [
-      "Could you tell me a bit more? Are you looking for a city, a vibe, or something fun to do?",
-      "Hmm, I’m not sure I caught that. Are you planning a trip or just exploring?",
-      "Want me to surprise you with a trending destination? 🎯",
-      "Not sure what that means... Maybe name a place you’d love to visit?",
-      "I didn’t quite get that. Could you rephrase or give me a hint like 'beach', 'mountains', or 'Europe'?",
+  static String _getRandomSearchIntro(String location) {
+    final intros = [
+      "Searching the best stays in $location 👇",
+      "Here’s what I found in $location 👇",
+      "Top picks around $location 👇",
+      "Your travel guide for $location 👇",
+      "Check out these spots in $location 👇"
     ];
-    return replies[Random().nextInt(replies.length)];
+    return intros[Random().nextInt(intros.length)];
+  }
+
+  static String _getVibeFromScore(double score) {
+    if (score > 0.5) return "energetic";
+    if (score > 0.2) return "positive";
+    if (score > 0) return "neutral";
+    return "calm";
   }
 }
