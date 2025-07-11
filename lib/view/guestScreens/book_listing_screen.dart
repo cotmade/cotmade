@@ -497,10 +497,32 @@ class _BookListingScreenState extends State<BookListingScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "service fee:",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Service fee:",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Row(
+                            children: const [
+                              Icon(Icons.info_outline,
+                                  color: Colors.pinkAccent, size: 18),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  "This fee covers transaction processing and platform support.",
+                                  style: TextStyle(
+                                      fontSize: 13, color: Colors.grey),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       SizedBox(width: 1),
                       Text(
