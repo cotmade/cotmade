@@ -54,7 +54,7 @@ class _SplashScreenState extends State<SplashScreen> {
         if (AppConstants.currentUser.status == 0) {
           Get.back(); // Close loader
           print("⛔ Account suspended.");
-          Get.offAll(() => const SuspendedAccountScreen());
+          Get.offAll(() => SuspendedAccountScreen());
           return;
         }
 
@@ -65,19 +65,19 @@ class _SplashScreenState extends State<SplashScreen> {
         // Navigate to home after loading
         Get.back();
         print("🚀 Navigating to VideoReelsPage");
-        Get.offAll(() => const VideoReelsPage());
+        Get.offAll(() => VideoReelsPage());
       } else {
         // No user is logged in
         Get.back();
         print("👤 No user found, going to FirstScreen");
-        Get.offAll(() => const FirstScreen());
+        Get.offAll(() => FirstScreen());
       }
     } catch (e, stack) {
       // On error, close loader and navigate safely
       print("❌ Error in SplashScreen: $e\n$stack");
       Get.back();
       Get.snackbar("Error", "Something went wrong. Please try again.");
-      Get.offAll(() => const FirstScreen());
+      Get.offAll(() => FirstScreen());
     }
   }
 
