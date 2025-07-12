@@ -787,7 +787,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                         );
                       } else {
                         // Do nothing or show a message
-                        print('Navigation disabled for premium=4 reels');
+                        print('Navigatio disabled for premium=4 reels');
                       }
                     },
                     child: Column(
