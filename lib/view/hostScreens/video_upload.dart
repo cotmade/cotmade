@@ -33,7 +33,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
   bool _isTermsAccepted = false; // Track checkbox state
   String? _selectedPostingId; // To hold the selected posting ID
   List<Map<String, String>> _postings =
-      []; // List t hold posting IDs and names
+      []; // List to hold posting IDs and names
   bool _audioFinished = false;
   bool _isPlaying = false; // Audio player for preview
 
