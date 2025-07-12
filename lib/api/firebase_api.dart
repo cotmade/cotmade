@@ -1,7 +1,8 @@
 import 'dart:io';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
+import '../model/app_constants.dart';
 
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
   debugPrint('Title: ${message.notification?.title}');
@@ -32,5 +33,16 @@ class FirebaseApi {
     // debugPrint('Token: $fcmToken');
 
     FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+
+    // 🔑 Get and save the FCM token
+    final fcmToken = await _firebaseMessaging.getToken();
+    debugPrint('FCM Token: $fcmToken');
+
+    if (fcmToken != null && AppConstants.currentUser.id != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(AppConstants.currentUser.id)
+          .update({'fcmToken': fcmToken});
+    }
   }
 }
