@@ -417,7 +417,7 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 ),
               ),
               SizedBox(height: 10),
-              Text('1. Uploading videos is only permitted after a property listing has been created and submitted.'
+              Text('1. Uploading videos is only permitted after a property listing has been created and submitted.\n'
                 '2. Ensure the video/image does not contain any offensive or inappropriate content.\n'
                 '3. Do not upload videos/image that contain phone numbers, or any personal information.\n'
                 '4. Avoid uploading videos/images that violate copyright laws.\n'

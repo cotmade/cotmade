@@ -1145,7 +1145,7 @@ class _SignupScreenState extends State<SignupScreen> {
           Expanded(
             child: Text(
               'Your bio helps others know you better',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: Colors.black),
             ),
           ),
         ],

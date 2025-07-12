@@ -15,10 +15,10 @@ class FirebaseApi {
 
   Future<void> initNotifications() async {
     // Request permission
-    await _firebaseMessaging.requestPermission();
+    NotificationSettings settings = await _firebaseMessaging.requestPermission();
+    debugPrint('User permission status: ${settings.authorizationStatus}');
 
     if (Platform.isIOS) {
-      // Explicitly ask for permission and register with APNs
       await _firebaseMessaging.setAutoInitEnabled(true);
 
       var token = await _firebaseMessaging.getAPNSToken();
@@ -28,17 +28,14 @@ class FirebaseApi {
       }
     }
 
-    // Now get the FCM token
-    // final fcmToken = await _firebaseMessaging.getToken();
-    // debugPrint('Token: $fcmToken');
-
     FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
 
-    // 🔑 Get and save the FCM token
     final fcmToken = await _firebaseMessaging.getToken();
     debugPrint('FCM Token: $fcmToken');
 
-    if (fcmToken != null && AppConstants.currentUser.id != null) {
+    if (fcmToken != null &&
+        AppConstants.currentUser != null &&
+        AppConstants.currentUser.id != null) {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(AppConstants.currentUser.id)
@@ -46,3 +43,4 @@ class FirebaseApi {
     }
   }
 }
+

@@ -495,48 +495,45 @@ class _BookListingScreenState extends State<BookListingScreen> {
                     ],
                   ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Service fee:",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Row(
-                            children: const [
-                              Icon(Icons.info_outline,
-                                  color: Colors.pinkAccent, size: 18),
-                              SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  "This fee covers transaction processing and platform support.",
-                                  style: TextStyle(
-                                      fontSize: 13, color: Colors.grey),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      SizedBox(width: 1),
-                      Text(
-                        posting!.currency ?? 'available',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "${NumberFormat('#,###').format(totalPrice)}",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Row(
+      children: [
+        Text(
+          "Service fee:",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Tooltip(
+          message: "This fee covers transaction processing and platform support.",
+          child: Icon(Icons.info_outline, color: Colors.pinkAccent, size: 18),
+        ),
+      ],
+    ),
+    Row(
+      children: [
+        Text(
+          posting!.currency ?? 'available',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 1),
+        Text(
+          "${NumberFormat('#,###').format(totalPrice)}",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
+  ],
+),
                   // caution fee
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
