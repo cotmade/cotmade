@@ -1,6 +1,7 @@
 import 'package:cotmade/api/firebase_api.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cotmade/firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:cotmade/view/splash_screen.dart';
 import 'package:get/get.dart';
