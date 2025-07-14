@@ -5,13 +5,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../model/app_constants.dart';
 import 'package:cotmade/model/user_model.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 
 /// Background message handler — must be a top-level function
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
   debugPrint('🔔 BG Message - Title: ${message.notification?.title}');
   debugPrint('🔔 BG Message - Body: ${message.notification?.body}');
   debugPrint('🔔 BG Message - Payload: ${message.data}');
 }
+
 
 class FirebaseApi {
   final _firebaseMessaging = FirebaseMessaging.instance;
