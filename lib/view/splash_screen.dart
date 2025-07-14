@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: CircularProgressIndicator(),
       ),
       barrierDismissible:
-          false, // Preventt the dialog from being dismissed by tapping outside
+          false, // Prevent the dialog from being dismissed by tapping outside
     );
 
     // Retrieve shared preference to check if the user has seen the onboarding screen
@@ -65,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
       await getImageFromStorage(currentUserID);
       await AppConstants.currentUser.getMyPostingsFromFirestore();
-      await FirebaseApi().uploadPendingFcmToken();
+      await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
       // Dismiss the loading dialog after data is loaded
       Get.back(); // Close the dialog

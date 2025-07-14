@@ -46,7 +46,8 @@ class FirebaseApi {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(AppConstants.currentUser.id)
-            .update({'fcmToken': fcmToken});
+            .set({'fcmToken': fcmToken}, SetOptions(merge: true));
+
         debugPrint('✅ FCM token uploaded to Firestore');
       } else {
         // Save locally to upload after login
@@ -61,30 +62,29 @@ class FirebaseApi {
   }
 
   /// Call this method **after login** to sync any saved token
-  Future<void> uploadPendingFcmToken() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final savedToken = prefs.getString('pendingFcmToken');
-    final userId = AppConstants.currentUser.id;
+  Future<void> uploadPendingFcmToken(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString('pendingFcmToken');
 
-    debugPrint('📍 uploadPendingFcmToken()');
-    debugPrint('👉 Token: $savedToken');
-    debugPrint('👉 User ID: $userId');
+      debugPrint('📍 uploadPendingFcmToken()');
+      debugPrint('👉 Token: $savedToken');
+      debugPrint('👉 User ID: $userId');
 
-    if (savedToken != null && userId != null && userId.isNotEmpty) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .update({'fcmToken': savedToken});
+      if (savedToken != null && userId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .update({'fcmToken': savedToken});
 
-      debugPrint('✅ Token uploaded to Firestore');
+        debugPrint('✅ Token uploaded to Firestore');
 
-      await prefs.remove('pendingFcmToken');
-    } else {
-      debugPrint('⚠️ Token or User ID not valid. Skipping upload.');
+        await prefs.remove('pendingFcmToken');
+      } else {
+        debugPrint('⚠️ Token or User ID not valid. Skipping upload.');
+      }
+    } catch (e) {
+      debugPrint('❌ Error uploading FCM token: $e');
     }
-  } catch (e) {
-    debugPrint('❌ Error uploading FCM token: $e');
   }
-}
 }
