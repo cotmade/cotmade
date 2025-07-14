@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: CircularProgressIndicator(),
       ),
       barrierDismissible:
-          false, // Prevent the dialog from being dismissed by tapping outside
+          false, // Preventt the dialog from being dismissed by tapping outside
     );
 
     // Retrieve shared preference to check if the user has seen the onboarding screen
