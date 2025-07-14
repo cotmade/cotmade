@@ -10,6 +10,9 @@ import 'package:cotmade/view/guestScreens/terms_of_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/view/guestScreens/faq_screen.dart';
+import 'package:http/http.dart' as http;
+import 'package:cotmade/model/app_constants.dart';
+import 'package:cotmade/model/user_model.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({Key? key}) : super(key: key);
@@ -40,11 +43,20 @@ Future<void> deleteUserAccount() async {
     final userId = AppConstants.currentUser.id; // Your assigned ID
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
+    String firstName = AppConstants.currentUser.firstName.toString();
+    AppConstants.currentUser.firstName = firstName;
+    String country = AppConstants.currentUser.country.toString();
+    String state = AppConstants.currentUser.state.toString();
+    String mobileNumber = AppConstants.currentUser.mobileNumber.toString();
+    String bio = AppConstants.currentUser.bio.toString();
+    String email = AppConstants.currentUser.email.toString();
+
     // Delete user document from Firestore
     await userDoc.delete();
     print("User data deleted from Firestore");
 
     // Delete Firebase Auth account
+    await sendWelcomeEmail(email, firstName, mobileNumber, state, country, bio);
     await user.delete();
     Get.snackbar(
         "Account Deleted", "Your account has been deleted successfully");
@@ -54,6 +66,26 @@ Future<void> deleteUserAccount() async {
     // Navigator.pushReplacementNamed(context, '/login');
   } catch (e) {
     print("Error deleting user account: $e");
+  }
+}
+
+Future<void> sendWelcomeEmail(String email, String firstName,
+    String mobileNumber, String state, String country, String bio) async {
+  final url = Uri.parse("https://cotmade.com/app/send_email_delete.php");
+
+  final response = await http.post(url, body: {
+    "email": email,
+    "firstName": firstName,
+    "mobileNumber": mobileNumber,
+    "state": state,
+    "country": country,
+    "bio": bio,
+  });
+
+  if (response.statusCode == 200) {
+    print("Email sent successfully");
+  } else {
+    print("Failed to send email: ${response.body}");
   }
 }
 

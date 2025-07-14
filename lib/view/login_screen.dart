@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 5),
 
                   //google + apple button
 
@@ -281,9 +281,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   //   ),
                   //   ],
                   //  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
+                //  const SizedBox(
+                //    height: 20,
+                //  ),
 
                   // not a memeber ? register now
 
@@ -303,8 +303,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Sign up now',
                             style: TextStyle(
                                 color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17),
                           ),
                         ),
                       )

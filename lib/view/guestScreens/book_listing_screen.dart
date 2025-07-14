@@ -497,21 +497,42 @@ class _BookListingScreenState extends State<BookListingScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "service fee:",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Text(
+                            "Service fee:",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message:
+                                "This fee covers transaction processing and platform support.",
+                            child: Icon(Icons.info_outline,
+                                color: Colors.black, size: 18),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 1),
-                      Text(
-                        posting!.currency ?? 'available',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "${NumberFormat('#,###').format(totalPrice)}",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Text(
+                            posting!.currency ?? 'available',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 1),
+                          Text(
+                            "${NumberFormat('#,###').format(totalPrice)}",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

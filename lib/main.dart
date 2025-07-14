@@ -1,6 +1,7 @@
 import 'package:cotmade/api/firebase_api.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cotmade/firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:cotmade/view/splash_screen.dart';
 import 'package:get/get.dart';
@@ -15,6 +16,9 @@ import 'package:upgrader/upgrader.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -30,44 +34,44 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      // Application name
-      title: 'CotMade',
-      debugShowCheckedModeBanner: false,
-      // Application theme data, you can set the colors for the application as
-      // you want
-      theme: ThemeData(
-        brightness: Brightness.light, // Make sure it's light theme
-        primaryColor: Colors.black, // Set the primary color to white
-        scaffoldBackgroundColor:
-            Colors.white, // Set the scaffold background to white
-        appBarTheme: const AppBarTheme(
-          iconTheme: IconThemeData(
-              color: Colors
-                  .black), // Black icons for visibility on white background
-          color: Color(0xcaf6f6f6), // Set app bar background to white
-          elevation: 0, // Optional: remove app bar shadow for a clean look
-        ),
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: Colors.pinkAccent).copyWith(
-          background: Colors
-              .white, // Set background color to white for the color scheme
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor:
-                Colors.pinkAccent, // Text color (was 'primary' before)
+        // Application name
+        title: 'CotMade',
+        debugShowCheckedModeBanner: false,
+        // Application theme data, you can set the colors for the application as
+        // you want
+        theme: ThemeData(
+          brightness: Brightness.light, // Make sure it's light theme
+          primaryColor: Colors.black, // Set the primary color to white
+          scaffoldBackgroundColor:
+              Colors.white, // Set the scaffold background to white
+          appBarTheme: const AppBarTheme(
+            iconTheme: IconThemeData(
+                color: Colors
+                    .black), // Black icons for visibility on white background
+            color: Color(0xcaf6f6f6), // Set app bar background to white
+            elevation: 0, // Optional: remove app bar shadow for a clean look
+          ),
+          colorScheme:
+              ColorScheme.fromSeed(seedColor: Colors.pinkAccent).copyWith(
+            background: Colors
+                .white, // Set background color to white for the color scheme
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Colors.pinkAccent, // Text color (was 'primary' before)
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  Colors.white, // Background color (was 'primary' before)
+              foregroundColor: Colors.black, // Text color
+            ),
           ),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                Colors.white, // Background color (was 'primary' before)
-            foregroundColor: Colors.black, // Text color
-          ),
-        ),
-      ),
-      // A widget which will be started on application startup
-      home: UpgradeAlert(
+        // A widget which will be started on application startup
+        home: UpgradeAlert(
           child: ScreenUtilInit(
               designSize: Size(375, 812), child: OnboardingScreen()),
         ));

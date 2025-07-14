@@ -423,16 +423,16 @@ class _VideoUploadPageState extends State<VideoUploadPage> {
                 ),
               ),
               SizedBox(height: 10),
-              Text(
-                '1. Ensure the video/image does not contain any offensive or inappropriate content.\n'
-                '2. Do not upload videos/image that contain phone numbers, or any personal information.\n'
-                '3. Avoid uploading videos/images that violate copyright laws.\n'
-                '4. Ensure the video/image quality is clear and not overly pixelated.\n'
-                '5. Videos/images should be related to your listing and relevant to the content.\n'
-                '6. If your video/image exceeds 20MB, it will be compressed automatically.\n'
-                '7. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
-                '8. Violations may result in content removal or account ban.\n'
-                '9. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any content included in their videos.',
+              Text('1. Uploading videos is only permitted after a property listing has been created and submitted.\n'
+                '2. Ensure the video/image does not contain any offensive or inappropriate content.\n'
+                '3. Do not upload videos/image that contain phone numbers, or any personal information.\n'
+                '4. Avoid uploading videos/images that violate copyright laws.\n'
+                '5. Ensure the video/image quality is clear and not overly pixelated.\n'
+                '6. Videos/images should be related to your listing and relevant to the content.\n'
+                '7. If your video/image exceeds 20MB, it will be compressed automatically.\n'
+                '8. No tolerance for objectionable content (e.g. hate speech, nudity, abuse, fraud).\n'
+                '9. Violations may result in content removal or account ban.\n'
+                '10. Users are solely responsible for the content they upload, including ensuring they have the legal rights to any content included in their videos.',
                 textAlign: TextAlign.justify,
                 style: TextStyle(
                   fontSize: screenWidth * 0.04,

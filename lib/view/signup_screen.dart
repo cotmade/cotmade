@@ -701,98 +701,110 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // Function to show country selection dialog
   void showCountryDialog() {
-    showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        // Filter countries based on the search query
-        final filteredCountries = countries.where((country) {
-          return _countrySearchController.text.isEmpty ||
-              country
-                  .toLowerCase()
-                  .contains(_countrySearchController.text.toLowerCase());
-        }).toList();
+  showDialog<String>(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setDialogState) {
+          // Filter countries based on the search query
+          final filteredCountries = countries.where((country) {
+            return _countrySearchController.text.isEmpty ||
+                country
+                    .toLowerCase()
+                    .contains(_countrySearchController.text.toLowerCase());
+          }).toList();
 
-        return AlertDialog(
-          title: Text('Select Country'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: _countrySearchController,
-                decoration: InputDecoration(hintText: 'Search country'),
-                onChanged: (query) {
-                  setState(() {});
-                },
-              ),
-              Expanded(
-                child: ListView(
-                  children: filteredCountries.map((country) {
-                    return ListTile(
-                      title: Text(country),
-                      onTap: () {
-                        setState(() {
-                          selectedCountry = country;
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  }).toList(),
+          return AlertDialog(
+            title: Text('Select Country'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextField(
+                  controller: _countrySearchController,
+                  decoration: InputDecoration(hintText: 'Search country'),
+                  onChanged: (query) {
+                    setDialogState(() {}); // Rebuild dialog when search changes
+                  },
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+                SizedBox(
+                  height: 300, // fixed height instead of Expanded
+                  child: ListView(
+                    children: filteredCountries.map((country) {
+                      return ListTile(
+                        title: Text(country),
+                        onTap: () {
+                          setState(() {
+                            selectedCountry = country;
+                            _stateSearchController.clear(); // clear state search when changing country
+                            selectedState = null;
+                          });
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 
   void showStateDialog() {
-    if (selectedCountry == null) return; // Exit if no country is selected.
+  if (selectedCountry == null) return;
 
-    showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        // Filter states based on the search query
-        final filteredStates = countryStateMap[selectedCountry]!.where((state) {
-          return _stateSearchController.text.isEmpty ||
-              state
-                  .toLowerCase()
-                  .contains(_stateSearchController.text.toLowerCase());
-        }).toList();
+  showDialog<String>(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setDialogState) {
+          final filteredStates = countryStateMap[selectedCountry]!.where((state) {
+            return _stateSearchController.text.isEmpty ||
+                state
+                    .toLowerCase()
+                    .contains(_stateSearchController.text.toLowerCase());
+          }).toList();
 
-        return AlertDialog(
-          title: Text('Select State'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: _stateSearchController,
-                decoration: InputDecoration(hintText: 'Search state'),
-                onChanged: (query) {
-                  setState(() {});
-                },
-              ),
-              Expanded(
-                child: ListView(
-                  children: filteredStates.map((state) {
-                    return ListTile(
-                      title: Text(state),
-                      onTap: () {
-                        setState(() {
-                          selectedState = state;
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  }).toList(),
+          return AlertDialog(
+            title: Text('Select State'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextField(
+                  controller: _stateSearchController,
+                  decoration: InputDecoration(hintText: 'Search state'),
+                  onChanged: (query) {
+                    setDialogState(() {});
+                  },
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+                SizedBox(
+                  height: 300,
+                  child: ListView(
+                    children: filteredStates.map((state) {
+                      return ListTile(
+                        title: Text(state),
+                        onTap: () {
+                          setState(() {
+                            selectedState = state;
+                          });
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1096,37 +1108,52 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 26.0),
-                      child: TextFormField(
-                        decoration: InputDecoration(
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                            borderSide: BorderSide(color: Colors.black),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20.0),
-                            borderSide: BorderSide(color: Colors.black),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          labelText: 'Bio',
-                          labelStyle:
-                              TextStyle(color: Colors.black, fontSize: 15),
-                          prefixIcon: Icon(Icons.person_2),
-                        ),
-                        //  style: const TextStyle(
-                        // fontSize: 24,
-                        // ),
-                        controller: _bioTextController,
-                        validator: (text) {
-                          if (text!.isEmpty) {
-                            return "please enter bio";
-                          }
-                          return null;
-                        },
-                        textCapitalization: TextCapitalization.words,
-                      ),
-                    ),
+  padding: const EdgeInsets.only(top: 26.0),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      TextFormField(
+        decoration: InputDecoration(
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+            borderSide: BorderSide(color: Colors.black),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20.0),
+            borderSide: BorderSide(color: Colors.black),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          labelText: 'Bio',
+          labelStyle: TextStyle(color: Colors.black, fontSize: 15),
+          prefixIcon: Icon(Icons.person_2),
+        ),
+        controller: _bioTextController,
+        validator: (text) {
+          if (text!.isEmpty) {
+            return "Please enter bio";
+          }
+          return null;
+        },
+        textCapitalization: TextCapitalization.words,
+      ),
+      const SizedBox(height: 2),
+      Row(
+        children: const [
+          Icon(Icons.info_outline, color: Colors.pinkAccent, size: 18),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Your bio helps others know you better',
+              style: TextStyle(fontSize: 13, color: Colors.black),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+)
+
                   ],
                 ),
               ),
