@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
+import 'package:cotmade/api/firebase_api.dart';
 
 class UserViewModel {
   UserModel userModel = UserModel();
@@ -53,6 +54,8 @@ class UserViewModel {
             .whenComplete(() async {
           await addImageToFirebaseStorage(imageFileOfUser, currentUserID);
         });
+
+        await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
         // Call sendWelcomeEmail after account is created
         await sendWelcomeEmail(
