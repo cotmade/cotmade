@@ -15,32 +15,31 @@ import 'dart:ui';
 import 'package:upgrader/upgrader.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  debugPrint('🔔 Background message: ${message.messageId}');
+  // Only initialize Firebase if not already initialized
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  debugPrint('🔔 Background message received: ${message.messageId}');
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Register the correct background handler
+  // Register the background handler (must be top-level)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  try {
-    await FirebaseApi().initNotifications();
-  } catch (e, stack) {
-    debugPrint('❌ FirebaseApi init failed: $e');
-    debugPrintStack(stackTrace: stack);
-  }
+  // Request permission (iOS only)
+  await FirebaseMessaging.instance.requestPermission();
 
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
