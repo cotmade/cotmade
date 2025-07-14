@@ -5,7 +5,7 @@ import 'package:flutter/cupertino.dart';
 import '../model/app_constants.dart';
 
 /// This function handles background FCM messages on Android.
-/// It must be a top-level function (not inside a class).
+// It must be a top-level function (not inside a class).
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
   debugPrint('🔔 BG Message - Title: ${message.notification?.title}');
   debugPrint('🔔 BG Message - Body: ${message.notification?.body}');
