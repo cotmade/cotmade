@@ -17,12 +17,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await FirebaseApi().initNotifications();
-  // await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  // aawait FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
 
   runApp(const MyApp());
 }
