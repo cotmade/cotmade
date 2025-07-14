@@ -14,19 +14,33 @@ import 'package:cotmade/view/onboarding_screen.dart';
 import 'dart:ui';
 import 'package:upgrader/upgrader.dart';
 
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  debugPrint('🔔 Background message: ${message.messageId}');
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  FirebaseMessaging.onBackgroundMessage(handleBackgroundMessage);
+  // Register the correct background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await FirebaseApi().initNotifications();
-  // await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+
+  try {
+    await FirebaseApi().initNotifications();
+  } catch (e, stack) {
+    debugPrint('❌ FirebaseApi init failed: $e');
+    debugPrintStack(stackTrace: stack);
+  }
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
