@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cotmade/view/onboarding_screen.dart';
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
+import 'package:cotmade/api/firebase_api.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -64,6 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
       await getImageFromStorage(currentUserID);
       await AppConstants.currentUser.getMyPostingsFromFirestore();
+      await FirebaseApi().uploadPendingFcmToken();
 
       // Dismiss the loading dialog after data is loaded
       Get.back(); // Close the dialog
