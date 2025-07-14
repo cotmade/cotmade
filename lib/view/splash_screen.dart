@@ -60,9 +60,16 @@ class _SplashScreenState extends State<SplashScreen> {
         }
 
         // Load user image and posts
-        await getImageFromStorage(userId);
-        await AppConstants.currentUser.getMyPostingsFromFirestore();
-        await FirebaseApi().uploadPendingFcmToken(userId);
+        // Load user image and posts
+await getImageFromStorage(userId);
+await AppConstants.currentUser.getMyPostingsFromFirestore();
+
+// 🔥 Make sure to initialize token (required to retrieve or refresh FCM token)
+await FirebaseApi().initNotifications();
+
+// Upload any pending FCM token (if stored before login)
+await FirebaseApi().uploadPendingFcmToken(userId);
+
 
         // Navigate to home after loading
         Get.back();
