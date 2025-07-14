@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // Wait for a brief moment before navigating
+    // Wait fo a brief moment before navigating
     Timer(const Duration(seconds: 3), () {
       checkAuthStatus();
     });
