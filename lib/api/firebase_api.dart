@@ -2,13 +2,12 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../model/app_constants.dart';
-import 'package:cotmade/model/user_model.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../model/user_model.dart';
 
-
-/// Background message handler — must be a top-level function
+/// Background message handler
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
   debugPrint('🔔 BG Message - Title: ${message.notification?.title}');
   debugPrint('🔔 BG Message - Body: ${message.notification?.body}');
@@ -16,19 +15,30 @@ Future<void> handleBackgroundMessage(RemoteMessage message) async {
 }
 
 class FirebaseApi {
-  final _firebaseMessaging = FirebaseMessaging.instance;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  /// Initialize Firebase Messaging and Local Notifications
+  /// Initialize Firebase Messaging and Notifications for iOS
   Future<void> initNotifications() async {
     try {
-      // Step 1: Request notification permissions
-      NotificationSettings settings =
-          await _firebaseMessaging.requestPermission();
-      debugPrint('📲 User permission status: ${settings.authorizationStatus}');
+      // 🔹 Step 1: Request permission
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-      // Step 2: iOS-specific
+      debugPrint('📲 iOS User permission status: ${settings.authorizationStatus}');
+
+      // 🔹 Step 2: Set foreground options (required for iOS foreground)
+      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // 🔹 Step 3: Handle APNs token (iOS-specific)
       if (Platform.isIOS) {
         await _firebaseMessaging.setAutoInitEnabled(true);
         String? apnsToken = await _firebaseMessaging.getAPNSToken();
@@ -39,10 +49,10 @@ class FirebaseApi {
         debugPrint('🍏 APNs Token: $apnsToken');
       }
 
-      // Step 3: Init local notifications
+      // 🔹 Step 4: Init local notifications
       await _initLocalNotifications();
 
-      // Step 4: Get and save FCM token
+      // 🔹 Step 5: Get FCM token
       final fcmToken = await _firebaseMessaging.getToken();
       debugPrint('🔥 FCM Token: $fcmToken');
 
@@ -57,57 +67,67 @@ class FirebaseApi {
       } else {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('pendingFcmToken', fcmToken ?? '');
-        debugPrint('💾 FCM token saved locally for later');
+        debugPrint('💾 FCM token saved locally');
       }
 
-      // Step 5: Foreground notifications
+      // 🔹 Step 6: Foreground message handler
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-        debugPrint('📩 Foreground message received: ${message.notification?.title}');
-        await _showLocalNotification(message);
+        debugPrint('📩 Foreground message: ${message.notification?.title}');
+        await _showLocalNotification(message); // Fallback if iOS banner not shown
       });
 
-      // Step 6: Tap handler
+      // 🔹 Step 7: Handle taps on notifications
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('📲 Notification was opened!');
-        // Handle navigation or logic
+        debugPrint('📲 Notification tapped!');
+        // TODO: Navigate or handle tap action
       });
     } catch (e, stackTrace) {
-      debugPrint('❌ Error during FCM init: $e');
+      debugPrint('❌ Error during Firebase notification init: $e');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
 
-  /// Show local notification manually (for foreground)
+  /// Show local notification manually (iOS fallback)
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'foreground_channel', // Channel ID
-      'Foreground Notifications', // Channel name
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+    const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails();
 
-    const NotificationDetails platformDetails =
-        NotificationDetails(android: androidDetails);
+    const NotificationDetails platformDetails = NotificationDetails(
+      iOS: iOSDetails,
+      android: AndroidNotificationDetails(
+        'foreground_channel',
+        'Foreground Notifications',
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+      ),
+    );
 
     await _flutterLocalNotificationsPlugin.show(
       0,
-      message.notification?.title ?? 'Notification',
-      message.notification?.body ?? '',
+      message.notification?.title ?? message.data['title'] ?? 'Notification',
+      message.notification?.body ?? message.data['body'] ?? '',
       platformDetails,
     );
   }
 
-  /// Init local notifications plugin
+  /// Initialize local notifications
   Future<void> _initLocalNotifications() async {
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     final InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
-      iOS: DarwinInitializationSettings(),
+      iOS: iosSettings,
     );
 
     await _flutterLocalNotificationsPlugin.initialize(initSettings);
+    debugPrint('✅ Local notifications initialized');
   }
 
   /// Upload pending FCM token saved before login

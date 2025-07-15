@@ -550,7 +550,24 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     likes = widget.videoData['likes'] ?? 0;
     uid = widget.videoData['uid'];
     getImageFromStorage(uid);
+    _checkIfLiked();
   }
+
+  Future<void> _checkIfLiked() async {
+  final likeRef = FirebaseFirestore.instance
+      .collection('reels')
+      .doc(widget.documentId)
+      .collection('likes')
+      .doc(AppConstants.currentUser.id);
+
+  final likeSnapshot = await likeRef.get();
+
+  if (mounted) {
+    setState(() {
+      liked = likeSnapshot.exists;
+    });
+  }
+}
 
   // Optionally, add a method to stop audio on demand
 

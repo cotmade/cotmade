@@ -20,6 +20,7 @@ import 'package:cotmade/view/reset_password_screen.dart';
 import 'package:cotmade/view/firebase_exceptions.dart';
 import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/login_screen2.dart';
+import 'package:cotmade/view/first_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({Key? key}) : super(key: key);
@@ -201,7 +202,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                     child: GestureDetector(
                                       child: TextButton(
                                         onPressed: () {
-                                          Get.to(LoginnScreen());
+                                          Get.to(FirstScreen());
                                         },
                                         child: Text(
                                           'Back to Login!',
