@@ -269,6 +269,27 @@ class PostingModel {
     return dates;
   }
 
+  Future<void> sendBookingPushNotification({
+    required String token,
+    required String userName,
+    required String listingName,
+  }) async {
+    final String phpUrl = 'https://cotmade.com/fire/send_fcm3.php';
+
+    final url = Uri.parse('$phpUrl?token=$token');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        debugPrint('✅ Booking push notification sent');
+      } else {
+        debugPrint('❌ Failed to send booking push: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error calling PHP push backend: $e');
+    }
+  }
+
   Future<void> makeNewBooking(List<DateTime> dates, context, hostID) async {
     Map<String, dynamic> bookingData = {
       'dates': dates,
@@ -297,6 +318,28 @@ class PostingModel {
     String countryy = country ?? "";
     String cautionn = caution.toString();
     String addresss = address ?? "";
+
+    // Fetch host's FCM token
+    try {
+      final hostDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(hostID)
+          .get();
+
+      final fcmToken = hostDoc.data()?['fcmToken'];
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        await sendBookingPushNotification(
+          token: fcmToken,
+          userName: AppConstants.currentUser.getFullNameOfUser(),
+          listingName: name ?? 'your listing',
+        );
+      } else {
+        debugPrint('⚠️ Host FCM token not found');
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching host FCM token or sending push: $e');
+    }
 
     await sendWelcomeEmail(hostID, bookingID, dates, idd, cautionn, namee,
         cityy, countryy, addresss);
