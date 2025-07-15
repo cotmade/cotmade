@@ -55,6 +55,18 @@ class FirebaseApi {
         await prefs.setString('pendingFcmToken', fcmToken ?? '');
         debugPrint('💾 FCM token saved locally for later');
       }
+
+      // Register foreground message handler
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('📩 Foreground message received: ${message.notification?.title}');
+        // TODO: Show local notification if needed
+      });
+
+      // Register notification tap handler
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('📲 Notification was opened!');
+        // TODO: Handle navigation or app logic on notification tap
+      });
     } catch (e, stackTrace) {
       debugPrint('❌ Error during FCM init: $e');
       debugPrintStack(stackTrace: stackTrace);

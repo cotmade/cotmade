@@ -20,6 +20,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 final GlobalKey<_VideoReelsPageState> VideoReelsPageKey = GlobalKey<_VideoReelsPageState>();
 class VideoReelsPage extends StatefulWidget {
@@ -566,13 +568,55 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
       'likes': FieldValue.increment(liked ? 1 : -1),
     });
 
-    Future.delayed(Duration(milliseconds: 500), () {
-      setState(() {
-        showHeart = false;
-      });
-    });
+    if (liked) {
+    try {
+      // Fetch reel owner user ID from reel document
+      final reelSnapshot = await reelRef.get();
+      final ownerId = reelSnapshot.data()?['postingId'];
+
+      if (ownerId != null) {
+        // Fetch owner's FCM token
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(ownerId).get();
+        final fcmToken = userDoc.data()?['fcmToken'];
+
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          await sendLikePushNotification(fcmToken, widget.documentId);
+        } else {
+          print('Owner FCM token not found');
+        }
+      }
+    } catch (e) {
+      print('Error sending like notification: $e');
+    }
   }
 
+  Future.delayed(Duration(milliseconds: 500), () {
+    setState(() {
+      showHeart = false;
+    });
+  });
+}
+
+// Call PHP backend to send push notification
+Future<void> sendLikePushNotification(String token, String reelId) async {
+  final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
+
+  // Compose notification title and body
+  final url = Uri.parse(
+    '$phpUrl?token=$token'
+  );
+
+  try {
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      print('Like push notification sent');
+    } else {
+      print('Failed to send like push: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error calling PHP push backend: $e');
+  }
+}
   void _shareVideo() {
     Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
   }
