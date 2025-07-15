@@ -552,6 +552,26 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
 
   // Optionally, add a method to stop audio on demand
   
+  // Call PHP backend to send push notification
+Future<void> sendLikePushNotification(String token, String reelId) async {
+  final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
+
+  // Compose notification title and body
+  final url = Uri.parse(
+    '$phpUrl?token=$token'
+  );
+
+  try {
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      print('Like push notification sent');
+    } else {
+      print('Failed to send like push: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error calling PHP push backend: $e');
+  }
+}
 
   void _toggleLike() async {
     final reelRef =
@@ -597,26 +617,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   });
 }
 
-// Call PHP backend to send push notification
-Future<void> sendLikePushNotification(String token, String reelId) async {
-  final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
 
-  // Compose notification title and body
-  final url = Uri.parse(
-    '$phpUrl?token=$token'
-  );
-
-  try {
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      print('Like push notification sent');
-    } else {
-      print('Failed to send like push: ${response.statusCode}');
-    }
-  } catch (e) {
-    print('Error calling PHP push backend: $e');
-  }
-}
   void _shareVideo() {
     Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
   }
