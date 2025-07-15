@@ -160,7 +160,27 @@ class _BookListingScreenState extends State<BookListingScreen> {
     }
   }
 
-  // Fetch conversion rate from ExchangeRate-API
+ Future<double> _fetchConversionRate(String fromCurrency, String toCurrency) async {
+  final url = Uri.parse(
+      'https://api.exchangerate.host/latest?base=$fromCurrency&symbols=$toCurrency');
+
+  final response = await http.get(url);
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+
+    if (data['success'] == true && data['rates'] != null) {
+      return data['rates'][toCurrency];
+    } else {
+      throw Exception("Failed to fetch exchange rate");
+    }
+  } else {
+    throw Exception("Failed to fetch exchange rate");
+  }
+}
+
+
+ /* // Fetch conversion rate from ExchangeRate-API
   Future<double> _fetchConversionRate(
       String fromCurrency, String toCurrency) async {
     final url = Uri.parse(
@@ -179,7 +199,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
     } else {
       throw Exception("Failed to fetch exchange rate");
     }
-  }
+  } */
 
   // Currency change handler
   void _onCurrencyChanged(String? newCurrency) {

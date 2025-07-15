@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../model/app_constants.dart';
 import 'package:cotmade/model/user_model.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 
 /// Background message handler — must be a top-level function
 Future<void> handleBackgroundMessage(RemoteMessage message) async {
@@ -15,8 +17,10 @@ Future<void> handleBackgroundMessage(RemoteMessage message) async {
 
 class FirebaseApi {
   final _firebaseMessaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
-  /// Initialize Firebase Messaging
+  /// Initialize Firebase Messaging and Local Notifications
   Future<void> initNotifications() async {
     try {
       // Step 1: Request notification permissions
@@ -24,10 +28,9 @@ class FirebaseApi {
           await _firebaseMessaging.requestPermission();
       debugPrint('📲 User permission status: ${settings.authorizationStatus}');
 
-      // Step 2: For iOS — get APNs token
+      // Step 2: iOS-specific
       if (Platform.isIOS) {
         await _firebaseMessaging.setAutoInitEnabled(true);
-
         String? apnsToken = await _firebaseMessaging.getAPNSToken();
         if (apnsToken == null) {
           await Future<void>.delayed(const Duration(seconds: 3));
@@ -36,7 +39,10 @@ class FirebaseApi {
         debugPrint('🍏 APNs Token: $apnsToken');
       }
 
-      // Step 3: Get FCM token
+      // Step 3: Init local notifications
+      await _initLocalNotifications();
+
+      // Step 4: Get and save FCM token
       final fcmToken = await _firebaseMessaging.getToken();
       debugPrint('🔥 FCM Token: $fcmToken');
 
@@ -47,25 +53,23 @@ class FirebaseApi {
             .collection('users')
             .doc(AppConstants.currentUser.id)
             .set({'fcmToken': fcmToken}, SetOptions(merge: true));
-
         debugPrint('✅ FCM token uploaded to Firestore');
       } else {
-        // Save locally to upload after login
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('pendingFcmToken', fcmToken ?? '');
         debugPrint('💾 FCM token saved locally for later');
       }
 
-      // Register foreground message handler
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Step 5: Foreground notifications
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         debugPrint('📩 Foreground message received: ${message.notification?.title}');
-        // TODO: Show local notification if needed
+        await _showLocalNotification(message);
       });
 
-      // Register notification tap handler
+      // Step 6: Tap handler
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         debugPrint('📲 Notification was opened!');
-        // TODO: Handle navigation or app logic on notification tap
+        // Handle navigation or logic
       });
     } catch (e, stackTrace) {
       debugPrint('❌ Error during FCM init: $e');
@@ -73,15 +77,44 @@ class FirebaseApi {
     }
   }
 
-  /// Call this method **after login** to sync any saved token
+  /// Show local notification manually (for foreground)
+  Future<void> _showLocalNotification(RemoteMessage message) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'foreground_channel', // Channel ID
+      'Foreground Notifications', // Channel name
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformDetails =
+        NotificationDetails(android: androidDetails);
+
+    await _flutterLocalNotificationsPlugin.show(
+      0,
+      message.notification?.title ?? 'Notification',
+      message.notification?.body ?? '',
+      platformDetails,
+    );
+  }
+
+  /// Init local notifications plugin
+  Future<void> _initLocalNotifications() async {
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: DarwinInitializationSettings(),
+    );
+
+    await _flutterLocalNotificationsPlugin.initialize(initSettings);
+  }
+
+  /// Upload pending FCM token saved before login
   Future<void> uploadPendingFcmToken(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedToken = prefs.getString('pendingFcmToken');
-
-      debugPrint('📍 uploadPendingFcmToken()');
-      debugPrint('👉 Token: $savedToken');
-      debugPrint('👉 User ID: $userId');
 
       if (savedToken != null && userId.isNotEmpty) {
         await FirebaseFirestore.instance
@@ -90,7 +123,6 @@ class FirebaseApi {
             .update({'fcmToken': savedToken});
 
         debugPrint('✅ Token uploaded to Firestore');
-
         await prefs.remove('pendingFcmToken');
       } else {
         debugPrint('⚠️ Token or User ID not valid. Skipping upload.');
