@@ -20,7 +20,7 @@ import 'package:cotmade/view/reset_password_screen.dart';
 import 'package:cotmade/view/firebase_exceptions.dart';
 import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/login_screen2.dart';
-import 'package:cotmade/view/first_screen.dart';
+import 'package:cotmade/view/unregisteredScreens/first_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({Key? key}) : super(key: key);
