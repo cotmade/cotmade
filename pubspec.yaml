@@ -15,7 +15,7 @@ dependencies:
   firebase_auth:
   cloud_firestore:
   firebase_storage:
-  google_sign_in: ^6.3.0
+  google_sign_in: ^6.2.1
   image_picker:
   flutter_svg:
   timeago:
