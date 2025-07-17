@@ -160,7 +160,92 @@ class _BookListingScreenState extends State<BookListingScreen> {
     }
   }
 
-  // Fetch conversion rate from ExchangeRate-API
+ Future<double> _fetchConversionRate(String fromCurrency, String toCurrency) async {
+  return await _fetchWithRetry(
+    fromCurrency,
+    toCurrency,
+    maxRetries: 3,
+    delayBetweenRetries: Duration(seconds: 2),
+  );
+}
+
+Future<double> _fetchWithRetry(
+  String fromCurrency,
+  String toCurrency, {
+  int maxRetries = 3,
+  Duration delayBetweenRetries = const Duration(seconds: 1),
+}) async {
+  int attempt = 0;
+
+  while (attempt < maxRetries) {
+    attempt++;
+
+    try {
+      final url = Uri.parse(
+        'https://v6.exchangerate-api.com/v6/65ecc5642a4b0653f9777381/latest/$fromCurrency',
+      );
+
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['result'] == 'success' &&
+            data['conversion_rates'] != null &&
+            data['conversion_rates'][toCurrency] != null) {
+          final rate = data['conversion_rates'][toCurrency];
+
+          if (rate is num && rate > 0) {
+            final double finalRate = rate.toDouble();
+
+            // ❗ Only reject if rate is 1.0 or too low (e.g. < 0.0001)
+            if (finalRate == 1.0 || _isRateSuspicious(finalRate)) {
+              debugPrint('⚠️ Suspicious low rate $finalRate, retrying... ($attempt/$maxRetries)');
+              if (attempt < maxRetries) {
+                await Future.delayed(delayBetweenRetries);
+                continue;
+              } else {
+                throw Exception("Suspicious or fallback rate after $attempt attempts: $finalRate");
+              }
+            }
+
+            return finalRate;
+          } else {
+            throw Exception("Invalid exchange rate value: $rate");
+          }
+        } else {
+          throw Exception("Invalid API response structure");
+        }
+      } else {
+        debugPrint('❌ API error ${response.statusCode}, retrying... ($attempt/$maxRetries)');
+        if (attempt < maxRetries) {
+          await Future.delayed(delayBetweenRetries);
+          continue;
+        } else {
+          throw Exception("API error after $attempt attempts");
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Exception: $e, retrying... ($attempt/$maxRetries)');
+      if (attempt < maxRetries) {
+        await Future.delayed(delayBetweenRetries);
+        continue;
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  throw Exception("Failed to fetch exchange rate after $maxRetries attempts");
+}
+
+// ✅ Only detects too-low rates
+bool _isRateSuspicious(double rate) {
+  return rate < 0.0001; // You can adjust threshold as needed
+}
+
+
+ /* // Fetch conversion rate from ExchangeRate-API
   Future<double> _fetchConversionRate(
       String fromCurrency, String toCurrency) async {
     final url = Uri.parse(
@@ -179,7 +264,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
     } else {
       throw Exception("Failed to fetch exchange rate");
     }
-  }
+  } */
 
   // Currency change handler
   void _onCurrencyChanged(String? newCurrency) {
@@ -298,7 +383,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
         selectedDates.length * (posting!.price ?? 0) * discountAmount;
     double totaloo = selectedDates.length * (posting!.price ?? 0) - totalo;
     double totalPriceForAllNights = totaloo + (posting!.caution ?? 0);
-    double tota = totaloo * 0.13;
+    double tota = totaloo * 0.10;
     double totalPriceForAll = totaloo - tota;
 
     double price = totalPriceForAllNights * conversionRate;
@@ -313,7 +398,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
         phoneNumber: AppConstants.currentUser.mobileNumber.toString());
 
     Flutterwave flutterwave = Flutterwave(
-      //context: context,
+      context: context,
       publicKey: "FLWPUBK-5075e726729201f3c2b77df72b4a8da5-X",
       currency: currency,
       redirectUrl: 'https://cotmade.com',
@@ -325,7 +410,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
       isTestMode: false,
     );
 
-    final ChargeResponse response = await flutterwave.charge(context);
+    final ChargeResponse response = await flutterwave.charge();
     showLoading(response.toString());
     print("Response: ${response.toJson()}");
     print("Status: ${response.status}");
@@ -495,45 +580,47 @@ class _BookListingScreenState extends State<BookListingScreen> {
                     ],
                   ),
                   Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    Row(
-      children: [
-        Text(
-          "Service fee:",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Tooltip(
-          message: "This fee covers transaction processing and platform support.",
-          child: Icon(Icons.info_outline, color: Colors.pinkAccent, size: 18),
-        ),
-      ],
-    ),
-    Row(
-      children: [
-        Text(
-          posting!.currency ?? 'available',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(width: 1),
-        Text(
-          "${NumberFormat('#,###').format(totalPrice)}",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    ),
-  ],
-),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            "Service fee:",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message:
+                                "This fee covers transaction processing and platform support.",
+                            child: Icon(Icons.info_outline,
+                                color: Colors.black, size: 18),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            posting!.currency ?? 'available',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 1),
+                          Text(
+                            "${NumberFormat('#,###').format(totalPrice)}",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                   // caution fee
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -651,7 +738,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
                     ],
                   ),
                   Text(
-                    "you can select a currency to pay with",
+                    "select a currency to pay with",
                     style: TextStyle(fontSize: 10),
                   ),
                   SizedBox(height: 1),

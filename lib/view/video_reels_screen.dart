@@ -19,8 +19,10 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/guest_home_screen.dart';
-import 'package:cotmade/view/ai/cotmind_services.dart';
-import 'package:cotmade/view/ai/cotmind_chat_page.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:cotmade/model/app_constants.dart';
+import 'package:cotmade/global.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -39,20 +41,12 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
   final cacheManager = DefaultCacheManager(); // Cache manager for videos
-  String _locationHint = '';
-  String _displayedHint = '';
-  Timer? _typewriterTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _loadVideos(); // Load videos from Firestore initially
-    _initializeCotmind();
-  }
-
-  Future<void> _initializeCotmind() async {
-    await CotmindService.loadDynamicSynonyms();
   }
 
   // Function to load videos from Firestore and cache them locally
@@ -188,7 +182,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
     _audioPlayers.clear();
 
-    // Paus and dispose all video controllers
+    // Pause and dispose all video controllers
     for (var controller in _controllers.values) {
       if (controller.value.isPlaying) await controller.pause();
       await controller.dispose();
@@ -231,7 +225,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         return;
       }
 
-      print("Play audio from: $audioPath");
+      print("Playing audio from: $audioPath");
 
       await player.setAsset(audioPath);
       await player.setLoopMode(LoopMode.one);
@@ -280,96 +274,53 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return query[0].toUpperCase() + query.substring(1).toLowerCase();
   }
 
+  // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String rawQuery = _searchController.text.trim();
-
-    if (rawQuery.isEmpty) {
+    String queryText = formatSearchQuery(_searchController.text);
+    if (queryText.isEmpty) {
       setState(() {
-        _filteredVideos = _allVideos;
-        _locationHint = '';
-        _displayedHint = '';
+        _filteredVideos = _allVideos; // Show all videos if query is empty
       });
       return;
     }
 
-    String queryText = formatSearchQuery(rawQuery);
-
-    await CotmindService.logSearch(queryText);
-
-    final normalizedCity = await CotmindService.normalizeCity(queryText);
-    final normalizedCountry = await CotmindService.normalizeCountry(queryText);
-
-    // Generate tip and get hint
-    await CotmindService.generateCityTip(normalizedCity);
-    String hint = await CotmindService.getTip(normalizedCity, isCity: true);
-
-    if (hint.trim().isEmpty || hint.contains("No tips")) {
-      hint = await CotmindService.getTip(normalizedCountry, isCity: false);
-    }
-
-    if (_locationHint != hint) {
-      setState(() {
-        _locationHint = hint;
-        _displayedHint = '';
-      });
-      _startTypewriterEffect();
-    }
-
-    // Fetch postings matching city or country
-    final cityPostings = await FirebaseFirestore.instance
+    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
         .collection('postings')
-        .where('city', isEqualTo: normalizedCity)
+        .where('country', isGreaterThanOrEqualTo: queryText)
+        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
         .get();
 
-    final countryPostings = await FirebaseFirestore.instance
+    // Query for city as well
+    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
         .collection('postings')
-        .where('country', isEqualTo: normalizedCountry)
+        .where('city', isGreaterThanOrEqualTo: queryText)
+        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
         .get();
 
-    final matchingPostingIds = <String>{};
-    for (var doc in cityPostings.docs) matchingPostingIds.add(doc.id);
-    for (var doc in countryPostings.docs) matchingPostingIds.add(doc.id);
-
-    if (matchingPostingIds.isEmpty) {
-      // No matching postings found
-      setState(() {
-        _filteredVideos = [];
-      });
-      return;
-    }
-
-    // Fetch videos whose postingId is in matchingPostingIds
-    final videosSnapshot = await FirebaseFirestore.instance
-        .collection('videos')
-        .where('postingId', whereIn: matchingPostingIds.toList())
-        .get();
-
-    setState(() {
-      _filteredVideos = videosSnapshot.docs;
+    // Step 2: Get all matching postingIds from the postings collection
+    List<String> matchingPostingIds = [];
+    postingsSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
     });
-  }
 
-  void _startTypewriterEffect() {
-    _typewriterTimer?.cancel();
-    int i = 0;
-    const prefix = '⎔'; // Cotmind's logo/icon
-    _displayedHint = prefix; // start with logo
+    citySnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
 
-    _typewriterTimer = Timer.periodic(Duration(milliseconds: 40), (timer) {
-      if (i < _locationHint.length) {
-        setState(() {
-          _displayedHint += _locationHint[i];
-        });
-        i++;
-      } else {
-        timer.cancel();
-      }
+    // Step 3: Filter the cached videos based on the matching postingIds
+    setState(() {
+      _filteredVideos = _allVideos.where((video) {
+        var videoData = video.data() as Map<String, dynamic>;
+        return matchingPostingIds.contains(videoData['postingId']);
+      }).toList();
     });
   }
 
   @override
   void dispose() {
-    _typewriterTimer?.cancel();
     // Stop and dispose all audio players
     _audioPlayers.forEach((key, player) {
       player.stop();
@@ -421,167 +372,147 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(children: [
-        RefreshIndicator(
-          onRefresh: _refreshVideos, // Trigger refresh when pulled
-          child: _filteredVideos.isEmpty
-              ? Center(child: _buildNoResults())
-              : PageView.builder(
-                  controller: _pageController,
-                  itemCount: _filteredVideos.length,
-                  scrollDirection: Axis.vertical,
-                  onPageChanged: (index) async {
-                    // Pause previous video and audio
-                    if (_controllers[_currentIndex]?.value.isPlaying ?? false) {
-                      _controllers[_currentIndex]?.pause();
-                    }
-                    await _audioPlayers[_currentIndex]?.pause();
-
-                    _currentIndex = index;
-
-                    _incrementViewCountIfNeeded(_filteredVideos[index].id);
-
-                    // Preload the current video (if not preloaded)
-                    _preloadVideo(index);
-
-                    // Play the current video
-                    final controller = _controllers[index];
-                    if (controller != null && controller.value.isInitialized) {
-                      // ✅ Set the volume based on premium and _isMuted
-                      var videoData =
-                          _filteredVideos[index].data() as Map<String, dynamic>;
-                      var premium = videoData['premium'] ??
-                          0; // Get premium from the video data
-
-                      if (premium >= 3) {
-                        // Premium users can hear audio, so adjust based on mute status
-                        controller
-                            .setVolume(1.0); // Set volume based on _isMuted
-                      } else {
-                        // Non-premium users: Always mute
-                        controller.setVolume(0.0);
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _refreshVideos, // Trigger refresh when pulled
+            child: _filteredVideos.isEmpty
+                ? Center(child: _buildNoResults())
+                : PageView.builder(
+                    controller: _pageController,
+                    itemCount: _filteredVideos.length,
+                    scrollDirection: Axis.vertical,
+                    onPageChanged: (index) async {
+                      // Pause previous video and audio
+                      if (_controllers[_currentIndex]?.value.isPlaying ??
+                          false) {
+                        _controllers[_currentIndex]?.pause();
                       }
+                      await _audioPlayers[_currentIndex]?.pause();
+
+                      _currentIndex = index;
+
+                      _incrementViewCountIfNeeded(_filteredVideos[index].id);
+
+                      // Preload the current video (if not preloaded)
+                      _preloadVideo(index);
 
                       // Play the current video
-                      controller.play();
-                    }
+                      final controller = _controllers[index];
+                      if (controller != null &&
+                          controller.value.isInitialized) {
+                        // ✅ Set the volume based on premium and _isMuted
+                        var videoData = _filteredVideos[index].data()
+                            as Map<String, dynamic>;
+                        var premium = videoData['premium'] ??
+                            0; // Get premium from the video data
 
-                    // Play audio for the current video
-                    final videoData =
-                        _filteredVideos[index].data() as Map<String, dynamic>;
-                    //  _playAudio(index, videoData['audioName']);
+                        if (premium >= 3) {
+                          // Premium users can hear audio, so adjust based on mute status
+                          controller
+                              .setVolume(1.0); // Set volume based on _isMuted
+                        } else {
+                          // Non-premium users: Always mute
+                          controller.setVolume(0.0);
+                        }
 
-                    setState(() {}); // To update UI if needed
-                  },
-                  itemBuilder: (context, index) {
-                    var videoData =
-                        _filteredVideos[index].data() as Map<String, dynamic>;
-                    return VideoReelsItem(
-                      controller: _controllers[index],
-                      videoData: videoData,
-                      isMuted: _isMuted,
-                      documentId: _filteredVideos[index].id, // <–– NEW!
-                      audioName: videoData['audioName'], // Pass audio name
-                      onToggleMute: () {
-                        setState(() {
-                          _isMuted = !_isMuted;
-                          _controllers[_currentIndex]
-                              ?.setVolume(_isMuted ? 0.0 : 1.0);
-                        });
-                      },
-                    );
-                  },
-                ),
-        ),
+                        // Play the current video
+                        controller.play();
+                      }
 
-        // Top-right positioned icon button
-        Positioned(
-          top: 50, // adjust for status bar
-          right: 16,
-          child: IconButton(
-            icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
-            onPressed: () async {
-              await _stopAllAudio(); // ✅ ensures audio stops
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => GuestHomeScreen()),
-              );
-            },
+                      // Play audio for the current video
+                      final videoData =
+                          _filteredVideos[index].data() as Map<String, dynamic>;
+                      //  _playAudio(index, videoData['audioName']);
+
+                      setState(() {}); // To update UI if needed
+                    },
+                    itemBuilder: (context, index) {
+                      var videoData =
+                          _filteredVideos[index].data() as Map<String, dynamic>;
+                      return VideoReelsItem(
+                        controller: _controllers[index],
+                        videoData: videoData,
+                        isMuted: _isMuted,
+                        documentId: _filteredVideos[index].id, // <–– NEW!
+                        audioName: videoData['audioName'], // Pass audio name
+                        onToggleMute: () {
+                          setState(() {
+                            _isMuted = !_isMuted;
+                            _controllers[_currentIndex]
+                                ?.setVolume(_isMuted ? 0.0 : 1.0);
+                          });
+                        },
+                      );
+                    },
+                  ),
           ),
-        ),
-        // Display audio name at the top left
 
-        // SearchBar + Hint combined in one Column
-        if (_isSearchVisible)
+          // Top-right positioned icon button
           Positioned(
-            top: 40,
-            left: 16,
+            top: 50, // adjust for status bar
             right: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 🔍 Search Input
-                TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    _filterVideos();
-                  },
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'location...',
-                    hintStyle: TextStyle(color: Colors.white60),
-                    filled: true,
-                    fillColor: Colors.black,
-                    border: OutlineInputBorder(
-                      borderSide:
-                          BorderSide(color: Colors.pinkAccent, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(Icons.close, color: Colors.white),
-                      onPressed: () {
-                        setState(() {
-                          _isSearchVisible = false;
-                          _searchController.clear();
-                          _filteredVideos = _allVideos;
-                          _locationHint = '';
-                          _displayedHint = '';
-                        });
-                      },
-                    ),
+            child: IconButton(
+              icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
+              onPressed: () async {
+                await _stopAllAudio(); // ✅ ensures audio stops
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => GuestHomeScreen()),
+                );
+              },
+            ),
+          ),
+          // Display audio name at the top left
+
+          if (_isSearchVisible)
+            Positioned(
+              top: 40,
+              left: 16,
+              right: 16,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  _filterVideos(); // Filter the cached videos based on the search query
+                },
+                style: TextStyle(
+                    color: Colors.white), // Text color inside the field
+                decoration: InputDecoration(
+                  hintText: 'location...',
+                  hintStyle: TextStyle(
+                      color: Colors.white60), // Lighter color for hint text
+                  filled: true,
+                  fillColor: Colors.black, // Background color of the TextField
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: Colors.pinkAccent,
+                        width: 2), // Pink accent border
+                    borderRadius:
+                        BorderRadius.circular(8), // Optional: rounded corners
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.close,
+                        color: Colors.white), // Close icon in white
+                    onPressed: () {
+                      setState(() {
+                        _isSearchVisible = false;
+                        _filteredVideos =
+                            _allVideos; // Reset to show all videos
+                      });
+                    },
                   ),
                 ),
-
-                // 💡 Hint text just below the search bar
-                if (_searchController.text.trim().isNotEmpty &&
-                    _displayedHint.isNotEmpty)
-                  Container(
-                    margin: EdgeInsets.only(top: 8),
-                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      border: Border.all(color: Colors.black, width: 1),
-                    ),
-                    child: Text(
-                      _displayedHint,
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontStyle: FontStyle.normal,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          )
-      ]),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
             _isSearchVisible = !_isSearchVisible;
           });
         },
-        backgroundColor: Colors.black, // Set the background colo to black
+        backgroundColor: Colors.black, // Set the background color to black
         child: Icon(
           _isSearchVisible ? Icons.close : Icons.search,
           color: Colors.white, // Set the icon color to white
@@ -625,28 +556,110 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     likes = widget.videoData['likes'] ?? 0;
     uid = widget.videoData['uid'];
     getImageFromStorage(uid);
+    _checkIfLiked();
+  }
+
+  Future<void> _checkIfLiked() async {
+    final likeRef = FirebaseFirestore.instance
+        .collection('reels')
+        .doc(widget.documentId)
+        .collection('likes')
+        .doc(AppConstants.currentUser.id);
+
+    final likeSnapshot = await likeRef.get();
+
+    if (mounted) {
+      setState(() {
+        liked = likeSnapshot.exists;
+      });
+    }
+  }
+
+// Call PHP backend to send push notification
+  Future<void> sendLikePushNotification(String token, String reelId) async {
+    final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
+
+    // Compose notification title and body
+    final url = Uri.parse('$phpUrl?token=$token');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        print('Like push notification sent');
+      } else {
+        print('Failed to send like push: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error calling PHP push backend: $e');
+    }
   }
 
   void _toggleLike() async {
     final reelRef =
         FirebaseFirestore.instance.collection('reels').doc(widget.documentId);
+    final likeRef =
+        reelRef.collection('likes').doc(AppConstants.currentUser.id);
+
+    final likeSnapshot = await likeRef.get();
+    final alreadyLiked = likeSnapshot.exists;
 
     setState(() {
-      liked = !liked;
+      liked = !alreadyLiked;
       likes += liked ? 1 : -1;
       showHeart = true;
     });
 
-    // Atomically increment or decrement the like count
-    await reelRef.update({
-      'likes': FieldValue.increment(liked ? 1 : -1),
-    });
-
-    Future.delayed(Duration(milliseconds: 500), () {
-      setState(() {
-        showHeart = false;
+    if (!alreadyLiked) {
+      // Add like record
+      await likeRef.set({
+        'userId': AppConstants.currentUser.id,
+        'likedAt': DateTime.now(),
       });
-    });
+
+      // Atomically increment or decrement the like count
+      await reelRef.update({
+        'likes': FieldValue.increment(liked ? 1 : -1),
+      });
+
+      if (liked) {
+        try {
+          // Fetch reel owner user ID from reel document
+          final reelSnapshot = await reelRef.get();
+          final ownerId = reelSnapshot.data()?['postingId'];
+
+          if (ownerId != null) {
+            // Fetch owner's FCM token
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(ownerId)
+                .get();
+            final fcmToken = userDoc.data()?['fcmToken'];
+
+            if (fcmToken != null && fcmToken.isNotEmpty) {
+              await sendLikePushNotification(fcmToken, widget.documentId);
+            } else {
+              print('Owner FCM token not found');
+            }
+          }
+        } catch (e) {
+          print('Error sending like notification: $e');
+        }
+      } else {
+        // Remove like record
+        await likeRef.delete();
+
+        // Decrement like count
+        await reelRef.update({
+          'likes': FieldValue.increment(-1),
+        });
+      }
+
+      Future.delayed(Duration(milliseconds: 500), () {
+        setState(() {
+          showHeart = false;
+        });
+      });
+    }
   }
 
   void _shareVideo() {
@@ -955,41 +968,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 ),
                 Column(
                   children: [
-                    GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const CotmindChatPage()),
-                          );
-                        },
-                        child: CircleAvatar(
-                          backgroundColor: Colors.black,
-                          radius: 25,
-                          child: Text(
-                            '⎔',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        )),
-                    // SizedBox(height: 1),
-                    Container(
-                      width: 48, // Wider than the text
-                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      color: Colors.black, // Background color
-                      child: Text(
-                        'ask AI',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 10),
                     GestureDetector(
                       onTap: () {
                         int premium = widget.videoData['premium'] ??

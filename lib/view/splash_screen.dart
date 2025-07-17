@@ -26,55 +26,66 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // Wait fo a brief moment before navigating
-    Timer(const Duration(seconds: 3), () {
-      checkAuthStatus();
-    });
+    // Wait for a brief moment before navigating
+      Future.delayed(const Duration(seconds: 3), checkAuthStatus);
   }
 
   // Function to check authentication status
   Future<void> checkAuthStatus() async {
-    // Show a circular progress indicator while loading data
-    Get.dialog(
-      Center(
-        child: CircularProgressIndicator(),
-      ),
-      barrierDismissible:
-          false, // Prevent the dialog from being dismissed by tapping outside
-    );
+    try {
+      // Show loading dialog
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
 
-    // Retrieve shared preference to check if the user has seen the onboarding screen
-    // Default to false if not set
+      // Check current Firebase user
+      User? user = FirebaseAuth.instance.currentUser;
 
-    // FirebaseAuth's currentUser provides the logged-in user or null if no user is logged in
-    User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userId = user.uid;
+        AppConstants.currentUser.id = userId;
 
-    if (user != null) {
-      // User is logged in, load user data and navigate to the home screen
-      String currentUserID = user.uid;
-      AppConstants.currentUser.id = currentUserID;
+        print("✅ User logged in: $userId");
 
-      // Fetch user data (user info, image, and postings)
-      await getUserInfoFromFirestore(currentUserID);
-      if (AppConstants.currentUser.status == 0) {
-        // Redirect to the "Suspended Account" screen
-        Get.to(() =>
-            SuspendedAccountScreen()); // Create a new screen for suspended accounts
-        return; // Exit early if account is suspended
+        // Fetch Firestore user info
+        await getUserInfoFromFirestore(userId);
+
+        // If account is suspended
+        if (AppConstants.currentUser.status == 0) {
+          Get.back(); // Close loader
+          print("⛔ Account suspended.");
+          Get.offAll(() => SuspendedAccountScreen());
+          return;
+        }
+
+        // Load user image and posts
+        // Load user image and posts
+await getImageFromStorage(userId);
+await AppConstants.currentUser.getMyPostingsFromFirestore();
+
+// 🔥 Make sure to initialize token (required to retrieve or refresh FCM token)
+await FirebaseApi().initNotifications();
+
+// Upload any pending FCM token (if stored before login)
+await FirebaseApi().uploadPendingFcmToken(userId);
+
+
+        // Navigate to home after loading
+        Get.back();
+        print("🚀 Navigating to VideoReelsPage");
+        Get.offAll(() => VideoReelsPage());
+      } else {
+        // No user is logged in
+        Get.back();
+        print("👤 No user found, going to FirstScreen");
+        Get.offAll(() => FirstScreen());
       }
-
-      await getImageFromStorage(currentUserID);
-      await AppConstants.currentUser.getMyPostingsFromFirestore();
-      await FirebaseApi().uploadPendingFcmToken(currentUserID);
-
-      // Dismiss the loading dialog after data is loaded
-      Get.back(); // Close the dialog
-
-      // Navigate to the home screen after loading data
-      Get.offAll(() => VideoReelsPage());
-    } else {
-      // User is not logged in, navigate to the first screen (login/signup)
-      Get.back(); // Close the loading dialog
+    } catch (e, stack) {
+      // On error, close loader and navigate safely
+      print("❌ Error in SplashScreen: $e\n$stack");
+      Get.back();
+      Get.snackbar("Error", "Something went wrong. Please try again.");
       Get.offAll(() => FirstScreen());
     }
   }
@@ -172,7 +183,7 @@ class _SplashScreenState extends State<SplashScreen> {
               const Padding(
                 padding: EdgeInsets.only(top: 2.0),
                 child: Text(
-                  "version 1.1.1", // Text on splash screen
+                  "version 1.2.2", // Text on splash screen
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.normal,

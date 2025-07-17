@@ -92,7 +92,7 @@ class ConversationModel {
 
     // Build URL with parameters (encode to handle spaces & special chars)
     final url = Uri.parse(
-        '$phpUrl?token=$token&title=${Uri.encodeComponent(AppConstants.currentUser.getFullNameOfUser())}&body=${Uri.encodeComponent(message)}');
+        '$phpUrl?token=$token');
 
     try {
       final response = await http.get(url);
