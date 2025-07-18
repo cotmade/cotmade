@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -12,8 +13,8 @@ android {
         applicationId = "com.cotmade.cotmade"
         minSdk = 24
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.0"
+        versionCode = 20
+        versionName = "1.2.2"
     }
 
     signingConfigs {
@@ -38,13 +39,17 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true  // Enable core library desugaring
     }
 
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
     }
 }
 
@@ -53,7 +58,6 @@ flutter {
 }
 
 dependencies {
-    // ✅ Required for core library desugaring (Java 8+ APIs)
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'  // Core desugaring lib
 }
 
