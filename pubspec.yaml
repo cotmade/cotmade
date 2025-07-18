@@ -35,7 +35,7 @@ dependencies:
   is_first_run:
   flick_video_player: ^0.9.0
   flutter_rating_bar:
-  flutterwave_standard:
+  flutterwave_standard: ^1.0.8
   intl:
   flutter_onboarding_slider:
   shared_preferences:
@@ -55,6 +55,7 @@ dependencies:
   audioplayers:
   just_audio:
   flutter_local_notifications: ^17.0.0
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
