@@ -54,7 +54,7 @@ dependencies:
   flutter_cache_manager:
   audioplayers:
   just_audio:
-  flutter_local_notifications: ^17.0.0
+  flutter_local_notifications: ^16.3.1
 
 dev_dependencies:
   flutter_test:
