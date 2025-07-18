@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../model/app_constants.dart';
 
@@ -30,13 +32,12 @@ class FirebaseApi {
       );
       debugPrint('📲 User permission status: ${settings.authorizationStatus}');
 
+      // 🔹 Step 1.5: Android 13+ explicit permission
       if (Platform.isAndroid) {
-        final bool granted = await _flutterLocalNotificationsPlugin
-                .resolvePlatformSpecificImplementation<
-                    AndroidFlutterLocalNotificationsPlugin>()
-                ?.requestPermission() ??
-            false;
-        debugPrint('🔔 Android notification permission granted: $granted');
+        if (await Permission.notification.isDenied) {
+          final status = await Permission.notification.request();
+          debugPrint('🔔 Android 13+ permission granted: ${status.isGranted}');
+        }
       }
 
       // 🔹 Step 2: Foreground presentation (iOS only)

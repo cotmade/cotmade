@@ -55,7 +55,7 @@ class UserViewModel {
           await addImageToFirebaseStorage(imageFileOfUser, currentUserID);
         });
 
-        await FirebaseApi().uploadPendingFcmToken();
+        await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
         // Call sendWelcomeEmail after account is created
         await sendWelcomeEmail(
@@ -139,7 +139,7 @@ class UserViewModel {
 
       // Fetch user data (user info, image, and postings)
       await getUserInfoFromFirestore(currentUserID);
-      await FirebaseApi().uploadPendingFcmToken();
+      await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
       // Check if the user's status is 0 (suspended)
       if (AppConstants.currentUser.status == 0) {

@@ -1,60 +1,61 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.cotmade"> <!-- Replace with your actual app package if needed -->
+    package="com.cotmade.cotmade"> <!-- Replace with your actual package name -->
 
-    <!-- ✅ Add this permission for Android 13+ -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- ✅ Required for notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="cotmade"
         android:name="${applicationName}"
+        android:label="cotmade"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Firebase Messaging Service (optional but good for clarity) -->
+        <!-- ✅ Firebase Messaging Service (optional, good for clarity) -->
         <service
             android:name="com.google.firebase.messaging.FirebaseMessagingService"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 
-        <!-- ✅ Default channel for notifications -->
+        <!-- ✅ Meta-data for default FCM notification channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="foreground_channel" />
 
+        <!-- ✅ Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Flutter splash theme metadata -->
+            <!-- Flutter splash screen support -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- Launcher intent -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Flutter plugin metadata -->
+        <!-- ✅ Flutter plugin support -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Flutter engine text processing query -->
+    <!-- ✅ Optional: allow sharing text from other apps -->
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
 </manifest>

@@ -71,7 +71,7 @@ class MyApp extends StatelessWidget {
       home: UpgradeAlert(
         child: ScreenUtilInit(
           designSize: const Size(375, 812),
-          builder: (_, child) => const OnboardingScreen(),
+          builder: (_, child) => OnboardingScreen(),
         ),
       ),
     );
