@@ -55,7 +55,6 @@ dependencies:
   audioplayers:
   just_audio:
   flutter_local_notifications: ^17.0.0
-  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
