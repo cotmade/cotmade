@@ -398,7 +398,6 @@ bool _isRateSuspicious(double rate) {
         phoneNumber: AppConstants.currentUser.mobileNumber.toString());
 
     Flutterwave flutterwave = Flutterwave(
-      context: context,
       publicKey: "FLWPUBK-5075e726729201f3c2b77df72b4a8da5-X",
       currency: currency,
       redirectUrl: 'https://cotmade.com',
@@ -410,7 +409,7 @@ bool _isRateSuspicious(double rate) {
       isTestMode: false,
     );
 
-    final ChargeResponse response = await flutterwave.charge();
+    final ChargeResponse response = await flutterwave.charge(context);
     showLoading(response.toString());
     print("Response: ${response.toJson()}");
     print("Status: ${response.status}");
