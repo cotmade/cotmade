@@ -23,17 +23,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ✅ Register first
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // ✅ Then init Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Register background FCM handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Request permission (Android 13+ and iOS)
-  await FirebaseMessaging.instance.requestPermission();
-
-  // ✅ Initialize Firebase Messaging and Notifications
+  // ✅ Initialize messaging
   await FirebaseApi().initNotifications();
 
   runApp(const MyApp());

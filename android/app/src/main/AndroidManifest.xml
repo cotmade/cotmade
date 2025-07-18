@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.cotmade.cotmade"> <!-- Replace with your actual package name -->
+    package="com.cotmade.cotmade">
 
-    <!-- ✅ Required for notifications on Android 13+ -->
+    <!-- ✅ Required for Firebase -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -10,22 +11,11 @@
         android:label="cotmade"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Firebase Messaging Service with tools:replace to fix merge conflict -->
-        <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="true"
-            tools:replace="android:exported">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- ✅ Meta-data for default FCM notification channel -->
+        <!-- ✅ Default notification channel for FCM -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="foreground_channel" />
 
-        <!-- ✅ Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -35,25 +25,21 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Flutter splash screen support -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- Launcher intent -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- ✅ Flutter plugin support -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- ✅ Optional: allow sharing text from other apps -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
