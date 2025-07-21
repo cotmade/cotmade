@@ -40,7 +40,9 @@ class _SplashScreenState extends State<SplashScreen> {
       );
 
       // Check current Firebase user
-      User? user = FirebaseAuth.instance.currentUser;
+      await FirebaseAuth.instance.authStateChanges().first;
+User? user = FirebaseAuth.instance.currentUser;
+
 
       if (user != null) {
         final userId = user.uid;
@@ -53,8 +55,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
         // If account is suspended
         if (AppConstants.currentUser.status == 0) {
-          Get.back(); // Close loader
-          print("⛔ Account suspended.");
+          await FirebaseAuth.instance.signOut();
+          Get.back(); // Close loading dialog
+
+          // Show snackbar message
+          Get.snackbar(
+            "Account Suspended",
+            "Your account has been suspended. You've been logged out.",
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.shade100,
+            colorText: Colors.black,
+            duration: Duration(seconds: 4),
+          );
+
           Get.offAll(() => SuspendedAccountScreen());
           return;
         }
@@ -115,7 +128,7 @@ await FirebaseApi().uploadPendingFcmToken(userId);
         .child("userImages")
         .child(userID)
         .child(userID + ".png")
-        .getData(1024 * 1024);
+        .getData(5 * 1024 * 1024);
 
     AppConstants.currentUser.displayImage = MemoryImage(imageDataInBytes!);
 
