@@ -1213,7 +1213,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
 
-            //keeping for tab
+            //keeping for tabs
             //  Padding(
             //    padding: const EdgeInsets.only(top: 22.0),
             //    child: MaterialButton(
