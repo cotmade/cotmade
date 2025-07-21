@@ -89,7 +89,7 @@ await FirebaseApi().uploadPendingFcmToken(userId);
         print("🚀 Navigating to VideoReelsPage");
         Get.offAll(() => VideoReelsPage());
       } else {
-        // No user is logged in
+        // No user logged in
         Get.back();
         print("👤 No user found, going to FirstScreen");
         Get.offAll(() => FirstScreen());
