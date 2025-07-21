@@ -8,12 +8,9 @@ import 'package:flutter/material.dart';
 import '../model/app_constants.dart';
 
 class ConversationScreen extends StatefulWidget {
-  ConversationModel? conversation;
+  final ConversationModel? conversation;
 
-  ConversationScreen({
-    super.key,
-    this.conversation,
-  });
+  const ConversationScreen({super.key, this.conversation});
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -22,74 +19,46 @@ class ConversationScreen extends StatefulWidget {
 class _ConversationScreenState extends State<ConversationScreen> {
   ConversationModel? conversation;
   TextEditingController controller = TextEditingController();
-
-  sendMessage() {
-    String text = controller.text;
-
-    if (text.isEmpty) {
-      return;
-    }
-
-    conversation!.addMessageToFirestore(text).whenComplete(() {
-      setState(() {
-        controller.text = "";
-      });
-    });
-  }
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-
     conversation = widget.conversation;
+  }
+
+  void sendMessage() async {
+    String text = controller.text.trim();
+    if (text.isEmpty) return;
+
+    await conversation!.addMessageToFirestore(text);
+    controller.clear();
+
+    // Delay and scroll to bottom after sending
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //   backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white,
-                Colors.white,
-              ],
-              begin: FractionalOffset(0, 0),
-              end: FractionalOffset(1, 0),
-              stops: [0, 1],
-              tileMode: TileMode.clamp,
-            ),
-          ),
-        ),
-        // leading: Icon(Icons.bac, color: Colors.black),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           conversation!.otherContact!.getFullNameOfUser(),
           style: const TextStyle(color: Colors.black, fontSize: 18),
         ),
-        automaticallyImplyLeading: false,
         centerTitle: true,
-        // actions: [
-        //   IconButton(
-        //     iconSize: 25.0,
-        //     icon: Icon(Icons.video_collection_rounded),
-        //     onPressed: () {
-        //       Get.to(ReelScreen());
-        //     },
-        //    color: Colors.black,
-        //  ),
-        // ],
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -98,60 +67,55 @@ class _ConversationScreenState extends State<ConversationScreen> {
               builder: (context, snapshots) {
                 if (snapshots.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
-                } else {
-                  return ListView.builder(
-                    itemCount: snapshots.data!.docs.length,
-                    itemBuilder: (context, index) {
-                      DocumentSnapshot snapshot = snapshots.data!.docs[index];
-                      MessageModel currentMessage = MessageModel();
-                      currentMessage.getMessageInfoFromFirestore(snapshot);
-
-                      if (currentMessage.sender!.id ==
-                          AppConstants.currentUser.id) {
-                        currentMessage.sender =
-                            AppConstants.currentUser.createContactFromUser();
-                      } else {
-                        currentMessage.sender = conversation!.otherContact;
-                      }
-
-                      return MessageListTileUI(
-                        message: currentMessage,
-                      );
-                    },
-                  );
                 }
+
+                final docs = snapshots.data?.docs ?? [];
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    DocumentSnapshot snapshot = docs[index];
+                    MessageModel message = MessageModel();
+                    message.getMessageInfoFromFirestore(snapshot);
+
+                    // Determine sender
+                    if (message.sender!.id == AppConstants.currentUser.id) {
+                      message.sender =
+                          AppConstants.currentUser.createContactFromUser();
+                    } else {
+                      message.sender = conversation!.otherContact;
+                    }
+
+                    return MessageListTileUI(message: message);
+                  },
+                );
               },
             ),
           ),
           Container(
             decoration: BoxDecoration(
-                border: Border.all(
-              color: Colors.black,
-            )),
+              border: Border.all(color: Colors.black),
+            ),
             child: Row(
-              mainAxisSize: MainAxisSize.max,
               children: [
-                SizedBox(
-                  width: MediaQuery.of(context).size.width * 5 / 6,
+                Expanded(
+                  flex: 5,
                   child: TextField(
-                    decoration: const InputDecoration(
-                        hintText: 'Write a message',
-                        contentPadding: EdgeInsets.all(20.0),
-                        border: InputBorder.none),
+                    controller: controller,
                     minLines: 1,
                     maxLines: 5,
-                    style: const TextStyle(fontSize: 20.0),
-                    controller: controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Write a message...',
+                      contentPadding: EdgeInsets.all(20.0),
+                      border: InputBorder.none,
+                    ),
+                    style: const TextStyle(fontSize: 18.0),
                   ),
                 ),
-                Expanded(
-                  child: IconButton(
-                    onPressed: () {
-                      sendMessage();
-                    },
-                    icon: const Icon(Icons.send),
-                  ),
-                )
+                IconButton(
+                  onPressed: sendMessage,
+                  icon: const Icon(Icons.send),
+                ),
               ],
             ),
           ),

@@ -1193,6 +1193,19 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
               ),
             ),
+            const SizedBox(height: 2),
+            Row(
+        children: const [
+          Icon(Icons.info_outline, color: Colors.pinkAccent, size: 18),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Image must not exceed 5mb',
+              style: TextStyle(fontSize: 13, color: Colors.black),
+            ),
+          ),
+        ],
+      ),
 
             //keeping for tabs
             //  Padding(
