@@ -32,8 +32,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     stream = FirebaseFirestore.instance
         .collection('postings')
         .where('hostID', isEqualTo: uid)
-        .where('status',
-            isEqualTo: 1) // Only fetch posts where status >= 1
+        .where('status', isEqualTo: 1) // Only fetch posts where status >= 1
         .snapshots();
 
     // Fetch user info and profile image
@@ -121,7 +120,42 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   ),
                   // Profile image (ensure displayImage is not null before showing)
                   MaterialButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      if (displayImage != null) {
+                        showGeneralDialog(
+                          context: context,
+                          barrierDismissible: true,
+                          barrierColor:
+                              Colors.black.withOpacity(0.9), // Dark background
+                          transitionDuration: Duration(milliseconds: 200),
+                          pageBuilder: (_, __, ___) {
+                            return GestureDetector(
+                              onTap: () =>
+                                  Navigator.of(context).pop(), // Tap to dismiss
+                              child: Scaffold(
+                                backgroundColor: Colors.transparent,
+                                body: Center(
+                                  child: InteractiveViewer(
+                                    panEnabled: true,
+                                    minScale: 1.0,
+                                    maxScale: 4.0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        image: DecorationImage(
+                                          image: displayImage!,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      }
+                    },
                     child: CircleAvatar(
                       backgroundColor: Colors.black,
                       radius: 50,
@@ -137,6 +171,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             ),
                     ),
                   ),
+
                   SizedBox(height: 20),
                   // User name and bio
                   Center(
