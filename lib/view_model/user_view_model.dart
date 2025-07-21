@@ -139,6 +139,7 @@ class UserViewModel {
 
       // Fetch user data (user info, image, and postings)
       await getUserInfoFromFirestore(currentUserID);
+      await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
       // Check if the user's status is 0 (suspended)
       if (AppConstants.currentUser.status == 0) {
@@ -223,7 +224,7 @@ class UserViewModel {
         .child("userImages")
         .child(userID)
         .child(userID + ".png")
-        .getData(1024 * 1024);
+        .getData(5 * 1024 * 1024);
 
     AppConstants.currentUser.displayImage = MemoryImage(imageDataInBytes!);
 
