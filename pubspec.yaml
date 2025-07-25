@@ -56,6 +56,7 @@ dependencies:
   just_audio:
   flutter_local_notifications:
   webview_flutter:
+  url_launcher:
 
 dev_dependencies:
   flutter_test:

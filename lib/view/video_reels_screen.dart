@@ -23,6 +23,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/global.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:cotmade/view/webview_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
   @override
@@ -41,34 +45,120 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
   final cacheManager = DefaultCacheManager(); // Cache manager for videos
+  final user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _loadVideos(); // Load videos from Firestore initially
+    _loadUserProfile().then((_) {
+      _loadVideos();
+    }); // Load videos from Firestore initially
+  }
+
+  Map<String, dynamic>? _userProfile;
+
+  Future<void> _loadUserProfile() async {
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users') // or your users collection name
+        .doc(user!.uid)
+        .get();
+
+    if (doc.exists) {
+      _userProfile = doc.data();
+    }
+  }
+
+  double computeScore(Map<String, dynamic> data) {
+    final views = (data['views'] ?? 0).toDouble();
+    final likes = (data['likes'] ?? 0).toDouble();
+    final premium = (data['premium'] ?? 0).toDouble();
+    final createdAt = (data['time'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final city = data['city'] ?? '';
+    final country = data['country'] ?? '';
+    final videoId = data['id'] ?? '';
+
+    double watchRatio = 1.0;
+
+    int hoursSincePost = DateTime.now().difference(createdAt).inHours;
+    double freshnessScore = 1 / (1 + hoursSincePost);
+
+    double userMatchScore = 0;
+
+    if (_userProfile != null) {
+      final userCountry = _userProfile!['country'] ?? '';
+      final userCity = _userProfile!['city'] ?? '';
+
+      if (userCountry == country || userCity == city) {
+        userMatchScore = 1.0;
+      }
+    }
+
+    double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
+    double premiumBoost = 0.0;
+
+    if (premium == 6) {
+      premiumBoost = 0.5; // Highest priority for premium 6 (sound ad)
+    } else if (premium == 5) {
+      premiumBoost = 0.4; // Slightly lower for premium 5 (silent ad)
+    } else if (premium == 3 && views < 500) {
+      premiumBoost = 0.15;
+    }
+
+    double score = (views * 0.2) +
+        (likes * 0.25) +
+        (watchRatio * 0.2) +
+        (freshnessScore * 0.15) +
+        (premium * 0.1) +
+        (userMatchScore * 0.1);
+
+    score = (score + premiumBoost) * viewedPenalty;
+
+    return score;
   }
 
   // Function to load videos from Firestore and cache them locally
   Future<void> _loadVideos() async {
-    FirebaseFirestore.instance
-        .collection('reels')
-        .orderBy('time', descending: true)
-        .get()
-        .then((snapshot) {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('reels')
+          .orderBy('time', descending: true)
+          .get();
+
       _allVideos = snapshot.docs;
-      _filteredVideos = _allVideos;
 
-      setState(() {}); // Show UI immediately
+      // Sort using computeScore
+      _allVideos.sort((a, b) {
+        double scoreA = computeScore(a.data() as Map<String, dynamic>);
+        double scoreB = computeScore(b.data() as Map<String, dynamic>);
+        return scoreB.compareTo(scoreA); // descending
+      });
 
-      // Preload first 4 videos in parallel
+      // Optional: Light shuffle for freshness
+      if (_allVideos.length > 2) {
+        final rand = _allVideos.removeAt(2);
+        _allVideos.insert(0, rand);
+      }
+
+      _filteredVideos = _allVideos.where((video) {
+        final data = video.data() as Map<String, dynamic>;
+        final premium = data['premium'] ?? 0;
+        return premium != 0;
+      }).toList();
+
+      setState(() {});
+
+      // Preload top videos
       for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
         _preloadVideo(i);
       }
 
-      // Cache rest in background
       _cacheVideosInBackground(startFromIndex: 4);
-    });
+    } catch (e) {
+      print("Error loading videos: $e");
+    }
   }
 
   // Function to preload videos from the cacheimages
@@ -92,12 +182,18 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       // ✅ Volume control based on premium
       if (controller.value.isInitialized) {
         // Ensure volume is set based on premium and mute status
-        if (premium >= 3) {
-          controller.setVolume(
-              1.0); // Play the original video sound, but respect mute status
+        if (premium == 6) {
+          // Advert with sound
+          controller.setVolume(1.0);
+        } else if (premium == 5) {
+          // Advert without sound
+          controller.setVolume(0.0);
+        } else if (premium == 3) {
+          // Regular premium content
+          controller.setVolume(1.0);
         } else {
-          controller
-              .setVolume(0.0); // Mute video sound when premium is less than 3
+          // Non-premium: no video sound
+          controller.setVolume(0.0);
         }
 
         // Play the video
@@ -314,7 +410,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         var videoData = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(videoData['postingId']);
+        final premium = videoData['premium'] ?? 0;
+        return premium != 0 &&
+            matchingPostingIds.contains(videoData['postingId']);
       }).toList();
     });
   }
@@ -407,12 +505,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                         var premium = videoData['premium'] ??
                             0; // Get premium from the video data
 
-                        if (premium >= 3) {
-                          // Premium users can hear audio, so adjust based on mute status
-                          controller
-                              .setVolume(1.0); // Set volume based on _isMuted
+                        if (premium == 6) {
+                          // Ad with sound
+                          controller.setVolume(1.0);
+                        } else if (premium == 5) {
+                          // Ad without sound
+                          controller.setVolume(0.0);
+                        } else if (premium >= 3) {
+                          // Premium user content — respect mute toggle
+                          controller.setVolume(_isMuted ? 0.0 : 1.0);
                         } else {
-                          // Non-premium users: Always mute
+                          // Free user content — always mute
                           controller.setVolume(0.0);
                         }
 
@@ -731,6 +834,33 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     Get.snackbar("Blocked", "User has been blocked.");
   }
 
+  void _handleLink(BuildContext context, String linkUrl) async {
+    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
+      // Open URL in internal WebView
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewScreen(
+            url: linkUrl,
+            title: "",
+          ),
+        ),
+      );
+    } else {
+      // Treat as WhatsApp number
+      final phoneNumber = linkUrl.replaceAll(RegExp(r'[^+\d]'), '');
+      final whatsappUrl = Uri.parse('https://wa.me/$phoneNumber');
+
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.controller == null || !widget.controller!.value.isInitialized) {
@@ -914,9 +1044,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                       int premium =
                                           widget.videoData['premium'] ?? 0;
 
-                                      return GestureDetector(
-                                        onTap: () async {
-                                          if (premium <= 3) {
+                                      if (premium <= 3) {
+                                        return GestureDetector(
+                                          onTap: () {
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
@@ -925,28 +1055,53 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                                         posting: cPosting),
                                               ),
                                             );
-                                          } else {
-                                            print(
-                                                'Navigation disabled for premium=4 reels');
-                                          }
-                                        },
-                                        child: premium <= 3
-                                            ? Container(
-                                                padding: EdgeInsets.symmetric(
-                                                    vertical: 8, horizontal: 8),
-                                                color: Colors.pinkAccent,
-                                                child: Text(
-                                                  'Book Now',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                  ),
+                                          },
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(
+                                                vertical: 8, horizontal: 8),
+                                            color: Colors.pinkAccent,
+                                            child: Text(
+                                              'Book Now',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      } else if (premium == 5 || premium == 6) {
+                                        final String? linkUrl = widget
+                                                .videoData[
+                                            'linkUrl']; // make sure this field exists
+                                        if (linkUrl != null &&
+                                            linkUrl.isNotEmpty) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              _handleLink(context, linkUrl);
+                                            },
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  vertical: 8, horizontal: 8),
+                                              color: Colors.green,
+                                              child: Text(
+                                                'Visit',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
                                                 ),
-                                              )
-                                            : SizedBox
-                                                .shrink(), // Empty widget if premium > 3
-                                      );
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          return SizedBox
+                                              .shrink(); // No button if no link
+                                        }
+                                      } else {
+                                        return SizedBox
+                                            .shrink(); // No button for premium 4 or others
+                                      }
                                     },
                                   ),
                                   //  SizedBox(height: 8),

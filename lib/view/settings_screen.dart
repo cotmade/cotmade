@@ -211,7 +211,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 shadowColor: Colors.black12,
                 child: ListTile(
                   leading: const Icon(Icons.language, color: Colors.black),
-                  title: const Text("Visit CotMade Website",
+                  title: const Text("Dispute Resolution",
                       style: TextStyle(color: Colors.black)),
                   trailing:
                       const Icon(Icons.chevron_right, color: Colors.black),
