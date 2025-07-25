@@ -148,6 +148,22 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                     await userViewModel.forgotpassword(
                                       _emailTextController.text.trim(),
                                     );
+
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text("Email Sent"),
+                                        content: Text(
+                                            "A password reset link has been sent to your email address."),
+                                        actions: [
+                                          TextButton(
+                                            child: Text("OK"),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                          ),
+                                        ],
+                                      ),
+                                    );
                                   } else {
                                     //    showDialog(
                                     //        context: context,

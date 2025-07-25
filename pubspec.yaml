@@ -55,6 +55,7 @@ dependencies:
   audioplayers:
   just_audio:
   flutter_local_notifications:
+  webview_flutter:
 
 dev_dependencies:
   flutter_test:
