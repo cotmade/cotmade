@@ -29,6 +29,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:cotmade/view/webview_screen.dart';
 
 class VideoReelsPage extends StatefulWidget {
+  final String reelId;
+  const VideoReelsPage({required this.reelId});
   @override
   _VideoReelsPageState createState() => _VideoReelsPageState();
 }
@@ -181,6 +183,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         final premium = data['premium'] ?? 0;
         return premium != 0;
       }).toList();
+
+      int initialPage = 0;
+      // ✅ Handle deep link scroll
+      if (widget.reelId.isNotEmpty) {
+        final targetIndex = _filteredVideos.indexWhere((video) {
+          final data = video.data() as Map<String, dynamic>;
+          return data['id'] == widget.reelId;
+        });
+
+        if (targetIndex != -1) {
+          initialPage = targetIndex;
+          _currentIndex = targetIndex;
+        }
+      }
 
       // Prevent Premium 5 and 6 from being consecutive
       _breakConsecutivePremiums(_filteredVideos);

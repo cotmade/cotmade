@@ -8,6 +8,11 @@ import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:upgrader/upgrader.dart';
 import 'dart:io';
+import 'package:uni_links/uni_links.dart';
+import 'dart:async';
+import 'package:cotmade/view/video_reels_screen.dart';
+
+StreamSubscription? _sub;
 
 /// Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -18,6 +23,39 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
   await handleBackgroundMessage(message);
   debugPrint('🔔 Background message received: ${message.messageId}');
+}
+
+/// Handle deep links
+void handleIncomingLinks() {
+  // Cold start
+  getInitialUri().then((uri) {
+    if (uri != null) {
+      debugPrint('📦 Initial deep link: $uri');
+      handleDeepLink(uri);
+    }
+  });
+
+  // While app is running
+  _sub = uriLinkStream.listen((Uri? uri) {
+    if (uri != null) {
+      debugPrint('📲 Live deep link: $uri');
+      handleDeepLink(uri);
+    }
+  }, onError: (err) {
+    debugPrint('❌ Deep link error: $err');
+  });
+}
+
+/// Parse and act on deep link
+void handleDeepLink(Uri uri) {
+  final host = uri.host;
+  final param = uri.queryParameters['param'];
+
+  debugPrint("🔗 Handling link to host: $host, param: $param");
+
+  if (host == 'reel' && param != null) {
+    Get.to(() => VideoReelsPage(reelId: param));
+  }
 }
 
 Future<void> main() async {
@@ -34,11 +72,25 @@ Future<void> main() async {
   // ✅ Initialize messaging
   await FirebaseApi().initNotifications();
 
+  // Start listening for deep links
+  handleIncomingLinks();
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

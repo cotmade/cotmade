@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.cotmade.cotmade">
 
-    <!-- ✅ Required for Firebase -->
+    <!-- ✅ Firebase + Notification permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -11,11 +11,12 @@
         android:label="cotmade"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Default notification channel for FCM -->
+        <!-- ✅ Firebase default notification channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="foreground_channel" />
 
+        <!-- ✅ Your MainActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -25,21 +26,35 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- ✅ Flutter's normal theme -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- ✅ Main launcher intent -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- ✅ Your custom deep link intent -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="cotmade"
+                    android:host="reel" />
+            </intent-filter>
         </activity>
 
+        <!-- ✅ Flutter embedding version -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
+    <!-- ✅ Optional: Allow querying certain intents -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
