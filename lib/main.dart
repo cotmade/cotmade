@@ -8,9 +8,9 @@ import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:upgrader/upgrader.dart';
 import 'dart:io';
-import 'package:uni_links/uni_links.dart';
 import 'dart:async';
 import 'package:cotmade/view/video_reels_screen.dart';
+import 'package:app_links/app_links.dart';
 
 StreamSubscription? _sub;
 
@@ -27,16 +27,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// Handle deep links
 void handleIncomingLinks() {
-  // Cold start
-  getInitialUri().then((uri) {
+  _appLinks.getInitialAppLink().then((uri) {
     if (uri != null) {
       debugPrint('📦 Initial deep link: $uri');
       handleDeepLink(uri);
     }
   });
 
-  // While app is running
-  _sub = uriLinkStream.listen((Uri? uri) {
+  _sub = _appLinks.appLinkStream.listen((uri) {
     if (uri != null) {
       debugPrint('📲 Live deep link: $uri');
       handleDeepLink(uri);
@@ -46,7 +44,6 @@ void handleIncomingLinks() {
   });
 }
 
-/// Parse and act on deep link
 void handleDeepLink(Uri uri) {
   final host = uri.host;
   final param = uri.queryParameters['param'];
