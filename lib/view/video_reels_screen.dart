@@ -123,7 +123,36 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return score;
   }
 
+  // Helper function to break consecutive Premium 5 and 6 videos
+  void _breakConsecutivePremiums(List<DocumentSnapshot> videos) {
+    for (int i = 1; i < videos.length; i++) {
+      final current = videos[i].data() as Map<String, dynamic>;
+      final previous = videos[i - 1].data() as Map<String, dynamic>;
+
+      final currentPremium = current['premium'] ?? 0;
+      final previousPremium = previous['premium'] ?? 0;
+
+      // If both are 5 or 6, try to swap current with a lower-premium video further down
+      if ((currentPremium == 5 || currentPremium == 6) &&
+          (previousPremium == 5 || previousPremium == 6)) {
+        for (int j = i + 1; j < videos.length; j++) {
+          final future = videos[j].data() as Map<String, dynamic>;
+          final futurePremium = future['premium'] ?? 0;
+
+          // Swap with a video that's not 5 or 6
+          if (futurePremium < 5) {
+            final temp = videos[i];
+            videos[i] = videos[j];
+            videos[j] = temp;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   // Function to load videos from Firestore and cache them locally
+  // Updated _loadVideos with anti-consecutive-premium logic
   Future<void> _loadVideos() async {
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -140,25 +169,30 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         return scoreB.compareTo(scoreA); // descending
       });
 
-      // Optional: Light shuffle for freshness
+      // Optional shuffle to add freshness
       if (_allVideos.length > 2) {
         final rand = _allVideos.removeAt(2);
         _allVideos.insert(0, rand);
       }
 
+      // Filter out non-premium videos
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
         final premium = data['premium'] ?? 0;
         return premium != 0;
       }).toList();
 
+      // Prevent Premium 5 and 6 from being consecutive
+      _breakConsecutivePremiums(_filteredVideos);
+
       setState(() {});
 
-      // Preload top videos
-      for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
+      // Preload first few videos
+      for (int i = 0; i <= 1 && i < _filteredVideos.length; i++) {
         _preloadVideo(i);
       }
 
+      // Start caching the rest in the background
       _cacheVideosInBackground(startFromIndex: 4);
     } catch (e) {
       print("Error loading videos: $e");
@@ -770,7 +804,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _shareVideo() {
-    Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
+    final linkUrl = 'https://cotmade.com/app/link?param=${widget.documentId}';
+    Share.share('Check out this cot $linkUrl');
   }
 
   void _pausePlayVideo() {
