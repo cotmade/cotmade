@@ -85,6 +85,19 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     int hoursSincePost = DateTime.now().difference(createdAt).inHours;
     double freshnessScore = 1 / (1 + hoursSincePost);
 
+    double premiumBoost = 0.0;
+
+    if (premium == 6) {
+      premiumBoost = 1.2;
+    } else if (premium == 5) {
+      premiumBoost = 1.0;
+    } else if (premium == 3 && views < 500) {
+      premiumBoost = 0.25;
+    }
+
+    // Apply freshness scaling after setting premiumBoost
+    premiumBoost *= freshnessScore * 2;
+
     double userMatchScore = 0;
 
     if (_userProfile != null) {
@@ -97,15 +110,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
 
     double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
-    double premiumBoost = 0.0;
-
-    if (premium == 6) {
-      premiumBoost = 0.5; // Highest priority for premium 6 (sound ad)
-    } else if (premium == 5) {
-      premiumBoost = 0.4; // Slightly lower for premium 5 (silent ad)
-    } else if (premium == 3 && views < 500) {
-      premiumBoost = 0.15;
-    }
 
     double score = (views * 0.2) +
         (likes * 0.25) +
@@ -970,6 +974,8 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                             final data =
                                 snapshot.data!.data() as Map<String, dynamic>;
 
+                            final premium = widget.videoData['premium'] ?? 0;
+
                             // var review = data['reviews'] ??
                             []; // Default to an empty list if null
                             //  int numberOfReviews = review.length;
@@ -990,31 +996,33 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Price: $currency ${formatPrice(price)}/night',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
+                                  if (premium != 5 && premium != 6) ...[
+                                    Text(
+                                      'Price: $currency ${formatPrice(price)}/night',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    '$city',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
+                                    SizedBox(height: 8),
+                                    Text(
+                                      '$city',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    '$country',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      '$country',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  ],
                                   SizedBox(height: 8),
                                   StreamBuilder<DocumentSnapshot>(
                                     stream: FirebaseFirestore.instance
@@ -1083,11 +1091,20 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                             child: Container(
                                               padding: EdgeInsets.symmetric(
                                                   vertical: 8, horizontal: 8),
-                                              color: Colors.green,
+                                              decoration: BoxDecoration(
+                                                color: Colors.pinkAccent
+                                                    .withOpacity(
+                                                        0.2), // 20% opacity pink
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5),
+                                              ),
                                               child: Text(
                                                 'Visit',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: Colors.pinkAccent,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 15,
                                                 ),
