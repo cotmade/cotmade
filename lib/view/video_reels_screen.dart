@@ -820,7 +820,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _shareVideo() {
-    final linkUrl = 'https://cotmade.com/app/link?param=${widget.documentId}';
+    final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
     Share.share('Check out this cot $linkUrl');
   }
 
