@@ -1,20 +1,20 @@
-import 'package:cotmade/api/firebase_api.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cotmade/firebase_options.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cotmade/firebase_options.dart';
+import 'package:cotmade/api/firebase_api.dart';
 import 'package:cotmade/view/onboarding_screen.dart';
+import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:upgrader/upgrader.dart';
-import 'dart:io';
+import 'package:app_links/app_links.dart'; // ✅ app_links package
 import 'dart:async';
-import 'package:cotmade/view/video_reels_screen.dart';
-import 'package:app_links/app_links.dart';
 
-StreamSubscription? _sub;
+final AppLinks _appLinks = AppLinks(); // ✅ Defined at top level
+StreamSubscription<Uri>? _sub;
 
-/// Background message handler
+/// Handle background messages
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
@@ -25,29 +25,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('🔔 Background message received: ${message.messageId}');
 }
 
-/// Handle deep links
-void handleIncomingLinks() {
-  _appLinks.getInitialAppLink().then((uri) {
-    if (uri != null) {
-      debugPrint('📦 Initial deep link: $uri');
-      handleDeepLink(uri);
-    }
-  });
-
-  _sub = _appLinks.appLinkStream.listen((uri) {
-    if (uri != null) {
-      debugPrint('📲 Live deep link: $uri');
-      handleDeepLink(uri);
-    }
-  }, onError: (err) {
-    debugPrint('❌ Deep link error: $err');
-  });
-}
-
+/// Handle deep link routing
 void handleDeepLink(Uri uri) {
   final host = uri.host;
   final param = uri.queryParameters['param'];
-
   debugPrint("🔗 Handling link to host: $host, param: $param");
 
   if (host == 'reel' && param != null) {
@@ -55,22 +36,38 @@ void handleDeepLink(Uri uri) {
   }
 }
 
+/// Setup deep linking using `app_links`
+Future<void> handleIncomingLinks() async {
+  try {
+    final Uri? initialUri = await _appLinks.getInitialUri(); // use getInitialUri()
+    if (initialUri != null) {
+      debugPrint('Initial link: $initialUri');
+      handleDeepLink(initialUri);
+    }
+  } catch (e) {
+    debugPrint('❌ Failed to get initial app link: $e');
+  }
+
+  _sub = _appLinks.uriLinkStream.listen((Uri? uri) {
+    if (uri != null) {
+      debugPrint('Live deep link: $uri');
+      handleDeepLink(uri);
+    }
+  });
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Register first
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ✅ Then init Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ Initialize messaging
   await FirebaseApi().initNotifications();
 
-  // Start listening for deep links
-  handleIncomingLinks();
+  await handleIncomingLinks(); // ✅ Start deep link handling
 
   runApp(const MyApp());
 }
@@ -85,7 +82,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
-    _sub?.cancel();
+    _sub?.cancel(); // Cancel deep link listener
     super.dispose();
   }
 
@@ -118,7 +115,7 @@ class _MyAppState extends State<MyApp> {
       home: UpgradeAlert(
         child: ScreenUtilInit(
           designSize: const Size(375, 812),
-          builder: (_, child) => OnboardingScreen(),
+          builder: (_, __) => OnboardingScreen(),
         ),
       ),
     );
