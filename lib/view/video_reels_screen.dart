@@ -44,7 +44,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
-  final cacheManager = DefaultCacheManager(); // Cache manager for videos
+  final cacheManager = DefaultCacheManager(); // Cache manager forr videos
   final user = FirebaseAuth.instance.currentUser;
 
   @override

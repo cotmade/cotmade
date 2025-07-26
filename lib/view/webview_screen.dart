@@ -13,12 +13,11 @@ class WebViewScreen extends StatefulWidget {
 
 class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController _controller;
-  bool _isLoading = true;
+  bool _isLoading = true; // Track loading state
 
   @override
   void initState() {
     super.initState();
-
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -33,6 +32,9 @@ class _WebViewScreenState extends State<WebViewScreen> {
               _isLoading = false;
             });
           },
+          onNavigationRequest: (NavigationRequest request) {
+            return NavigationDecision.navigate;
+          },
         ),
       )
       ..loadRequest(Uri.parse(widget.url));
@@ -42,16 +44,29 @@ class _WebViewScreenState extends State<WebViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title, style: TextStyle(color: Colors.black)),
-        iconTheme: IconThemeData(color: Colors.black),
         backgroundColor: Colors.white,
-        elevation: 1,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white,
+                Colors.white,
+              ],
+              begin: FractionalOffset(0, 0),
+              end: FractionalOffset(1, 0),
+              stops: [0, 1],
+              tileMode: TileMode.clamp,
+            ),
+          ),
+        ),
+        title: Text(widget.title, style: TextStyle(color: Colors.black)),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
           if (_isLoading)
-            const Center(
+            Center(
               child: CircularProgressIndicator(),
             ),
         ],
