@@ -823,9 +823,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _shareVideo() {
-    final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
-    Share.share('Check out this cot $linkUrl');
-  }
+  final caption = widget.videoData['caption'] ?? '';
+  final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
+  final message = '$caption\n\nCheck out this cot:\n$linkUrl';
+
+  Share.share(message);
+}
+
 
   void _pausePlayVideo() {
     if (widget.controller != null) {

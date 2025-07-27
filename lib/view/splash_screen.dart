@@ -33,6 +33,13 @@ class _SplashScreenState extends State<SplashScreen> {
   // Function to check authentication status
   Future<void> checkAuthStatus() async {
     try {
+    
+    // Capture deep link or launch URL
+      Uri initialUri = Uri.base;
+      final isDeepLinkToReel = initialUri.path == '/reel' &&
+          initialUri.queryParameters['param'] != null;
+      final reelId = initialUri.queryParameters['param'];
+
       // Show loading dialog
       Get.dialog(
         const Center(child: CircularProgressIndicator()),
@@ -86,22 +93,26 @@ await FirebaseApi().uploadPendingFcmToken(userId);
 
         // Navigate to home after loading
         Get.back();
-        print("🚀 Navigating to VideoReelsPage");
-        Get.offAll(() => VideoReelsPage());
+        if (isDeepLinkToReel) {
+          print("📺 Deep link to /reel?param=$reelId");
+          Get.offAll(() => VideoReelsPage(reelId: reelId!));
+        } else {
+          print("🏠 Navigating to home");
+          Get.offAll(() => const VideoReelsPage());
+        }
       } else {
-        // No user is logged in
-        Get.back();
+        Get.back(); // Close loader
         print("👤 No user found, going to FirstScreen");
-        Get.offAll(() => FirstScreen());
+        Get.offAll(() => const FirstScreen());
       }
     } catch (e, stack) {
-      // On error, close loader and navigate safely
       print("❌ Error in SplashScreen: $e\n$stack");
       Get.back();
       Get.snackbar("Error", "Something went wrong. Please try again.");
-      Get.offAll(() => FirstScreen());
+      Get.offAll(() => const FirstScreen());
     }
   }
+
 
   getUserInfoFromFirestore(userID) async {
     DocumentSnapshot snapshot =
