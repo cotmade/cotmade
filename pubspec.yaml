@@ -57,7 +57,7 @@ dependencies:
   flutter_local_notifications:
   webview_flutter:
   url_launcher:
-  go_router:
+  go_router: ^6.0.0
 
 dev_dependencies:
   flutter_test:
