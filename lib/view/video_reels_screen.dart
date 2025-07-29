@@ -825,7 +825,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   void _shareVideo() async {
   final caption = widget.videoData['caption'] ?? '';
   final email = widget.videoData['email'] ?? '';
-  final firstName = email.split('@')[0]; // Extract first part of email
+  final firstName = email.split('@')[0]; // Extrac first part of email
   final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
 
   // Create the message to be shared
