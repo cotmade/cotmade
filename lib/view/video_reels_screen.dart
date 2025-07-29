@@ -822,13 +822,65 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
-  void _shareVideo() {
+  void _shareVideo() async {
   final caption = widget.videoData['caption'] ?? '';
+  final email = widget.videoData['email'] ?? '';
+  final firstName = email.split('@')[0]; // Extract first part of email
   final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
-  final message = '$caption\n\nCheck out this cot:\n$linkUrl';
 
-  Share.share(message);
+  // Create the message to be shared
+  final message = '''
+🏡 *$caption*
+
+👤 Posted by: *$firstName*
+
+🔗 View & Book here:
+$linkUrl
+''';
+
+  try {
+    final postingId = widget.videoData['postingId'];
+
+    // Load the posting
+    PostingModel posting = PostingModel(id: postingId);
+    await posting.getPostingInfoFromFirestore();
+
+    if (posting.imageNames == null || posting.imageNames!.isEmpty) {
+      // If no images, share text only
+      Share.share(message);
+      return;
+    }
+
+    // Get first image from Firebase Storage
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('postingImages')
+        .child(postingId)
+        .child(posting.imageNames!.first);
+    final data = await ref.getData(1024 * 1024); // 1MB max
+
+    if (data == null) {
+      Share.share(message);
+      return;
+    }
+
+    // Save to a temporary file for sharing
+    final tempDir = await getTemporaryDirectory();
+    final filePath = '${tempDir.path}/shared_posting_image.jpg';
+    final file = File(filePath);
+    await file.writeAsBytes(data);
+
+    // Share image with caption
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: message,
+    );
+  } catch (e) {
+    print('Error sharing with image: $e');
+    Share.share(message); // fallback if something fails
+  }
 }
+
 
 
   void _pausePlayVideo() {

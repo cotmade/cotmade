@@ -35,7 +35,8 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
     
     // Capture deep link or launch URL
-      Uri initialUri = Uri.base;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final Uri initialUri = Uri.base;
       final isDeepLinkToReel = initialUri.path == '/reel' &&
           initialUri.queryParameters['param'] != null;
       final reelId = initialUri.queryParameters['param'];
@@ -105,6 +106,7 @@ await FirebaseApi().uploadPendingFcmToken(userId);
         print("👤 No user found, going to FirstScreen");
         Get.offAll(() => const FirstScreen());
       }
+      });
     } catch (e, stack) {
       print("❌ Error in SplashScreen: $e\n$stack");
       Get.back();
