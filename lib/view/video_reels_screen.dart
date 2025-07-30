@@ -87,10 +87,31 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     double watchRatio = 1.0;
 
     int hoursSincePost = DateTime.now().difference(createdAt).inHours;
+    int daysSincePost = DateTime.now().difference(createdAt).inDays;
     double freshnessScore = 1 / (1 + hoursSincePost);
 
-    double premiumBoost = 0.0;
+    // 🌟 NEW LISTING BOOST: Time-decayed + Engagement-aware
+    double newListingBoost = 1.0;
 
+    if (daysSincePost <= 14) {
+      // Time decay: from 1.3 → 1.0 over 14 days
+      double decayFactor = 1.3 - (0.3 * (daysSincePost / 14.0)).clamp(0.0, 1.0);
+
+      // Engagement boost: use like/view ratio
+      double engagementScore =
+          (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
+
+      if (engagementScore >= 0.3) {
+        newListingBoost = decayFactor;
+      } else if (engagementScore >= 0.1) {
+        newListingBoost = decayFactor * 0.9;
+      } else {
+        newListingBoost = decayFactor * 0.7;
+      }
+    }
+
+    // 🔼 Premium boost
+    double premiumBoost = 0.0;
     if (premium == 6) {
       premiumBoost = 1.2;
     } else if (premium == 5) {
@@ -98,23 +119,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     } else if (premium == 3 && views < 500) {
       premiumBoost = 0.25;
     }
-
-    // Apply freshness scaling after setting premiumBoost
     premiumBoost *= freshnessScore * 2;
 
+    // 📍 User location match
     double userMatchScore = 0;
-
     if (_userProfile != null) {
       final userCountry = _userProfile!['country'] ?? '';
       final userCity = _userProfile!['city'] ?? '';
-
       if (userCountry == country || userCity == city) {
         userMatchScore = 1.0;
       }
     }
 
+    // 👁️ Viewed penalty
     double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
 
+    // 📊 Base score
     double score = (views * 0.2) +
         (likes * 0.25) +
         (watchRatio * 0.2) +
@@ -122,7 +142,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         (premium * 0.1) +
         (userMatchScore * 0.1);
 
-    score = (score + premiumBoost) * viewedPenalty;
+    score = (score + premiumBoost) * newListingBoost * viewedPenalty;
 
     return score;
   }
@@ -428,49 +448,36 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return query[0].toUpperCase() + query.substring(1).toLowerCase();
   }
 
+  String generateSearchText(Map<String, dynamic> data) {
+    final amenities = (data['amenities'] as List?)?.join(' ') ?? '';
+    final parts = [
+      data['city'],
+      data['country'],
+      data['address'],
+      data['description'],
+      data['type'],
+      amenities,
+    ];
+    return parts.whereType<String>().map((s) => s.toLowerCase()).join(' ');
+  }
+
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text);
-    if (queryText.isEmpty) {
-      setState(() {
-        _filteredVideos = _allVideos; // Show all videos if query is empty
-      });
+    final query = _searchController.text.toLowerCase().trim();
+    if (query.isEmpty) {
+      setState(() => _filteredVideos = _allVideos);
       return;
     }
 
-    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('country', isGreaterThanOrEqualTo: queryText)
-        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
+    final words = query.split(RegExp(r'\s+'));
 
-    // Query for city as well
-    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('city', isGreaterThanOrEqualTo: queryText)
-        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    // Step 2: Get all matching postingIds from the postings collection
-    List<String> matchingPostingIds = [];
-    postingsSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
-
-    citySnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
-
-    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
-        var videoData = video.data() as Map<String, dynamic>;
-        final premium = videoData['premium'] ?? 0;
-        return premium != 0 &&
-            matchingPostingIds.contains(videoData['postingId']);
+        final data = video.data() as Map<String, dynamic>;
+        final searchText = (data['searchText'] ?? '').toLowerCase();
+
+        // Match if all query words exist in the searchText
+        return words.every((word) => searchText.contains(word));
       }).toList();
     });
   }
@@ -639,7 +646,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 style: TextStyle(
                     color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
-                  hintText: 'location...',
+                  hintText: 'Find cots by city, type, or features..',
                   hintStyle: TextStyle(
                       color: Colors.white60), // Lighter color for hint text
                   filled: true,
