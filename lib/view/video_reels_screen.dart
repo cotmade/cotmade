@@ -1,3 +1,4 @@
+import 'package:image/image.dart' as img;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -709,6 +710,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   bool showHeart = false;
   late String uid;
   MemoryImage? displayImage;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -823,13 +825,14 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   void _shareVideo() async {
-  final caption = widget.videoData['caption'] ?? '';
-  final email = widget.videoData['email'] ?? '';
-  final firstName = email.split('@')[0]; // Extrac first part of email
-  final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
+    setState(() => _isLoading = true);
 
-  // Create the message to be shared
-  final message = '''
+    final caption = widget.videoData['caption'] ?? '';
+    final email = widget.videoData['email'] ?? '';
+    final firstName = email.split('@')[0];
+    final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
+
+    final message = '''
 🏡 *$caption*
 
 👤 Posted by: *$firstName*
@@ -838,50 +841,61 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
 $linkUrl
 ''';
 
-  try {
-    final postingId = widget.videoData['postingId'];
+    try {
+      final postingId = widget.videoData['postingId'];
+      final posting = PostingModel(id: postingId);
+      await posting.getPostingInfoFromFirestore();
 
-    // Load the posting
-    PostingModel posting = PostingModel(id: postingId);
-    await posting.getPostingInfoFromFirestore();
+      if (posting.imageNames == null || posting.imageNames!.isEmpty) {
+        Share.share(message);
+        return;
+      }
 
-    if (posting.imageNames == null || posting.imageNames!.isEmpty) {
-      // If no images, share text only
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('postingImages')
+          .child(postingId)
+          .child(posting.imageNames!.first);
+      final rawData = await ref.getData(1024 * 1024);
+
+      if (rawData == null) {
+        Share.share(message);
+        return;
+      }
+
+      final original = img.decodeImage(rawData);
+      if (original == null) {
+        Share.share(message);
+        return;
+      }
+
+      final minSize =
+          original.width < original.height ? original.width : original.height;
+
+      final square = img.copyCrop(
+        original,
+        x: (original.width - minSize) ~/ 2,
+        y: (original.height - minSize) ~/ 2,
+        width: minSize,
+        height: minSize,
+      );
+
+      final thumbnail = img.copyResize(square, width: 300, height: 300);
+      final jpgData = img.encodeJpg(thumbnail, quality: 85);
+
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/thumb_share.jpg';
+      final file = File(filePath)..writeAsBytesSync(jpgData);
+
+      await Share.shareXFiles([XFile(file.path)], text: message);
+    } catch (e) {
+      print('🚨 Error sharing image: $e');
       Share.share(message);
-      return;
+    } finally {
+      // Always turn off the loader
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    // Get first image from Firebase Storage
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('postingImages')
-        .child(postingId)
-        .child(posting.imageNames!.first);
-    final data = await ref.getData(1024 * 1024); // 1MB max
-
-    if (data == null) {
-      Share.share(message);
-      return;
-    }
-
-    // Save to a temporary file for sharing
-    final tempDir = await getTemporaryDirectory();
-    final filePath = '${tempDir.path}/shared_posting_image.jpg';
-    final file = File(filePath);
-    await file.writeAsBytes(data);
-
-    // Share image with caption
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: message,
-    );
-  } catch (e) {
-    print('Error sharing with image: $e');
-    Share.share(message); // fallback if something fails
   }
-}
-
-
 
   void _pausePlayVideo() {
     if (widget.controller != null) {
