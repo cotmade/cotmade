@@ -58,6 +58,7 @@ dependencies:
   webview_flutter:
   url_launcher:
   image:
+  speech_to_text:
 
 dev_dependencies:
   flutter_test:

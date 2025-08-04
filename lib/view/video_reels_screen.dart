@@ -28,6 +28,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:cotmade/view/webview_screen.dart';
+import 'package:cotmade/view/ai/cotmind_chat.dart';
 
 class VideoReelsPage extends StatefulWidget {
   final String? reelId;
@@ -463,20 +464,204 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    final query = _searchController.text.toLowerCase().trim();
-    if (query.isEmpty) {
+    final rawQuery = _searchController.text.toLowerCase().trim();
+
+    if (rawQuery.isEmpty) {
       setState(() => _filteredVideos = _allVideos);
       return;
     }
 
-    final words = query.split(RegExp(r'\s+'));
+    // Define common stop words to ignore
+    final stopWords = {
+      'a',
+      'about',
+      'above',
+      'after',
+      'again',
+      'against',
+      'all',
+      'am',
+      'an',
+      'and',
+      'any',
+      'are',
+      'aren’t',
+      'as',
+      'at',
+      'be',
+      'because',
+      'been',
+      'before',
+      'being',
+      'below',
+      'between',
+      'both',
+      'but',
+      'by',
+      'can',
+      'can’t',
+      'cannot',
+      'could',
+      'couldn’t',
+      'did',
+      'didn’t',
+      'do',
+      'does',
+      'doesn’t',
+      'doing',
+      'don’t',
+      'down',
+      'during',
+      'each',
+      'few',
+      'for',
+      'from',
+      'further',
+      'had',
+      'hadn’t',
+      'has',
+      'hasn’t',
+      'have',
+      'haven’t',
+      'having',
+      'he',
+      'he’d',
+      'he’ll',
+      'he’s',
+      'her',
+      'here',
+      'here’s',
+      'hers',
+      'herself',
+      'him',
+      'himself',
+      'his',
+      'how',
+      'how’s',
+      'i',
+      'i’d',
+      'i’ll',
+      'i’m',
+      'i’ve',
+      'if',
+      'in',
+      'into',
+      'is',
+      'isn’t',
+      'it',
+      'it’s',
+      'its',
+      'itself',
+      'let’s',
+      'me',
+      'more',
+      'most',
+      'mustn’t',
+      'my',
+      'myself',
+      'no',
+      'nor',
+      'not',
+      'of',
+      'off',
+      'on',
+      'once',
+      'only',
+      'or',
+      'other',
+      'ought',
+      'our',
+      'ours',
+      'ourselves',
+      'out',
+      'over',
+      'own',
+      'same',
+      'shan’t',
+      'she',
+      'she’d',
+      'she’ll',
+      'she’s',
+      'should',
+      'shouldn’t',
+      'so',
+      'some',
+      'such',
+      'than',
+      'that',
+      'that’s',
+      'the',
+      'their',
+      'theirs',
+      'them',
+      'themselves',
+      'then',
+      'there',
+      'there’s',
+      'these',
+      'they',
+      'they’d',
+      'they’ll',
+      'they’re',
+      'they’ve',
+      'this',
+      'those',
+      'through',
+      'to',
+      'too',
+      'under',
+      'until',
+      'up',
+      'very',
+      'was',
+      'wasn’t',
+      'we',
+      'we’d',
+      'we’ll',
+      'we’re',
+      'we’ve',
+      'were',
+      'weren’t',
+      'what',
+      'what’s',
+      'when',
+      'when’s',
+      'where',
+      'where’s',
+      'which',
+      'while',
+      'who',
+      'who’s',
+      'whom',
+      'why',
+      'why’s',
+      'will',
+      'with',
+      'won’t',
+      'would',
+      'wouldn’t',
+      'you',
+      'you’d',
+      'you’ll',
+      'you’re',
+      'you’ve',
+      'your',
+      'yours',
+      'yourself',
+      'yourselves'
+    };
+
+    final words = rawQuery
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty && !stopWords.contains(word))
+        .toList();
 
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
         final searchText = (data['searchText'] ?? '').toLowerCase();
 
-        // Match if all query words exist in the searchText
+        // Match if all query keywords exist in the searchText
         return words.every((word) => searchText.contains(word));
       }).toList();
     });
@@ -840,13 +1025,13 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
 
     final message = '''
-🏡 *$caption*
+    *$caption*
 
-👤 Posted by: *$firstName*
+    👤 Posted by: *$firstName*
 
-🔗 View & Book here:
-$linkUrl
-''';
+    🔗 View & Book here:
+    $linkUrl
+    ''';
 
     try {
       final postingId = widget.videoData['postingId'];
@@ -1271,6 +1456,38 @@ $linkUrl
                 ),
                 Column(
                   children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CotmindChat(), // Replace with your target screen
+                          ),
+                        );
+                      },
+                      child: Image.asset(
+                        'images/assistant.png',
+                        height: 80,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.pinkAccent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Book Easy",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 6),
                     GestureDetector(
                       onTap: () {
                         int premium = widget.videoData['premium'] ??
