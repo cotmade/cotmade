@@ -559,6 +559,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       'mustn’t',
       'my',
       'myself',
+      'need',
       'no',
       'nor',
       'not',
@@ -613,6 +614,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       'until',
       'up',
       'very',
+      'want',
       'was',
       'wasn’t',
       'we',
@@ -1458,38 +1460,6 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                CotmindChat(), // Replace with your target screen
-                          ),
-                        );
-                      },
-                      child: Image.asset(
-                        'images/assistant.png',
-                        height: 80,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.pinkAccent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        "Book Easy",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: () {
                         int premium = widget.videoData['premium'] ??
                             0; // fallback if null
                         if (premium <= 3) {
@@ -1550,6 +1520,42 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   ],
                 ),
               ],
+            ),
+          ),
+          Positioned(
+            right: 16, // Position the "Ask AI" button to the right
+            top: MediaQuery.of(context).size.height / 2 -
+                30, // Center vertically
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CotmindChat(), // Replace with your target screen
+                  ),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize
+                    .min, // To ensure the column doesn't take up more space than needed
+                crossAxisAlignment: CrossAxisAlignment
+                    .center, // Align items in the middle horizontally
+                children: [
+                  Image.asset(
+                    'images/assistant.png',
+                    height: 60,
+                  ),
+                  SizedBox(height: 6), // Add spacing between image and text
+                  Text(
+                    "Ask AI",
+                    style: TextStyle(
+                      color: Color(0xFFFAA111),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

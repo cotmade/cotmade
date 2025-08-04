@@ -5,18 +5,17 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ChatMessage {
   final String message;
   final bool isUser;
   final String? videoUrl;
-  final String? thumbnailUrl;
 
   ChatMessage({
     required this.message,
     required this.isUser,
     this.videoUrl,
-    this.thumbnailUrl,
   });
 }
 
@@ -24,10 +23,54 @@ class CotmindBot {
   static const _cohereApiKey = 'eSjwajsYSr7KkI6UvHgPpmE4XcDSp2QjJU4v5R6g';
   static const _cohereEndpoint = 'https://api.cohere.ai/v1/generate';
 
+  static List<String> extractKeywords(String input) {
+    final stopWords = {
+      'what',
+      'is',
+      'the',
+      'a',
+      'in',
+      'of',
+      'to',
+      'on',
+      'with',
+      'how',
+      'can',
+      'i',
+      'you',
+      'tell',
+      'me',
+      'about',
+      'need',
+      'know',
+      'where',
+      'why',
+      'are',
+      'for',
+      'and',
+      'or',
+      'an',
+      'do'
+    };
+
+    return input
+        .toLowerCase()
+        .split(RegExp(r'\W+'))
+        .where((word) => word.isNotEmpty && !stopWords.contains(word))
+        .toSet()
+        .toList();
+  }
+
   static Future<String> getAIResponse(String input) async {
+    final trimmedInput = input.trim();
+
+    if (trimmedInput.isEmpty) {
+      return "❌ Input is empty or whitespace only.";
+    }
+
     final body = {
-      "model": "command-r",
-      "prompt": "User: $input\nBot:",
+      "model": "command-light", // Match PHP model
+      "prompt": "User: $trimmedInput\nBot:",
       "max_tokens": 100,
       "temperature": 0.8,
     };
@@ -43,25 +86,41 @@ class CotmindBot {
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      return data['generations']?[0]?['text']?.trim() ?? "Hmm... I’m not sure.";
+      print("✅ Cohere response: $data");
+
+      return data['generations']?[0]?['text']?.trim() ??
+          "⚠️ No response text found.";
     } else {
-      print("Cohere error: ${res.body}");
-      return "Oops! I had trouble thinking.";
+      print("❌ Cohere error ${res.statusCode}: ${res.body}");
+      return "❌ API error ${res.statusCode}: ${res.body}";
     }
   }
 
   static Future<List<Map<String, dynamic>>> fetchVideosBySearch(
       String query) async {
-    final keyword = query.toLowerCase();
+    final keywords = extractKeywords(query);
+    final firestore = FirebaseFirestore.instance;
+    final results = <Map<String, dynamic>>[];
 
-    final results = await FirebaseFirestore.instance
-        .collection('reels')
-        .where('searchText', isGreaterThanOrEqualTo: keyword)
-        .where('searchText', isLessThanOrEqualTo: keyword + '\uf8ff')
-        .limit(3)
-        .get();
+    for (final word in keywords.take(5)) {
+      final snapshot = await firestore
+          .collection('reels')
+          .where('searchText', isGreaterThanOrEqualTo: word)
+          .where('searchText', isLessThanOrEqualTo: word + '\uf8ff')
+          .limit(1)
+          .get();
 
-    return results.docs.map((doc) => doc.data()).toList();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (!results.any((e) => e['reelsVideo'] == data['reelsVideo'])) {
+          results.add(data);
+        }
+      }
+
+      if (results.length >= 2) break;
+    }
+
+    return results.take(2).toList(); // limit to 2 results max
   }
 }
 
@@ -77,6 +136,7 @@ class _CotmindChatState extends State<CotmindChat> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   bool _isBotTyping = false;
+  MemoryImage? displayImage;
 
   @override
   void initState() {
@@ -104,10 +164,9 @@ class _CotmindChatState extends State<CotmindChat> {
 
       for (var video in videoSuggestions) {
         _messages.add(ChatMessage(
-          message: video['title'] ?? 'Suggested Video',
+          message: video['caption'] ?? 'Suggested Video',
           isUser: false,
-          videoUrl: video['videoUrl'],
-          thumbnailUrl: video['thumbnailUrl'],
+          videoUrl: video['reelsVideo'],
         ));
       }
 
@@ -151,6 +210,25 @@ class _CotmindChatState extends State<CotmindChat> {
     });
   }
 
+  // Function to get image from Firebase Storage
+  getImageFromStorage(uid) async {
+    try {
+      final imageDataInBytes = await FirebaseStorage.instance
+          .ref()
+          .child("userImages")
+          .child(uid)
+          .child(uid + ".png")
+          .getData(1024 * 1024);
+
+      setState(() {
+        displayImage = MemoryImage(imageDataInBytes!);
+      });
+    } catch (e) {
+      print("Error fetching image: $e");
+      // Handle error: You might want to show a default image or leave it null
+    }
+  }
+
   @override
   void dispose() {
     _messages.clear();
@@ -161,7 +239,7 @@ class _CotmindChatState extends State<CotmindChat> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Cotmind 🤖")),
+      appBar: AppBar(title: Text("🤖")),
       body: Column(
         children: [
           Expanded(
@@ -222,7 +300,7 @@ class _CotmindChatState extends State<CotmindChat> {
                 Container(
                   padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isUser ? Colors.blueAccent : Colors.grey.shade200,
+                    color: isUser ? Colors.pinkAccent : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -232,13 +310,23 @@ class _CotmindChatState extends State<CotmindChat> {
                     ),
                   ),
                 ),
-                if (msg.videoUrl != null && msg.thumbnailUrl != null)
-                  _buildVideoCard(msg),
+                if (msg.videoUrl != null) _buildVideoCard(msg),
               ],
             ),
           ),
           if (isUser) SizedBox(width: 8),
-          if (isUser) CircleAvatar(child: Icon(Icons.person)),
+          isUser
+              ? (displayImage != null
+                  ? CircleAvatar(
+                      backgroundImage: displayImage,
+                      radius: 29,
+                    )
+                  : Icon(
+                      Icons.account_circle,
+                      size: 30,
+                      color: Colors.white,
+                    ))
+              : Container(), // or another widget for bot
         ],
       ),
     );
@@ -248,30 +336,9 @@ class _CotmindChatState extends State<CotmindChat> {
     return Container(
       margin: EdgeInsets.only(top: 6),
       width: 220,
-      child: GestureDetector(
-        onTap: () => _playVideo(msg.videoUrl!),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CachedNetworkImage(
-              imageUrl: msg.thumbnailUrl!,
-              height: 120,
-              width: 220,
-              fit: BoxFit.cover,
-              placeholder: (ctx, url) => Container(
-                height: 120,
-                color: Colors.grey[300],
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (ctx, url, err) => Icon(Icons.error),
-            ),
-            SizedBox(height: 4),
-            Text(
-              msg.message,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            )
-          ],
-        ),
+      child: VideoPreviewCard(
+        videoUrl: msg.videoUrl!,
+        caption: msg.message,
       ),
     );
   }
@@ -351,6 +418,83 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 child: VideoPlayer(_controller),
               )
             : Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+}
+
+class VideoPreviewCard extends StatefulWidget {
+  final String videoUrl;
+  final String caption;
+
+  const VideoPreviewCard({
+    required this.videoUrl,
+    required this.caption,
+  });
+
+  @override
+  _VideoPreviewCardState createState() => _VideoPreviewCardState();
+}
+
+class _VideoPreviewCardState extends State<VideoPreviewCard> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.network(widget.videoUrl)
+      ..initialize().then((_) {
+        setState(() {
+          _initialized = true;
+        });
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _openFullVideo() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => VideoPlayerScreen(videoUrl: widget.videoUrl),
+      isScrollControlled: true,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _openFullVideo,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: _initialized
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      VideoPlayer(_controller),
+                      Container(
+                        color: Colors.black26,
+                        child: Icon(Icons.play_circle_fill,
+                            size: 48, color: Colors.white),
+                      ),
+                    ],
+                  )
+                : Container(
+                    color: Colors.grey[300],
+                    height: 120,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+          ),
+          SizedBox(height: 4),
+          Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
