@@ -1522,43 +1522,42 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               ],
             ),
           ),
-          Positioned(
-            right: 16, // Position the "Ask AI" button to the right
-            top: MediaQuery.of(context).size.height / 2 -
-                30, // Center vertically
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CotmindChat(), // Replace with your target screen
-                  ),
-                );
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize
-                    .min, // To ensure the column doesn't take up more space than needed
-                crossAxisAlignment: CrossAxisAlignment
-                    .center, // Align items in the middle horizontally
-                children: [
-                  Image.asset(
-                    'images/assistant.png',
-                    height: 40,
-                  ),
-                  //SizedBox(height: 6), // Add spacing between image and text
-                  Text(
-                    "Ask AI",
-                    style: TextStyle(
-                      color: Color(0xFFFAA111),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+        ],
+      ),
+    );
+    Positioned(
+      right: 16, // Position the "Ask AI" button to the right
+      top: MediaQuery.of(context).size.height / 2.16 - 30, // Center vertically
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  CotmindChat(), // Replace with your target screen
+            ),
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize
+              .min, // To ensure the column doesn't take up more space than needed
+          crossAxisAlignment: CrossAxisAlignment
+              .center, // Align items in the middle horizontally
+          children: [
+            Image.asset(
+              'images/assistant.png',
+              height: 50,
+            ),
+            //SizedBox(height: 6), // Add spacing between image and text
+            Text(
+              "Ask AI",
+              style: TextStyle(
+                color: Color(0xFFFAA111),
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

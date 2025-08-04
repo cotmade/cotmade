@@ -107,33 +107,36 @@ class CotmindBot {
     final firestore = FirebaseFirestore.instance;
     final results = <Map<String, dynamic>>[];
 
+    // Use a set to ensure unique videos by their 'reelsVideo' URL or 'postingId'
+    final seenVideos = <String>{};
+
     for (final word in keywords.take(5)) {
       final snapshot = await firestore
           .collection('reels')
           .where('searchText', isGreaterThanOrEqualTo: word)
           .where('searchText', isLessThanOrEqualTo: word + '\uf8ff')
-          .limit(1) // Limit results for each keyword search
+          .limit(5) // Increase the limit per keyword search to get more options
           .get();
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        // Check if the video is already in the results list
-        if (!results.any((e) => e['reelsVideo'] == data['reelsVideo'])) {
-          results.add(data);
 
-          // Fetch posting information if necessary
+        // Skip adding duplicate videos based on 'reelsVideo' URL
+        if (!seenVideos.contains(data['reelsVideo'])) {
+          results.add(data);
+          seenVideos.add(data['reelsVideo']); // Mark as seen
+
+          // Optionally fetch posting info if necessary (no changes here)
           String postingId = data['postingId'];
           final postingSnapshot =
               await firestore.collection('postings').doc(postingId).get();
 
-          // You can use the PostingModel here to handle the data more cleanly
+          // Handle posting details with PostingModel (not changing this part)
           PostingModel postingModel = PostingModel(id: postingId);
           postingModel.getPostingInfoFromSnapshot(postingSnapshot);
-
-          // Add posting details to the video data
         }
 
-        // Exit early if we already have 2 results
+        // Exit early if we already have the maximum desired results
         if (results.length >= 2) {
           break;
         }
