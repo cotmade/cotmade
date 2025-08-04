@@ -6,16 +6,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cotmade/model/posting_model.dart';
+import 'dart:async';
+import 'package:cotmade/view/view_posting_screen.dart';
 
 class ChatMessage {
   final String message;
   final bool isUser;
   final String? videoUrl;
+  final PostingModel? posting;
 
   ChatMessage({
     required this.message,
     required this.isUser,
     this.videoUrl,
+    this.posting,
   });
 }
 
@@ -107,20 +112,40 @@ class CotmindBot {
           .collection('reels')
           .where('searchText', isGreaterThanOrEqualTo: word)
           .where('searchText', isLessThanOrEqualTo: word + '\uf8ff')
-          .limit(1)
+          .limit(1) // Limit results for each keyword search
           .get();
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
+        // Check if the video is already in the results list
         if (!results.any((e) => e['reelsVideo'] == data['reelsVideo'])) {
           results.add(data);
+
+          // Fetch posting information if necessary
+          String postingId = data['postingId'];
+          final postingSnapshot =
+              await firestore.collection('postings').doc(postingId).get();
+
+          // You can use the PostingModel here to handle the data more cleanly
+          PostingModel postingModel = PostingModel(id: postingId);
+          postingModel.getPostingInfoFromSnapshot(postingSnapshot);
+
+          // Add posting details to the video data
+        }
+
+        // Exit early if we already have 2 results
+        if (results.length >= 2) {
+          break;
         }
       }
 
-      if (results.length >= 2) break;
+      // Exit the loop early once we have 2 unique results
+      if (results.length >= 2) {
+        break;
+      }
     }
 
-    return results.take(2).toList(); // limit to 2 results max
+    return results.take(2).toList(); // Limit to 2 results max
   }
 }
 
@@ -155,23 +180,53 @@ class _CotmindChatState extends State<CotmindChat> {
     _controller.clear();
     _scrollToBottom();
 
+    // Get the AI response
     final botReply = await CotmindBot.getAIResponse(input);
+
+    // Get video suggestions
     final videoSuggestions = await CotmindBot.fetchVideosBySearch(input);
 
+    // Now that async operations are done, update the state
     setState(() {
       _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
 
+      // Add video suggestions to the messages list
       for (var video in videoSuggestions) {
-        _messages.add(ChatMessage(
-          message: video['caption'] ?? 'Suggested Video',
-          isUser: false,
-          videoUrl: video['reelsVideo'],
-        ));
+        String postingId = video['postingId'];
+
+        // Fetch posting data asynchronously
+        _addPostingData(postingId, video);
       }
 
       _scrollToBottom();
     });
+  }
+
+  Future<void> _addPostingData(
+      String postingId, Map<String, dynamic> video) async {
+    try {
+      // Fetch the posting data
+      final postingSnapshot = await FirebaseFirestore.instance
+          .collection('postings')
+          .doc(postingId)
+          .get();
+
+      PostingModel postingModel = PostingModel(id: postingId);
+      postingModel.getPostingInfoFromSnapshot(postingSnapshot);
+
+      // After fetching the posting data, add it to messages
+      setState(() {
+        _messages.add(ChatMessage(
+          message: video['caption'] ?? 'Suggested Video',
+          isUser: false,
+          videoUrl: video['reelsVideo'],
+          posting: postingModel, // Pass the PostingModel
+        ));
+      });
+    } catch (e) {
+      print("Error fetching posting data: $e");
+    }
   }
 
   void _startListening() async {
@@ -339,6 +394,7 @@ class _CotmindChatState extends State<CotmindChat> {
       child: VideoPreviewCard(
         videoUrl: msg.videoUrl!,
         caption: msg.message,
+        posting: msg.posting!,
       ),
     );
   }
@@ -426,10 +482,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 class VideoPreviewCard extends StatefulWidget {
   final String videoUrl;
   final String caption;
+  final PostingModel
+      posting; // Adding PostingModel for passing to ViewPostingScreen
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
+    required this.posting, // Accept PostingModel as a parameter
   });
 
   @override
@@ -457,18 +516,37 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
     super.dispose();
   }
 
+  // Method to open the full-screen video
   void _openFullVideo() {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (_) => VideoPlayerScreen(videoUrl: widget.videoUrl),
-      isScrollControlled: true,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context), // Close dialog when tapped
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: _controller.value.aspectRatio,
+              child: _initialized
+                  ? VideoPlayer(_controller) // Play video in full-screen
+                  : Container(
+                      color: Colors.grey[300],
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
+
+    // Play the video when the modal opens
+    _controller.play();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _openFullVideo,
+      onTap: _openFullVideo, // Open full-screen video on tap
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -494,9 +572,43 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
           ),
           SizedBox(height: 4),
           Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
+
+          // "Book Now" Button at the bottom center
+          Padding(
+            padding:
+                const EdgeInsets.only(top: 8.0), // Optional margin for button
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  // Navigate to ViewPostingScreen when tapped
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ViewPostingScreen(posting: widget.posting),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.pinkAccent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Book Now',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
-//

@@ -1544,9 +1544,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                 children: [
                   Image.asset(
                     'images/assistant.png',
-                    height: 60,
+                    height: 40,
                   ),
-                  SizedBox(height: 6), // Add spacing between image and text
+                  //SizedBox(height: 6), // Add spacing between image and text
                   Text(
                     "Ask AI",
                     style: TextStyle(
