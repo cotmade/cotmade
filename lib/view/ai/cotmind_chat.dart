@@ -333,7 +333,7 @@ class _CotmindChatState extends State<CotmindChat> {
             color: Colors.grey.shade300,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text("Typing..."),
+          child: Text("Thinking..."),
         ),
       ],
     );
