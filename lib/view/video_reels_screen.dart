@@ -1522,10 +1522,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-    Positioned(
+          Positioned(
       right: 16, // Position the "Ask AI" button to the right
       top: MediaQuery.of(context).size.height / 2.16 - 30, // Center vertically
       child: GestureDetector(
@@ -1559,6 +1556,10 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
           ],
         ),
       ),
+    ),
+        ],
+      ),
     );
+    
   }
 }
