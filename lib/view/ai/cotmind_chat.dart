@@ -9,6 +9,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/model/posting_model.dart';
 import 'dart:async';
 import 'package:cotmade/view/view_posting_screen.dart';
+import 'package:cotmade/model/contact_model.dart';
+import 'package:cotmade/global.dart';
+import 'package:cotmade/model/app_constants.dart';
+import 'dart:math';
 
 class ChatMessage {
   final String message;
@@ -101,54 +105,70 @@ class CotmindBot {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> fetchVideosBySearch(
-      String query) async {
+  static Future<Map<String, dynamic>> fetchVideosBySearch(
+    String query, {
+    List<String> excludeUrls = const [],
+  }) async {
     final keywords = extractKeywords(query);
     final firestore = FirebaseFirestore.instance;
     final results = <Map<String, dynamic>>[];
-
-    // Use a set to ensure unique videos by their 'reelsVideo' URL or 'postingId'
     final seenVideos = <String>{};
+    final scoredResults = <Map<String, dynamic>>[];
+    bool usedFallback = false;
 
     for (final word in keywords.take(5)) {
       final snapshot = await firestore
           .collection('reels')
           .where('searchText', isGreaterThanOrEqualTo: word)
           .where('searchText', isLessThanOrEqualTo: word + '\uf8ff')
-          .limit(5) // Increase the limit per keyword search to get more options
+          .limit(50)
           .get();
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-
-        // Skip adding duplicate videos based on 'reelsVideo' URL
         if (!seenVideos.contains(data['reelsVideo'])) {
-          results.add(data);
-          seenVideos.add(data['reelsVideo']); // Mark as seen
+          final searchText =
+              (data['searchText'] ?? '').toString().toLowerCase();
+          int score = keywords.fold(0,
+              (sum, keyword) => searchText.contains(keyword) ? sum + 1 : sum);
 
-          // Optionally fetch posting info if necessary (no changes here)
-          String postingId = data['postingId'];
-          final postingSnapshot =
-              await firestore.collection('postings').doc(postingId).get();
-
-          // Handle posting details with PostingModel (not changing this part)
-          PostingModel postingModel = PostingModel(id: postingId);
-          postingModel.getPostingInfoFromSnapshot(postingSnapshot);
+          scoredResults.add({'data': data, 'score': score});
+          seenVideos.add(data['reelsVideo']);
         }
-
-        // Exit early if we already have the maximum desired results
-        if (results.length >= 2) {
-          break;
-        }
-      }
-
-      // Exit the loop early once we have 2 unique results
-      if (results.length >= 2) {
-        break;
       }
     }
 
-    return results.take(2).toList(); // Limit to 2 results max
+    scoredResults.shuffle();
+    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+
+    for (var item in scoredResults) {
+      if (results.length >= 2) break;
+      results.add(item['data']);
+    }
+
+    if (results.isEmpty && keywords.isNotEmpty) {
+      usedFallback = true;
+
+      final fallbackSnapshot = await firestore
+          .collection('reels')
+          .where('searchText', arrayContainsAny: keywords.take(10).toList())
+          .limit(50)
+          .get();
+
+      for (final doc in fallbackSnapshot.docs) {
+        final data = doc.data();
+        if (!seenVideos.contains(data['reelsVideo'])) {
+          results.add(data);
+          seenVideos.add(data['reelsVideo']);
+        }
+        if (results.length >= 2) break;
+      }
+    }
+
+    return {
+      'results': results.take(2).toList(),
+      'usedFallback': usedFallback,
+    };
   }
 }
 
@@ -164,42 +184,237 @@ class _CotmindChatState extends State<CotmindChat> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   bool _isBotTyping = false;
-  MemoryImage? displayImage;
+  String? _lastQuery;
+  Set<String> _seenVideoUrls = {};
+  int _followUpCount = 0;
+  bool _awaitingMoreConfirmation = false;
 
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+
+    // Add greeting message from the bot
+    final greeting = _generateGreeting();
+    _messages.add(ChatMessage(message: greeting, isUser: false));
+  }
+
+  String _generateGreeting() {
+    final hour = DateTime.now().hour;
+    final userName = AppConstants.currentUser.getFullNameOfUser();
+    final random = Random();
+
+    List<String> morningMessages = [
+      "Good morning $userName! 🌅 How may I help you today?",
+      "Morning $userName! Ready to get started?",
+      "Hey $userName, good morning! Need any help?"
+    ];
+
+    List<String> afternoonMessages = [
+      "Good afternoon $userName! ☀️ How can I assist you today?",
+      "Hi $userName, enjoying your afternoon? Let me know if you need anything.",
+      "Good day $userName! How may I help?"
+    ];
+
+    List<String> eveningMessages = [
+      "Good evening $userName! 🌙 What can I help you with?",
+      "Evening $userName! Need something before you call it a day?",
+      "Hi $userName! 🌜 How can I assist you this evening?"
+    ];
+
+    if (hour < 12) {
+      return morningMessages[random.nextInt(morningMessages.length)];
+    } else if (hour < 17) {
+      return afternoonMessages[random.nextInt(afternoonMessages.length)];
+    } else {
+      return eveningMessages[random.nextInt(eveningMessages.length)];
+    }
+  }
+
+  String _getRandomFallbackMessage() {
+    final fallbackMessages = [
+      "I couldn't find an exact match, but here are some similar listings I dug up 👇",
+      "Hmm... nothing matched exactly, but these might interest you 🧐",
+      "These listings may not be exact, but they’re close to what you asked for 👀",
+      "No exact matches, but I think you'll like these similar options!",
+      "I searched around and found a few similar listings you might enjoy 🏡"
+    ];
+
+    final random = Random();
+    return fallbackMessages[random.nextInt(fallbackMessages.length)];
+  }
+
+  bool _isPositiveResponse(String input) {
+    final lower = input.toLowerCase();
+    return [
+      "yes",
+      "sure",
+      "ok",
+      "okay",
+      "please",
+      "show me",
+      "go ahead",
+      "do it",
+      "yeah",
+      "why not",
+      "more",
+      "another"
+    ].any((phrase) => lower.contains(phrase));
+  }
+
+  bool _isFollowUpRequest(String input) {
+    final lower = input.toLowerCase();
+    return [
+      "more",
+      "another",
+      "again",
+      "next",
+      "any other",
+      "show me more",
+      "give me more"
+    ].any((phrase) => lower.contains(phrase));
+  }
+
+  String _getRefinementPrompt() {
+    final prompts = [
+      "I've already shown you a few listings. Could you be a bit more specific so I can help better? 😊",
+      "I’m trying my best! Can you give me more details so I can recommend the perfect place? 🧐",
+      "Hmm, I’ve run out of similar listings. Could you refine your request a bit? 🔍",
+      "Let’s narrow it down. What exactly are you looking for — location, price, type? 🤔",
+      "No more matches for now. Could you describe your needs a little more clearly? 🙏"
+    ];
+    final random = Random();
+    return prompts[random.nextInt(prompts.length)];
+  }
+
+  String _getMorePromptMessage() {
+    final prompts = [
+      "Would you like to see 2 more listings? 😊",
+      "Want me to show you a couple more options? 🏘️",
+      "Should I pull up 2 more listings for you? 👀",
+      "Let me know if you'd like to see more! 👍",
+      "Need a few more recommendations? I got you! 💡"
+    ];
+    final random = Random();
+    return prompts[random.nextInt(prompts.length)];
   }
 
   void _handleSend(String input) async {
     if (input.trim().isEmpty) return;
 
+    final trimmedInput = input.trim();
+    final isFollowUp = _isFollowUpRequest(trimmedInput);
+
     setState(() {
-      _messages.add(ChatMessage(message: input, isUser: true));
+      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
       _isBotTyping = true;
     });
 
     _controller.clear();
     _scrollToBottom();
 
-    // Get the AI response
-    final botReply = await CotmindBot.getAIResponse(input);
+    // Handle confirmation if awaiting user response for more
+    if (_awaitingMoreConfirmation) {
+      _awaitingMoreConfirmation = false;
 
-    // Get video suggestions
-    final videoSuggestions = await CotmindBot.fetchVideosBySearch(input);
+      if (_isPositiveResponse(trimmedInput)) {
+        _followUpCount++;
 
-    // Now that async operations are done, update the state
+        if (_followUpCount >= 2) {
+          setState(() {
+            _isBotTyping = false;
+            _messages.add(ChatMessage(
+              message: _getRefinementPrompt(),
+              isUser: false,
+            ));
+          });
+          return;
+        }
+
+        final videoResult = await CotmindBot.fetchVideosBySearch(
+          _lastQuery ?? trimmedInput,
+          excludeUrls: _seenVideoUrls.toList(),
+        );
+
+        final List<Map<String, dynamic>> videoSuggestions =
+            videoResult['results'];
+        final bool usedFallback = videoResult['usedFallback'];
+
+        setState(() {
+          _isBotTyping = false;
+
+          if (usedFallback && videoSuggestions.isNotEmpty) {
+            _messages.add(ChatMessage(
+              message: _getRandomFallbackMessage(),
+              isUser: false,
+            ));
+          }
+
+          for (var video in videoSuggestions) {
+            _seenVideoUrls.add(video['reelsVideo']);
+            final postingId = video['postingId'];
+            _addPostingData(postingId, video);
+          }
+
+          // Ask again after showing next 2
+          if (videoSuggestions.length == 2) {
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+          }
+
+          _scrollToBottom();
+        });
+      } else {
+        setState(() {
+          _isBotTyping = false;
+          _messages.add(ChatMessage(
+            message: _getRefinementPrompt(),
+            isUser: false,
+          ));
+        });
+      }
+
+      return;
+    }
+
+    // Fresh search
+    _lastQuery = trimmedInput;
+    _followUpCount = 0;
+    _seenVideoUrls.clear();
+
+    final botReply = await CotmindBot.getAIResponse(trimmedInput);
+
+    final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
+    final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
+    final bool usedFallback = videoResult['usedFallback'];
+
     setState(() {
       _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
 
-      // Add video suggestions to the messages list
-      for (var video in videoSuggestions) {
-        String postingId = video['postingId'];
+      if (usedFallback && videoSuggestions.isNotEmpty) {
+        _messages.add(ChatMessage(
+          message: _getRandomFallbackMessage(),
+          isUser: false,
+        ));
+      }
 
-        // Fetch posting data asynchronously
+      for (var video in videoSuggestions) {
+        _seenVideoUrls.add(video['reelsVideo']);
+        final postingId = video['postingId'];
         _addPostingData(postingId, video);
+      }
+
+      // Ask user if they want more
+      if (videoSuggestions.length == 2) {
+        _messages.add(ChatMessage(
+          message: _getMorePromptMessage(),
+          isUser: false,
+        ));
+        _awaitingMoreConfirmation = true;
       }
 
       _scrollToBottom();
@@ -269,23 +484,6 @@ class _CotmindChatState extends State<CotmindChat> {
   }
 
   // Function to get image from Firebase Storage
-  getImageFromStorage(uid) async {
-    try {
-      final imageDataInBytes = await FirebaseStorage.instance
-          .ref()
-          .child("userImages")
-          .child(uid)
-          .child(uid + ".png")
-          .getData(1024 * 1024);
-
-      setState(() {
-        displayImage = MemoryImage(imageDataInBytes!);
-      });
-    } catch (e) {
-      print("Error fetching image: $e");
-      // Handle error: You might want to show a default image or leave it null
-    }
-  }
 
   @override
   void dispose() {
@@ -297,7 +495,7 @@ class _CotmindChatState extends State<CotmindChat> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("🤖")),
+      appBar: AppBar(title: Text("CotMind🤖")),
       body: Column(
         children: [
           Expanded(
@@ -374,9 +572,9 @@ class _CotmindChatState extends State<CotmindChat> {
           ),
           if (isUser) SizedBox(width: 8),
           isUser
-              ? (displayImage != null
+              ? (AppConstants.currentUser.displayImage != null
                   ? CircleAvatar(
-                      backgroundImage: displayImage,
+                      backgroundImage: AppConstants.currentUser.displayImage,
                       radius: 29,
                     )
                   : Icon(

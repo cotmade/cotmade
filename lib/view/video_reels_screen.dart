@@ -861,7 +861,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             ),
           Positioned(
             right: 16, // Position the "Ask AI" button to the right
-            top: MediaQuery.of(context).size.height / 1.75 -
+            top: MediaQuery.of(context).size.height / 1.85 -
                 30, // Center vertically
             child: GestureDetector(
               onTap: () async {
