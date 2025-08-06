@@ -116,57 +116,68 @@ class CotmindBot {
     final scoredResults = <Map<String, dynamic>>[];
     bool usedFallback = false;
 
-    for (final word in keywords.take(5)) {
-      final snapshot = await firestore
-          .collection('reels')
-          .where('searchText', isGreaterThanOrEqualTo: word)
-          .where('searchText', isLessThanOrEqualTo: word + '\uf8ff')
-          .limit(50)
-          .get();
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        if (!seenVideos.contains(data['reelsVideo'])) {
-          final searchText =
-              (data['searchText'] ?? '').toString().toLowerCase();
-          int score = keywords.fold(0,
-              (sum, keyword) => searchText.contains(keyword) ? sum + 1 : sum);
-
-          scoredResults.add({'data': data, 'score': score});
-          seenVideos.add(data['reelsVideo']);
-        }
-      }
+    if (keywords.isEmpty) {
+      return {
+        'results': [],
+        'usedFallback': false,
+      };
     }
 
-    scoredResults.shuffle();
+    // Perform one single query using arrayContainsAny with searchKeywords
+    final snapshot = await firestore
+        .collection('reels')
+        .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
+        .limit(50)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final videoUrl = data['reelsVideo'];
+
+      if (videoUrl == null ||
+          seenVideos.contains(videoUrl) ||
+          excludeUrls.contains(videoUrl)) {
+        continue;
+      }
+
+      final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
+      int score = keywords.fold(0,
+          (sum, keyword) => searchKeywords.contains(keyword) ? sum + 1 : sum);
+
+      scoredResults.add({'data': data, 'score': score});
+      seenVideos.add(videoUrl);
+    }
+
+    // Sort results by score descending
     scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
 
-    for (var item in scoredResults) {
+    // Pick top 2
+    for (final item in scoredResults) {
       if (results.length >= 2) break;
       results.add(item['data']);
     }
 
-    if (results.isEmpty && keywords.isNotEmpty) {
+    // Optional fallback if no results found (using looser match)
+    if (results.isEmpty) {
       usedFallback = true;
 
-      final fallbackSnapshot = await firestore
-          .collection('reels')
-          .where('searchText', arrayContainsAny: keywords.take(10).toList())
-          .limit(50)
-          .get();
+      final fallbackSnapshot =
+          await firestore.collection('reels').limit(10).get();
 
       for (final doc in fallbackSnapshot.docs) {
         final data = doc.data();
-        if (!seenVideos.contains(data['reelsVideo'])) {
-          results.add(data);
-          seenVideos.add(data['reelsVideo']);
-        }
+        final videoUrl = data['reelsVideo'];
+        if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+
+        results.add(data);
+        seenVideos.add(videoUrl);
+
         if (results.length >= 2) break;
       }
     }
 
     return {
-      'results': results.take(2).toList(),
+      'results': results,
       'usedFallback': usedFallback,
     };
   }
@@ -575,11 +586,11 @@ class _CotmindChatState extends State<CotmindChat> {
               ? (AppConstants.currentUser.displayImage != null
                   ? CircleAvatar(
                       backgroundImage: AppConstants.currentUser.displayImage,
-                      radius: 29,
+                      radius: 19,
                     )
                   : Icon(
                       Icons.account_circle,
-                      size: 30,
+                      size: 20,
                       color: Colors.white,
                     ))
               : Container(), // or another widget for bot
