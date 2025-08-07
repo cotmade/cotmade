@@ -390,7 +390,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                             onPressed: () {
                                               Get.to(() => WebViewScreen(
                                                     url:
-                                                        "https://cotmade.com/campaign", // Or any external link
+                                                        "https://cotmade.com/campaign?uid=${AppConstants.currentUser.id}", // Or any external link
                                                     title: "Campaign",
                                                   ));
                                             },
