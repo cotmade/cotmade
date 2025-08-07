@@ -23,6 +23,9 @@ import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/guestScreens/document_upload_screen.dart';
 import 'package:cotmade/view/settings_screen.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:cotmade/view/webview_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -76,7 +79,7 @@ class _AccountScreenState extends State<AccountScreen> {
         });
       }
     } catch (e) {
-    //  Get.snackbar("Error", "Failed to fetch user data.");
+      //  Get.snackbar("Error", "Failed to fetch user data.");
       setState(() {
         _isLoading = false;
       });
@@ -318,34 +321,103 @@ class _AccountScreenState extends State<AccountScreen> {
                                     textAlign: TextAlign.center,
                                   ),
                                   const Spacer(),
-ElevatedButton(
-  onPressed: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Stay tuned!"),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  },
-  style: ElevatedButton.styleFrom(
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    ),
-  ),
-  child: Text(
-    "Stay Tuned",
-    style: TextStyle(
-      color: Colors.black,
-      fontSize: 10.0,
-    ),
-  ),
-),
-
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text("Stay tuned!"),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      "Stay Tuned",
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 10.0,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
+                        ),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('apps')
+                              .doc('dMB1JZPopW807a9yur4A')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return SizedBox(); // Show nothing while loading
+                            }
+
+                            if (snapshot.hasData) {
+                              final data = snapshot.data!.data()
+                                  as Map<String, dynamic>?;
+                              final advert = data?['advert'] ?? false;
+
+                              if (advert == true) {
+                                return SizedBox(
+                                  width: 160,
+                                  child: Card(
+                                    color: Color(0xcaf6f6f6),
+                                    shadowColor: Colors.black12,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(15),
+                                      child: Column(
+                                        children: [
+                                          Icon(
+                                            Icons.campaign,
+                                            size: 30,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            "Campaign \n view more options",
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const Spacer(),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Get.to(() => WebViewScreen(
+                                                    url:
+                                                        "https://cotmade.com/campaign", // Or any external link
+                                                    title: "Campaign",
+                                                  ));
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              "enter",
+                                              style: TextStyle(
+                                                  color: Colors.black),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+
+                            return SizedBox
+                                .shrink(); // Hide if advert is not true or document missing
+                          },
                         ),
                       ],
                     ),

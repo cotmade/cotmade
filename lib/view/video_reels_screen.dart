@@ -1437,6 +1437,9 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                         final String? linkUrl = widget
                                                 .videoData[
                                             'linkUrl']; // make sure this field exists
+                                        final int views =
+                                            widget.videoData['views'] ??
+                                                0; // Fetch views safely
                                         if (linkUrl != null &&
                                             linkUrl.isNotEmpty) {
                                           return GestureDetector(
@@ -1456,19 +1459,41 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                                     color: Colors.white,
                                                     width: 1.5),
                                               ),
-                                              child: Text(
-                                                'Visit',
-                                                style: TextStyle(
-                                                  color: Colors.pinkAccent,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                ),
+                                              child: Column(
+                                                children: [
+                                                  Text(
+                                                    'Visit',
+                                                    style: TextStyle(
+                                                      color: Colors.pinkAccent,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 3),
+                                                  Text(
+                                                    '$views views',
+                                                    style: TextStyle(
+                                                      color: Colors.pinkAccent,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           );
                                         } else {
-                                          return SizedBox
-                                              .shrink(); // No button if no link
+                                          final int views =
+                                              widget.videoData['views'] ?? 0;
+                                          return Text(
+                                            '$views views',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white70,
+                                            ),
+                                          ); // No button if no link
                                         }
                                       } else {
                                         return SizedBox

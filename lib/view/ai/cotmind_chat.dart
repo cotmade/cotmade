@@ -324,7 +324,6 @@ class _CotmindChatState extends State<CotmindChat> {
     _controller.clear();
     _scrollToBottom();
 
-    // Handle follow-up confirmation
     if (_awaitingMoreConfirmation) {
       _awaitingMoreConfirmation = false;
 
@@ -347,9 +346,9 @@ class _CotmindChatState extends State<CotmindChat> {
           excludeUrls: _seenVideoUrls.toList(),
         );
 
-        final videoSuggestions =
-            videoResult['results'] as List<Map<String, dynamic>>;
-        final usedFallback = videoResult['usedFallback'] as bool;
+        final List<Map<String, dynamic>> videoSuggestions =
+            videoResult['results'];
+        final bool usedFallback = videoResult['usedFallback'];
 
         setState(() {
           _isBotTyping = false;
@@ -368,7 +367,18 @@ class _CotmindChatState extends State<CotmindChat> {
           }
         });
 
-        _askIfUserWantsMore(videoSuggestions);
+        if (videoSuggestions.length == 2) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              _messages.add(ChatMessage(
+                message: _getMorePromptMessage(),
+                isUser: false,
+              ));
+              _awaitingMoreConfirmation = true;
+              _scrollToBottom();
+            });
+          });
+        }
       } else {
         setState(() {
           _isBotTyping = false;
@@ -382,16 +392,15 @@ class _CotmindChatState extends State<CotmindChat> {
       return;
     }
 
-    // New search
+    // Fresh search
     _lastQuery = trimmedInput;
     _followUpCount = 0;
     _seenVideoUrls.clear();
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
     final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
-    final videoSuggestions =
-        videoResult['results'] as List<Map<String, dynamic>>;
-    final usedFallback = videoResult['usedFallback'] as bool;
+    final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
+    final bool usedFallback = videoResult['usedFallback'];
 
     setState(() {
       _messages.add(ChatMessage(message: botReply, isUser: false));
@@ -411,22 +420,18 @@ class _CotmindChatState extends State<CotmindChat> {
       }
     });
 
-    _askIfUserWantsMore(videoSuggestions);
-  }
-
-  void _askIfUserWantsMore(List<Map<String, dynamic>> videoSuggestions) {
-    if (videoSuggestions.length < 2) return;
-
-    Future.delayed(const Duration(milliseconds: 300), () {
-      setState(() {
-        _messages.add(ChatMessage(
-          message: _getMorePromptMessage(),
-          isUser: false,
-        ));
-        _awaitingMoreConfirmation = true;
-        _scrollToBottom();
+    if (videoSuggestions.length == 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _messages.add(ChatMessage(
+            message: _getMorePromptMessage(),
+            isUser: false,
+          ));
+          _awaitingMoreConfirmation = true;
+          _scrollToBottom();
+        });
       });
-    });
+    }
   }
 
   Future<void> _addPostingData(
@@ -712,6 +717,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.network(widget.videoUrl)
+      ..setVolume(0.0) // 👈 Mute the video
       ..initialize().then((_) {
         setState(() {
           _initialized = true;
@@ -729,9 +735,11 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
   void _openFullVideo() {
     showDialog(
       context: context,
+      barrierDismissible: true, // <-- allow tapping outside to dismiss
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         child: GestureDetector(
+          behavior: HitTestBehavior.opaque, // <-- ensures all taps are detected
           onTap: () => Navigator.pop(context), // Close dialog when tapped
           child: Center(
             child: AspectRatio(
