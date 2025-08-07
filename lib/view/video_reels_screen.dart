@@ -471,7 +471,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       return;
     }
 
-    // Define common stop words to ignore
+    // Common stop words to ignore in search
     final stopWords = {
       'a',
       'about',
@@ -653,6 +653,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       'yourselves'
     };
 
+    // Filter out stop words
     final words = rawQuery
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty && !stopWords.contains(word))
@@ -661,10 +662,19 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
-        final searchText = (data['searchText'] ?? '').toLowerCase();
 
-        // Match if all query keywords exist in the searchText
-        return words.every((word) => searchText.contains(word));
+        // Handle searchText as a list
+        final List<dynamic> searchTextList = data['searchText'] ?? [];
+
+        // Lowercase all entries
+        final lowerSearchList = searchTextList
+            .whereType<String>()
+            .map((e) => e.toLowerCase())
+            .toList();
+
+        // Return true if all query words match at least one entry in the list
+        return words.every(
+            (word) => lowerSearchList.any((element) => element.contains(word)));
       }).toList();
     });
   }

@@ -59,7 +59,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
           ),
         ),
         title: Text(widget.title, style: TextStyle(color: Colors.black)),
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: Stack(
         children: [

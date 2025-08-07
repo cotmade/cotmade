@@ -13,6 +13,8 @@ import 'package:cotmade/model/contact_model.dart';
 import 'package:cotmade/global.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'dart:math';
+import 'package:cotmade/view/ai/api_config.dart';
+import 'dart:convert';
 
 class ChatMessage {
   final String message;
@@ -29,7 +31,7 @@ class ChatMessage {
 }
 
 class CotmindBot {
-  static const _cohereApiKey = 'eSjwajsYSr7KkI6UvHgPpmE4XcDSp2QjJU4v5R6g';
+  // final apiKey = await ApiConfig.getApiKey();
   static const _cohereEndpoint = 'https://api.cohere.ai/v1/generate';
 
   static List<String> extractKeywords(String input) {
@@ -77,17 +79,18 @@ class CotmindBot {
       return "❌ Input is empty or whitespace only.";
     }
 
+    final apiKey = await ApiConfig.getApiKey();
+
     final body = {
       "model": "command-light", // Match PHP model
       "prompt": "User: $trimmedInput\nBot:",
       "max_tokens": 100,
       "temperature": 0.8,
     };
-
     final res = await http.post(
       Uri.parse(_cohereEndpoint),
       headers: {
-        'Authorization': 'Bearer $_cohereApiKey',
+        'Authorization': 'Bearer $apiKey',
         'Content-Type': 'application/json',
       },
       body: jsonEncode(body),
