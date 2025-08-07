@@ -324,7 +324,7 @@ class _CotmindChatState extends State<CotmindChat> {
     _controller.clear();
     _scrollToBottom();
 
-    // Handle confirmation if awaiting user response for more
+    // Handle follow-up confirmation
     if (_awaitingMoreConfirmation) {
       _awaitingMoreConfirmation = false;
 
@@ -347,9 +347,9 @@ class _CotmindChatState extends State<CotmindChat> {
           excludeUrls: _seenVideoUrls.toList(),
         );
 
-        final List<Map<String, dynamic>> videoSuggestions =
-            videoResult['results'];
-        final bool usedFallback = videoResult['usedFallback'];
+        final videoSuggestions =
+            videoResult['results'] as List<Map<String, dynamic>>;
+        final usedFallback = videoResult['usedFallback'] as bool;
 
         setState(() {
           _isBotTyping = false;
@@ -366,18 +366,9 @@ class _CotmindChatState extends State<CotmindChat> {
             final postingId = video['postingId'];
             _addPostingData(postingId, video);
           }
-
-          // Ask again after showing next 2
-          if (videoSuggestions.length == 2) {
-            _messages.add(ChatMessage(
-              message: _getMorePromptMessage(),
-              isUser: false,
-            ));
-            _awaitingMoreConfirmation = true;
-          }
-
-          _scrollToBottom();
         });
+
+        _askIfUserWantsMore(videoSuggestions);
       } else {
         setState(() {
           _isBotTyping = false;
@@ -391,16 +382,16 @@ class _CotmindChatState extends State<CotmindChat> {
       return;
     }
 
-    // Fresh search
+    // New search
     _lastQuery = trimmedInput;
     _followUpCount = 0;
     _seenVideoUrls.clear();
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
-
     final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
-    final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
-    final bool usedFallback = videoResult['usedFallback'];
+    final videoSuggestions =
+        videoResult['results'] as List<Map<String, dynamic>>;
+    final usedFallback = videoResult['usedFallback'] as bool;
 
     setState(() {
       _messages.add(ChatMessage(message: botReply, isUser: false));
@@ -418,17 +409,23 @@ class _CotmindChatState extends State<CotmindChat> {
         final postingId = video['postingId'];
         _addPostingData(postingId, video);
       }
+    });
 
-      // Ask user if they want more
-      if (videoSuggestions.length == 2) {
+    _askIfUserWantsMore(videoSuggestions);
+  }
+
+  void _askIfUserWantsMore(List<Map<String, dynamic>> videoSuggestions) {
+    if (videoSuggestions.length < 2) return;
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      setState(() {
         _messages.add(ChatMessage(
           message: _getMorePromptMessage(),
           isUser: false,
         ));
         _awaitingMoreConfirmation = true;
-      }
-
-      _scrollToBottom();
+        _scrollToBottom();
+      });
     });
   }
 
