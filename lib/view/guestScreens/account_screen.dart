@@ -186,7 +186,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                   final data = snapshot.data!.data()
                                       as Map<String, dynamic>?;
 
-                                  final bool point = data?['point'] == true;
+                                  final bool point = data?['points'] == true;
 
                                   if (!point) {
                                     return SizedBox
@@ -341,7 +341,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             final data =
                                 snapshot.data!.data() as Map<String, dynamic>?;
                             final bool isVoucherAvailable =
-                                data?['voucher'] == true;
+                                data?['voucher'] == false;
 
                             return SizedBox(
                               width: 160,
@@ -395,7 +395,6 @@ class _AccountScreenState extends State<AccountScreen> {
                                               : "Enter",
                                           style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 10.0,
                                           ),
                                         ),
                                       ),

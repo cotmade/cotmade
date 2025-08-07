@@ -313,6 +313,27 @@ class _CotmindChatState extends State<CotmindChat> {
     return prompts[random.nextInt(prompts.length)];
   }
 
+  bool _isCasualGreeting(String input) {
+    final greetings = [
+      "hi",
+      "hello",
+      "hey",
+      "how are you",
+      "good morning",
+      "good afternoon",
+      "good evening",
+      "what's up",
+      "yo",
+      "howdy",
+      "can we talk",
+      "i love how you greet"
+          "greetings"
+    ];
+
+    final normalized = input.toLowerCase().trim();
+    return greetings.any((greet) => normalized == greet);
+  }
+
   void _handleSend(String input) async {
     if (input.trim().isEmpty) return;
 
@@ -401,7 +422,16 @@ class _CotmindChatState extends State<CotmindChat> {
     _seenVideoUrls.clear();
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
+    setState(() {
+      _messages.add(ChatMessage(message: botReply, isUser: false));
+      _isBotTyping = false;
+    });
+
+    if (_isCasualGreeting(trimmedInput)) return;
+
+// Continue with video search only if not a casual message
     final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
+
     final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
     final bool usedFallback = videoResult['usedFallback'];
 

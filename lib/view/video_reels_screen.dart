@@ -148,6 +148,18 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     return score;
   }
 
+  void _cleanupFarControllers(int centerIndex) {
+    final keysToRemove = _controllers.keys.where((index) {
+      return (index - centerIndex).abs() > 2;
+    }).toList();
+
+    for (final index in keysToRemove) {
+      final controller = _controllers.remove(index);
+      controller?.pause();
+      controller?.dispose();
+    }
+  }
+
   // Helper function to break consecutive Premium 5 and 6 videos
   void _breakConsecutivePremiums(List<DocumentSnapshot> videos) {
     for (int i = 1; i < videos.length; i++) {
@@ -757,40 +769,40 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       // Preload the current video (if not preloaded)
                       _preloadVideo(index);
 
+                      // 🔁 Preload nearby (optional)
+                      _preloadVideo(index + 1);
+                      _preloadVideo(index - 1);
+
+                      // 🧹 Dispose far-away controllers to prevent memory leaks
+                      _cleanupFarControllers(index);
+
                       // Play the current video
                       final controller = _controllers[index];
                       if (controller != null &&
                           controller.value.isInitialized) {
-                        // ✅ Set the volume based on premium and _isMuted
                         var videoData = _filteredVideos[index].data()
                             as Map<String, dynamic>;
-                        var premium = videoData['premium'] ??
-                            0; // Get premium from the video data
+                        var premium = videoData['premium'] ?? 0;
 
                         if (premium == 6) {
-                          // Ad with sound
                           controller.setVolume(1.0);
                         } else if (premium == 5) {
-                          // Ad without sound
                           controller.setVolume(0.0);
                         } else if (premium >= 3) {
-                          // Premium user content — respect mute toggle
                           controller.setVolume(_isMuted ? 0.0 : 1.0);
                         } else {
-                          // Free user content — always mute
                           controller.setVolume(0.0);
                         }
 
-                        // Play the current video
                         controller.play();
                       }
 
-                      // Play audio for the current video
+                      // Optionally play audio
                       final videoData =
                           _filteredVideos[index].data() as Map<String, dynamic>;
-                      //  _playAudio(index, videoData['audioName']);
+                      // _playAudio(index, videoData['audioName']);
 
-                      setState(() {}); // To update UI if needed
+                      setState(() {});
                     },
                     itemBuilder: (context, index) {
                       var videoData =
