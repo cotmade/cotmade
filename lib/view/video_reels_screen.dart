@@ -229,7 +229,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           return data['id'] == reelId;
         });
 
-        if (targetIndex != -1) {
+        if (targetIndex != -2) {
           initialPage = targetIndex;
           _currentIndex = targetIndex;
         }
@@ -241,7 +241,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       setState(() {});
 
       // Preload first few videos
-      for (int i = 0; i <= 1 && i < _filteredVideos.length; i++) {
+      for (int i = 0; i <= 2 && i < _filteredVideos.length; i++) {
         _preloadVideo(i);
       }
 
@@ -456,7 +456,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
-  String formatSearchQuery(String query) {
+  /* String formatSearchQuery(String query) {
     if (query.isEmpty) return query;
     return query[0].toUpperCase() + query.substring(1).toLowerCase();
   }
@@ -472,7 +472,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       amenities,
     ];
     return parts.whereType<String>().map((s) => s.toLowerCase()).join(' ');
-  }
+  }. */
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
@@ -666,10 +666,18 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     };
 
     // Filter out stop words
-    final words = rawQuery
+    if (rawQuery.isEmpty) {
+      setState(() {
+        _filteredVideos = _allVideos;
+      });
+      return;
+    }
+    /* final words = rawQuery
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty && !stopWords.contains(word))
-        .toList();
+        .toList(); */
+
+    final queryWords = rawQuery.split(RegExp(r'\s+'));
 
     setState(() {
       _filteredVideos = _allVideos.where((video) {
@@ -685,8 +693,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             .toList();
 
         // Return true if all query words match at least one entry in the list
-        return words.every(
-            (word) => lowerSearchList.any((element) => element.contains(word)));
+        return queryWords.any((word) =>
+            lowerSearchList.any((searchItem) => searchItem.contains(word)));
       }).toList();
     });
   }
@@ -770,8 +778,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       _preloadVideo(index);
 
                       // 🔁 Preload nearby (optional)
-                      _preloadVideo(index + 1);
-                      _preloadVideo(index - 1);
+                      _preloadVideo(index + 2);
+                      _preloadVideo(index - 2);
 
                       // 🧹 Dispose far-away controllers to prevent memory leaks
                       _cleanupFarControllers(index);

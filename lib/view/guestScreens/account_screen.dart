@@ -26,6 +26,7 @@ import 'package:cotmade/view/guestScreens/feedback_screen.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/webview_screen.dart';
+import 'dart:convert';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -46,6 +47,25 @@ class _AccountScreenState extends State<AccountScreen> {
   void initState() {
     super.initState();
     fetchUserData(); // Fetch user data on screen load
+  }
+
+  Future<int?> fetchPointsFromMySQL() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://cotmade.com/app/get_points.php'),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return jsonData['points'] as int?;
+      } else {
+        print('Error fetching points: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Exception: $e');
+      return null;
+    }
   }
 
   // Fetch the hosting status and other data from Firestore
@@ -175,8 +195,7 @@ class _AccountScreenState extends State<AccountScreen> {
                               StreamBuilder<DocumentSnapshot>(
                                 stream: FirebaseFirestore.instance
                                     .collection('apps')
-                                    .doc(
-                                        'WAsaVgCBsUmLyYz6x5kT') // replace with your actual doc ID
+                                    .doc('WAsaVgCBsUmLyYz6x5kT')
                                     .snapshots(),
                                 builder: (context, snapshot) {
                                   if (!snapshot.hasData) {
@@ -185,18 +204,32 @@ class _AccountScreenState extends State<AccountScreen> {
 
                                   final data = snapshot.data!.data()
                                       as Map<String, dynamic>?;
+                                  final bool pointFlag =
+                                      data?['points'] == true;
 
-                                  final bool point = data?['points'] == true;
-
-                                  if (!point) {
-                                    return SizedBox
-                                        .shrink(); // don't show anything if point is false or missing
+                                  if (!pointFlag) {
+                                    return SizedBox.shrink();
                                   }
 
-                                  // point == true, show email
-                                  return Text(
-                                    'Point: points',
-                                    style: const TextStyle(fontSize: 15),
+                                  // pointFlag == true, now fetch points from MySQL API
+                                  return FutureBuilder<int?>(
+                                    future:
+                                        fetchPointsFromMySQL(), // <-- your PHP API fetch function here
+                                    builder: (context, futureSnapshot) {
+                                      if (futureSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Text('Loading...',
+                                            style: TextStyle(fontSize: 15));
+                                      }
+                                      if (!futureSnapshot.hasData) {
+                                        return Text('Points: 0',
+                                            style: TextStyle(fontSize: 15));
+                                      }
+
+                                      final points = futureSnapshot.data!;
+                                      return Text('Points: $points',
+                                          style: TextStyle(fontSize: 15));
+                                    },
                                   );
                                 },
                               ),
