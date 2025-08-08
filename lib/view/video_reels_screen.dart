@@ -442,30 +442,63 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }. */
 
   // Function to handle search filtering based on postings data
-  void _filterVideos() {
-    final query = _searchController.text.toLowerCase().trim();
+  String formatSearchQuery(String query) {
+    if (query.isEmpty) return query;
+    return query[0].toUpperCase() + query.substring(1).toLowerCase();
+  }
 
-    if (query.isEmpty) {
+  // Function to handle search filtering based on postings data
+  Future<void> _filterVideos() async {
+    String queryText = formatSearchQuery(_searchController.text);
+    if (queryText.isEmpty) {
       setState(() {
-        _filteredVideos = _allVideos.where((video) {
-          final data = video.data() as Map<String, dynamic>;
-          final premium = data['premium'] ?? 0;
-          return premium != 0;
-        }).toList();
+        _filteredVideos = _allVideos; // Show all videos if query is empty
       });
       return;
     }
 
+    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
+    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('country', isGreaterThanOrEqualTo: queryText)
+        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
+
+    // Query for city as well
+    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('city', isGreaterThanOrEqualTo: queryText)
+        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
+
+    QuerySnapshot addressSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .where('address', isGreaterThanOrEqualTo: queryText)
+        .where('address', isLessThanOrEqualTo: queryText + '\uf8ff')
+        .get();
+
+    // Step 2: Get all matching postingIds from the postings collection
+    List<String> matchingPostingIds = [];
+    postingsSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
+
+    citySnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
+
+    addressSnapshot.docs.forEach((doc) {
+      var data = doc.data() as Map<String, dynamic>;
+      matchingPostingIds.add(data['id']);
+    });
+
+    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
-        final data = video.data() as Map<String, dynamic>;
-        final premium = data['premium'] ?? 0;
-        if (premium == 0) return false;
-
-        final List<dynamic> searchText = data['searchText'] ?? [];
-
-        return searchText
-            .any((item) => item.toString().toLowerCase().contains(query));
+        var videoData = video.data() as Map<String, dynamic>;
+        return matchingPostingIds.contains(videoData['postingId']);
       }).toList();
     });
   }
@@ -637,7 +670,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 style: TextStyle(
                     color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
-                  hintText: 'Find cots by city, type, or features..',
+                  hintText: 'Find cots by city, state or country',
                   hintStyle: TextStyle(
                       color: Colors.white60), // Lighter color for hint text
                   filled: true,
