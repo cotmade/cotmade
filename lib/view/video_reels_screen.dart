@@ -449,7 +449,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   // Function to handle search filtering based on postings data
   Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text);
+    String queryText = formatSearchQuery(_searchController.text)
+        .toLowerCase(); // Ensure the query is lowercase
+
     if (queryText.isEmpty) {
       setState(() {
         _filteredVideos = _allVideos; // Show all videos if query is empty
@@ -464,7 +466,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
         .get();
 
-    // Query for city as well
     QuerySnapshot citySnapshot = await FirebaseFirestore.instance
         .collection('postings')
         .where('city', isGreaterThanOrEqualTo: queryText)
@@ -479,26 +480,27 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     // Step 2: Get all matching postingIds from the postings collection
     List<String> matchingPostingIds = [];
-    postingsSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
 
-    citySnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+    // Extract posting IDs for matching country, city, and address
+    void extractPostingIds(QuerySnapshot snapshot) {
+      snapshot.docs.forEach((doc) {
+        var data = doc.data() as Map<String, dynamic>;
+        matchingPostingIds.add(data['id']);
+      });
+    }
 
-    addressSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+    extractPostingIds(postingsSnapshot);
+    extractPostingIds(citySnapshot);
+    extractPostingIds(addressSnapshot);
 
     // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         var videoData = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(videoData['postingId']);
+        var videoPostingId = videoData['postingId'];
+
+        // Check if the video postingId is in the list of matchingPostingIds
+        return matchingPostingIds.contains(videoPostingId);
       }).toList();
     });
   }
