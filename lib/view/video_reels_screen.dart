@@ -56,6 +56,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    // Listen to search input changes to update filtered videos dynamically
+    _searchController.addListener(() {
+      _filterVideos();
+    });
     _loadUserProfile().then((_) {
       _loadVideos();
     }); // Load videos from Firestore initially
@@ -448,59 +452,28 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Function to handle search filtering based on postings data
-  Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text)
-        .toLowerCase(); // Ensure the query is lowercase
+  void _filterVideos() {
+    final query = _searchController.text.toLowerCase().trim();
 
-    if (queryText.isEmpty) {
+    if (query.isEmpty) {
       setState(() {
-        _filteredVideos = _allVideos; // Show all videos if query is empty
+        _filteredVideos = List.from(_allVideos);
       });
       return;
     }
 
-    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('country', isGreaterThanOrEqualTo: queryText)
-        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('city', isGreaterThanOrEqualTo: queryText)
-        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    QuerySnapshot addressSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('address', isGreaterThanOrEqualTo: queryText)
-        .where('address', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
-
-    // Step 2: Get all matching postingIds from the postings collection
-    List<String> matchingPostingIds = [];
-
-    // Extract posting IDs for matching country, city, and address
-    void extractPostingIds(QuerySnapshot snapshot) {
-      snapshot.docs.forEach((doc) {
-        var data = doc.data() as Map<String, dynamic>;
-        matchingPostingIds.add(data['id']);
-      });
-    }
-
-    extractPostingIds(postingsSnapshot);
-    extractPostingIds(citySnapshot);
-    extractPostingIds(addressSnapshot);
-
-    // Step 3: Filter the cached videos based on the matching postingIds
     setState(() {
       _filteredVideos = _allVideos.where((video) {
-        var videoData = video.data() as Map<String, dynamic>;
-        var videoPostingId = videoData['postingId'];
+        final data = video.data() as Map<String, dynamic>;
+        final List<dynamic> searchTextList = data['searchText'] ?? [];
 
-        // Check if the video postingId is in the list of matchingPostingIds
-        return matchingPostingIds.contains(videoPostingId);
+        // Defensive: ensure searchTextList is list of strings
+        final List<String> keywords = searchTextList
+            .map((item) => item.toString().toLowerCase())
+            .toList();
+
+        // Check if query is substring of any keyword in the list
+        return keywords.any((keyword) => keyword.contains(query));
       }).toList();
     });
   }
