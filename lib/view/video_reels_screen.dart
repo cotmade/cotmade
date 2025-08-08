@@ -442,28 +442,24 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }. */
 
   // Function to handle search filtering based on postings data
-  Future<void> _filterVideos() async {
-    final rawQuery = _searchController.text.toLowerCase().trim();
+  void _filterVideos() {
+    final query = _searchController.text.toLowerCase().trim();
 
-    if (rawQuery.isEmpty) {
-      setState(() => _filteredVideos = _allVideos);
+    if (query.isEmpty) {
+      setState(() {
+        _filteredVideos = List.from(_allVideos); // Show all videos
+      });
       return;
     }
-
-    final queryWords = rawQuery.split(RegExp(r'\s+'));
 
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
-        final searchTextList = data['searchText'] ?? [];
 
-        final searchable = (searchTextList as List<dynamic>)
-            .whereType<String>()
-            .map((s) => s.toLowerCase())
-            .toList();
+        final List<dynamic> searchText = data['searchText'] ?? [];
 
-        return queryWords.any((word) =>
-            searchable.any((searchItem) => searchItem.contains(word)));
+        return searchText
+            .any((item) => item.toString().toLowerCase().contains(query));
       }).toList();
     });
   }
