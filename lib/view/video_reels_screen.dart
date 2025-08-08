@@ -253,7 +253,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Function to preload videos from the cacheimages
-  void _preloadVideo(int index) async {
+  Future<void> _preloadVideo(int index) async {
     if (index < 0 ||
         index >= _filteredVideos.length ||
         _controllers.containsKey(index)) return;
@@ -261,69 +261,36 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     var videoData = _filteredVideos[index].data() as Map<String, dynamic>;
     var videoUrl = videoData['reelsVideo'];
     var audioName = videoData['audioName'];
-    var premium = videoData['premium'] ?? 0; // ✅ Get premium from reels doc
+    var premium = videoData['premium'] ?? 0;
 
-    final filePath = await _cacheVideo(videoUrl); // Cache video
+    final filePath = await _cacheVideo(videoUrl);
     if (filePath != null) {
       final controller = VideoPlayerController.file(File(filePath));
       _controllers[index] = controller;
 
       await controller.initialize();
       controller.setLooping(true);
-      // ✅ Volume control based on premium
-      if (controller.value.isInitialized) {
-        // Ensure volume is set based on premium and mute status
-        if (premium == 6) {
-          // Advert with sound
-          controller.setVolume(1.0);
-        } else if (premium == 5) {
-          // Advert without sound
-          controller.setVolume(0.0);
-        } else if (premium == 3) {
-          // Regular premium content
-          controller.setVolume(1.0);
-        } else {
-          // Non-premium: no video sound
-          controller.setVolume(0.0);
-        }
 
-        // Play the video
-        controller.play();
+      // Set volume based on premium (mute or unmute)
+      if (premium == 6) {
+        controller.setVolume(1.0);
+      } else if (premium == 5) {
+        controller.setVolume(0.0);
+      } else if (premium >= 3) {
+        controller.setVolume(_isMuted ? 0.0 : 1.0);
+      } else {
+        controller.setVolume(0.0);
       }
 
-      // controller.setVolume(0.0); // Muting video sound
-      // Stop previous audio if any
-      //  _stopAudioForPreviousVideo(index);
+      // Don't call play here! Let onPageChanged handle playing.
 
-      // Play the audio from the assets
-      // Play the audio from the assets
-      if (premium < 3 && audioName != null && audioName.isNotEmpty) {
-        //   _playAudio(index, audioName);
-      }
+      // Optionally, prepare audio logic here if needed:
+      // if (premium < 3 && audioName != null && audioName.isNotEmpty) {
+      //   _playAudio(index, audioName);
+      // }
 
-      setState(() {});
-
-      if (index == _currentIndex) {
-        Future.delayed(Duration(milliseconds: 300), () {
-          controller.play();
-        });
-      }
-
-      // Add listener to stop audio when video ends
-      //   controller.addListener(() {
-      //    if (!controller.value.isPlaying) {
-      // Stop the audio when the video finishes
-      //      _audioPlayers[index]?.stop();
-      //    }
-      //  });
-
-      // Add another listener to pause audio when video pauses
-      //  controller.addListener(() {
-      //   if (controller.value.position == controller.value.duration) {
-      //     _audioPlayers[index]?.stop();
+      setState(() {}); // Notify UI that video is ready
     }
-    //  });
-    //  }
   }
 
   Future<void> _incrementViewCountIfNeeded(String videoDocId) async {
@@ -483,218 +450,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       return;
     }
 
-    // Common stop words to ignore in search
-    final stopWords = {
-      'a',
-      'about',
-      'above',
-      'after',
-      'again',
-      'against',
-      'all',
-      'am',
-      'an',
-      'and',
-      'any',
-      'are',
-      'aren’t',
-      'as',
-      'at',
-      'be',
-      'because',
-      'been',
-      'before',
-      'being',
-      'below',
-      'between',
-      'both',
-      'but',
-      'by',
-      'can',
-      'can’t',
-      'cannot',
-      'could',
-      'couldn’t',
-      'did',
-      'didn’t',
-      'do',
-      'does',
-      'doesn’t',
-      'doing',
-      'don’t',
-      'down',
-      'during',
-      'each',
-      'few',
-      'for',
-      'from',
-      'further',
-      'had',
-      'hadn’t',
-      'has',
-      'hasn’t',
-      'have',
-      'haven’t',
-      'having',
-      'he',
-      'he’d',
-      'he’ll',
-      'he’s',
-      'her',
-      'here',
-      'here’s',
-      'hers',
-      'herself',
-      'him',
-      'himself',
-      'his',
-      'how',
-      'how’s',
-      'i',
-      'i’d',
-      'i’ll',
-      'i’m',
-      'i’ve',
-      'if',
-      'in',
-      'into',
-      'is',
-      'isn’t',
-      'it',
-      'it’s',
-      'its',
-      'itself',
-      'let’s',
-      'me',
-      'more',
-      'most',
-      'mustn’t',
-      'my',
-      'myself',
-      'need',
-      'no',
-      'nor',
-      'not',
-      'of',
-      'off',
-      'on',
-      'once',
-      'only',
-      'or',
-      'other',
-      'ought',
-      'our',
-      'ours',
-      'ourselves',
-      'out',
-      'over',
-      'own',
-      'same',
-      'shan’t',
-      'she',
-      'she’d',
-      'she’ll',
-      'she’s',
-      'should',
-      'shouldn’t',
-      'so',
-      'some',
-      'such',
-      'than',
-      'that',
-      'that’s',
-      'the',
-      'their',
-      'theirs',
-      'them',
-      'themselves',
-      'then',
-      'there',
-      'there’s',
-      'these',
-      'they',
-      'they’d',
-      'they’ll',
-      'they’re',
-      'they’ve',
-      'this',
-      'those',
-      'through',
-      'to',
-      'too',
-      'under',
-      'until',
-      'up',
-      'very',
-      'want',
-      'was',
-      'wasn’t',
-      'we',
-      'we’d',
-      'we’ll',
-      'we’re',
-      'we’ve',
-      'were',
-      'weren’t',
-      'what',
-      'what’s',
-      'when',
-      'when’s',
-      'where',
-      'where’s',
-      'which',
-      'while',
-      'who',
-      'who’s',
-      'whom',
-      'why',
-      'why’s',
-      'will',
-      'with',
-      'won’t',
-      'would',
-      'wouldn’t',
-      'you',
-      'you’d',
-      'you’ll',
-      'you’re',
-      'you’ve',
-      'your',
-      'yours',
-      'yourself',
-      'yourselves'
-    };
-
-    // Filter out stop words
-    if (rawQuery.isEmpty) {
-      setState(() {
-        _filteredVideos = _allVideos;
-      });
-      return;
-    }
-    /* final words = rawQuery
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty && !stopWords.contains(word))
-        .toList(); */
-
     final queryWords = rawQuery.split(RegExp(r'\s+'));
 
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
+        final searchTextList = data['searchText'] ?? [];
 
-        // Handle searchText as a list
-        final List<dynamic> searchTextList = data['searchText'] ?? [];
-
-        // Lowercase all entries
-        final lowerSearchList = searchTextList
+        final searchable = (searchTextList as List<dynamic>)
             .whereType<String>()
-            .map((e) => e.toLowerCase())
+            .map((s) => s.toLowerCase())
             .toList();
 
-        // Return true if all query words match at least one entry in the list
         return queryWords.any((word) =>
-            lowerSearchList.any((searchItem) => searchItem.contains(word)));
+            searchable.any((searchItem) => searchItem.contains(word)));
       }).toList();
     });
   }
@@ -774,20 +543,28 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                       _incrementViewCountIfNeeded(_filteredVideos[index].id);
 
-                      // Preload the current video (if not preloaded)
-                      _preloadVideo(index);
+                      // Preload the current video
+                      await _preloadVideo(index); // ✅ Wait for preload
 
-                      // 🔁 Preload nearby (optional)
-                      _preloadVideo(index + 2);
-                      _preloadVideo(index - 2);
+                      // Optionally preload nearby
+                      _preloadVideo(index + 1);
+                      _preloadVideo(index - 1);
 
-                      // 🧹 Dispose far-away controllers to prevent memory leaks
                       _cleanupFarControllers(index);
 
-                      // Play the current video
+                      // Play the current video after ensuring it's initialized
                       final controller = _controllers[index];
-                      if (controller != null &&
-                          controller.value.isInitialized) {
+
+                      if (controller != null) {
+                        if (!controller.value.isInitialized) {
+                          try {
+                            await controller.initialize();
+                          } catch (e) {
+                            print("Failed to initialize controller: $e");
+                            return;
+                          }
+                        }
+
                         var videoData = _filteredVideos[index].data()
                             as Map<String, dynamic>;
                         var premium = videoData['premium'] ?? 0;
@@ -804,11 +581,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                         controller.play();
                       }
-
-                      // Optionally play audio
-                      final videoData =
-                          _filteredVideos[index].data() as Map<String, dynamic>;
-                      // _playAudio(index, videoData['audioName']);
 
                       setState(() {});
                     },
