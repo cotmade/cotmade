@@ -447,7 +447,11 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     if (query.isEmpty) {
       setState(() {
-        _filteredVideos = List.from(_allVideos); // Show all videos
+        _filteredVideos = _allVideos.where((video) {
+          final data = video.data() as Map<String, dynamic>;
+          final premium = data['premium'] ?? 0;
+          return premium != 0;
+        }).toList();
       });
       return;
     }
@@ -455,6 +459,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
+        final premium = data['premium'] ?? 0;
+        if (premium == 0) return false;
 
         final List<dynamic> searchText = data['searchText'] ?? [];
 
