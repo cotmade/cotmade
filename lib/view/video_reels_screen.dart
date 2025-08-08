@@ -229,7 +229,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           return data['id'] == reelId;
         });
 
-        if (targetIndex != -2) {
+        if (targetIndex != -1) {
           initialPage = targetIndex;
           _currentIndex = targetIndex;
         }
@@ -241,7 +241,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       setState(() {});
 
       // Preload first few videos
-      for (int i = 0; i <= 2 && i < _filteredVideos.length; i++) {
+      for (int i = 0; i <= 1 && i < _filteredVideos.length; i++) {
         _preloadVideo(i);
       }
 
