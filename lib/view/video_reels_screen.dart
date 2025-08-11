@@ -457,7 +457,11 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     if (query.isEmpty) {
       setState(() {
-        _filteredVideos = List.from(_allVideos);
+        _filteredVideos = _allVideos.where((video) {
+          final data = video.data() as Map<String, dynamic>;
+          final premium = data['premium'] ?? 0;
+          return premium > 0 && premium <= 3;
+        }).toList();
       });
       return;
     }
@@ -465,14 +469,16 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
+        final premium = data['premium'] ?? 0;
+
+        if (premium == 0 || premium > 3) return false; // 💡 Filter non-target
+
         final List<dynamic> searchTextList = data['searchText'] ?? [];
 
-        // Defensive: ensure searchTextList is list of strings
         final List<String> keywords = searchTextList
             .map((item) => item.toString().toLowerCase())
             .toList();
 
-        // Check if query is substring of any keyword in the list
         return keywords.any((keyword) => keyword.contains(query));
       }).toList();
     });
