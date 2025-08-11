@@ -40,7 +40,7 @@ class VideoReelsPage extends StatefulWidget {
 
 class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
-  List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cache
+  List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cach
   List<DocumentSnapshot> _filteredVideos = [];
   Map<int, VideoPlayerController> _controllers = {};
   Map<int, AudioPlayer> _audioPlayers = {};
