@@ -460,31 +460,30 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         _filteredVideos = _allVideos.where((video) {
           final data = video.data() as Map<String, dynamic>;
           final premium = data['premium'] ?? 0;
-          return premium > 0 && premium <= 3;
+          return premium > 0;
         }).toList();
       });
       return;
     }
 
-    // Split the search query into words
-    final queryWords = query.split(' ').where((w) => w.isNotEmpty).toList();
+    final queryWords =
+        query.split(RegExp(r'\s+')).map((e) => e.trim()).toList();
 
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
         final premium = data['premium'] ?? 0;
 
-        if (premium == 0 || premium > 3) return false;
+        if (premium == 0) return false;
 
-        final List<dynamic> searchTextList = data['searchText'] ?? [];
+        final List<String> keywords = (data['searchText'] as List?)
+                ?.map((e) => e.toString().toLowerCase())
+                .toList() ??
+            [];
 
-        final List<String> keywords = searchTextList
-            .map((item) => item.toString().toLowerCase())
-            .toList();
-
-        // ✅ Match any word in the query with any keyword
-        return queryWords
-            .any((word) => keywords.any((keyword) => keyword.contains(word)));
+        return queryWords.any((word) =>
+            keywords.contains(word) ||
+            keywords.any((k) => k.contains(word))); // More flexible
       }).toList();
     });
   }
