@@ -466,12 +466,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       return;
     }
 
+    // Split the search query into words
+    final queryWords = query.split(' ').where((w) => w.isNotEmpty).toList();
+
     setState(() {
       _filteredVideos = _allVideos.where((video) {
         final data = video.data() as Map<String, dynamic>;
         final premium = data['premium'] ?? 0;
 
-        if (premium == 0 || premium > 3) return false; // 💡 Filter non-target
+        if (premium == 0 || premium > 3) return false;
 
         final List<dynamic> searchTextList = data['searchText'] ?? [];
 
@@ -479,7 +482,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             .map((item) => item.toString().toLowerCase())
             .toList();
 
-        return keywords.any((keyword) => keyword.contains(query));
+        // ✅ Match any word in the query with any keyword
+        return queryWords
+            .any((word) => keywords.any((keyword) => keyword.contains(word)));
       }).toList();
     });
   }
