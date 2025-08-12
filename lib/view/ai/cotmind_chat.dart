@@ -642,6 +642,7 @@ class _CotmindChatState extends State<CotmindChat> {
         videoUrl: msg.videoUrl!,
         caption: msg.message,
         posting: msg.posting!,
+        postId: msg.posting!.id ?? '', // Pass postId here
       ),
     );
   }
@@ -731,11 +732,13 @@ class VideoPreviewCard extends StatefulWidget {
   final String caption;
   final PostingModel
       posting; // Adding PostingModel for passing to ViewPostingScreen
+  final String postId; // Add this field
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
     required this.posting, // Accept PostingModel as a parameter
+    required this.postId,
   });
 
   @override
@@ -766,6 +769,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
 
   // Method to open the full-screen video
   void _openFullVideo() {
+    _incrementVideoViews();
     showDialog(
       context: context,
       barrierDismissible: true, // <-- allow tapping outside to dismiss
@@ -791,6 +795,21 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
 
     // Play the video when the modal opens
     _controller.play();
+  }
+
+  void _incrementVideoViews() async {
+    try {
+      final docRef =
+          FirebaseFirestore.instance.collection('reels').doc(widget.postId);
+
+      await docRef.update({
+        'views': FieldValue.increment(1),
+      });
+
+      print("✅ Incremented view count for ${widget.postId}");
+    } catch (e) {
+      print("❌ Failed to increment views: $e");
+    }
   }
 
   @override
@@ -820,8 +839,8 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
                     child: Center(child: CircularProgressIndicator()),
                   ),
           ),
-          SizedBox(height: 4),
-          Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 2),
+          //  Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
 
           // "Book Now" Button at the bottom center
           Padding(

@@ -712,15 +712,15 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 crossAxisAlignment: CrossAxisAlignment
                     .center, // Align items in the middle horizontally
                 children: [
-                  Image.asset(
-                    'images/assistant.png',
-                    height: 50,
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: CircleAvatar(child: Icon(Icons.smart_toy)),
                   ),
                   //SizedBox(height: 6), // Add spacing between image and text
                   Text(
                     "Ask AI",
                     style: TextStyle(
-                      color: Color(0xFFFAA111),
+                      color: Colors.pinkAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
