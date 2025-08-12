@@ -23,6 +23,10 @@ import 'package:cotmade/view/login_screen.dart';
 import 'package:cotmade/view/guestScreens/document_upload_screen.dart';
 import 'package:cotmade/view/settings_screen.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:cotmade/view/webview_screen.dart';
+import 'dart:convert';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -43,6 +47,25 @@ class _AccountScreenState extends State<AccountScreen> {
   void initState() {
     super.initState();
     fetchUserData(); // Fetch user data on screen load
+  }
+
+  Future<int?> fetchPointsFromMySQL() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://cotmade.com/app/get_points.php'),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return jsonData['points'] as int?;
+      } else {
+        print('Error fetching points: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Exception: $e');
+      return null;
+    }
   }
 
   // Fetch the hosting status and other data from Firestore
@@ -76,7 +99,7 @@ class _AccountScreenState extends State<AccountScreen> {
         });
       }
     } catch (e) {
-    //  Get.snackbar("Error", "Failed to fetch user data.");
+      //  Get.snackbar("Error", "Failed to fetch user data.");
       setState(() {
         _isLoading = false;
       });
@@ -168,6 +191,47 @@ class _AccountScreenState extends State<AccountScreen> {
                               Text(
                                 AppConstants.currentUser.email.toString(),
                                 style: const TextStyle(fontSize: 15),
+                              ),
+                              StreamBuilder<DocumentSnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('apps')
+                                    .doc('WAsaVgCBsUmLyYz6x5kT')
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return SizedBox.shrink();
+                                  }
+
+                                  final data = snapshot.data!.data()
+                                      as Map<String, dynamic>?;
+                                  final bool pointFlag =
+                                      data?['points'] == true;
+
+                                  if (!pointFlag) {
+                                    return SizedBox.shrink();
+                                  }
+
+                                  // pointFlag == true, now fetch points from MySQL API
+                                  return FutureBuilder<int?>(
+                                    future:
+                                        fetchPointsFromMySQL(), // <-- your PHP API fetch function here
+                                    builder: (context, futureSnapshot) {
+                                      if (futureSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Text('Loading...',
+                                            style: TextStyle(fontSize: 15));
+                                      }
+                                      if (!futureSnapshot.hasData) {
+                                        return Text('Points: 0',
+                                            style: TextStyle(fontSize: 15));
+                                      }
+
+                                      final points = futureSnapshot.data!;
+                                      return Text('Points: $points',
+                                          style: TextStyle(fontSize: 15));
+                                    },
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -299,57 +363,153 @@ class _AccountScreenState extends State<AccountScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(
-                          width: 160,
-                          child: Card(
-                            color: Color(0xcaf6f6f6),
-                            shadowColor: Colors.black12,
-                            child: Padding(
-                              padding: const EdgeInsets.all(15),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.free_breakfast,
-                                    size: 30,
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    "Claim one-time breakfast voucher",
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const Spacer(),
-ElevatedButton(
-  onPressed: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Stay tuned!"),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  },
-  style: ElevatedButton.styleFrom(
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    ),
-  ),
-  child: Text(
-    "Stay Tuned",
-    style: TextStyle(
-      color: Colors.black,
-      fontSize: 10.0,
-    ),
-  ),
-),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('apps')
+                              .doc('dGZh6Or6jGsUmwTR7j4G') // Your document ID
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return SizedBox.shrink();
 
-                                ],
+                            final data =
+                                snapshot.data!.data() as Map<String, dynamic>?;
+                            final bool isVoucherAvailable =
+                                data?['voucher'] == false;
+
+                            return SizedBox(
+                              width: 160,
+                              child: Card(
+                                color: const Color(0xcaf6f6f6),
+                                shadowColor: Colors.black12,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(15),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.free_breakfast,
+                                        size: 30,
+                                      ),
+                                      SizedBox(height: 10),
+                                      Text(
+                                        "Claim one-time breakfast voucher",
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const Spacer(),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          if (isVoucherAvailable) {
+                                            // If voucher is active
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text("Stay tuned!"),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          } else {
+                                            // Navigate to WebViewScreen
+                                            Get.to(() => WebViewScreen(
+                                                  url:
+                                                      "https://cotmade.com/voucher?uid=${AppConstants.currentUser.id}", // your target URL
+                                                  title: "Breakfast Voucher",
+                                                ));
+                                          }
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          isVoucherAvailable
+                                              ? "Stay Tuned"
+                                              : "Enter",
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
+                       /* StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('apps')
+                              .doc('dMB1JZPopW807a9yur4A')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return SizedBox(); // Show nothing while loading
+                            }
+
+                            if (snapshot.hasData) {
+                              final data = snapshot.data!.data()
+                                  as Map<String, dynamic>?;
+                              final advert = data?['advert'] ?? false;
+
+                              if (advert == true) {
+                                return SizedBox(
+                                  width: 160,
+                                  child: Card(
+                                    color: Color(0xcaf6f6f6),
+                                    shadowColor: Colors.black12,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(15),
+                                      child: Column(
+                                        children: [
+                                          Icon(
+                                            Icons.campaign,
+                                            size: 30,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            "Campaign \n view more options",
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const Spacer(),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Get.to(() => WebViewScreen(
+                                                    url:
+                                                        "https://cotmade.com/campaign?uid=${AppConstants.currentUser.id}", // Or any external link
+                                                    title: "Campaign",
+                                                  ));
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              "enter",
+                                              style: TextStyle(
+                                                  color: Colors.black),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+
+                            return SizedBox
+                                .shrink(); // Hide if advert is not true or document missing
+                          },
+                        ), */ 
                       ],
-                    ),
-                  ),
+                    ), 
+                  ), 
 
                   // Buttons section (Personal info, change hosting, FAQ, Logout)
                   ListView(

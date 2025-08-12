@@ -1,28 +1,74 @@
-import 'package:cotmade/model/posting_model.dart';
-import 'package:cotmade/view/view_posting_screen.dart';
-import 'package:cotmade/view/widgets/posting_grid_tile_ui.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:cotmade/view/unregisteredScreens/view_post_screen.dart';
-import 'package:cotmade/view/widgets/posting_grid2_tile_ui.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:flutter_html/flutter_html.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
-// New screen for displaying HTML content
-class HTMLScreen extends StatelessWidget {
+class WebViewScreen extends StatefulWidget {
   final String url;
+  final String title;
+  WebViewScreen({required this.url, required this.title});
 
-  HTMLScreen({required this.url});
+  @override
+  State<WebViewScreen> createState() => _WebViewScreenState();
+}
+
+class _WebViewScreenState extends State<WebViewScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true; // Track loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('HTML Content')),
-      body: SingleChildScrollView(
-        child: Html(
-          data: '<a href="$url">$url</a>',
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white,
+                Colors.white,
+              ],
+              begin: FractionalOffset(0, 0),
+              end: FractionalOffset(1, 0),
+              stops: [0, 1],
+              tileMode: TileMode.clamp,
+            ),
+          ),
         ),
+        title: Text(widget.title, style: TextStyle(color: Colors.black)),
+        iconTheme: IconThemeData(color: Colors.black),
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            Center(
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
     );
   }

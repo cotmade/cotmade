@@ -24,13 +24,17 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/global.dart';
-
-final GlobalKey<_VideoReelsPageState> VideoReelsPageKey =
-    GlobalKey<_VideoReelsPageState>();
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:cotmade/view/webview_screen.dart';
+import 'package:cotmade/view/ai/cotmind_chat.dart';
+import 'package:image/image.dart' as img;
 
 class VideoReelsPage extends StatefulWidget {
-  VideoReelsPage({Key? key}) : super(key: key);
+  final String? reelId;
 
+  const VideoReelsPage({this.reelId, Key? key}) : super(key: key);
   @override
   _VideoReelsPageState createState() => _VideoReelsPageState();
 }
@@ -46,33 +50,207 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   bool _isSearchVisible = false;
   TextEditingController _searchController = TextEditingController();
   Set<String> _viewedVideoIds = {};
+  final cacheManager = DefaultCacheManager(); // Cache manager forr videos
+  final user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _loadVideos(); // Load videos from Firestore initially
+    _searchController.addListener(() {
+      _filterVideos();
+    });
+    _loadUserProfile().then((_) {
+      _loadVideos();
+    }); // Load videos from Firestore initially
+  }
+
+  Map<String, dynamic>? _userProfile;
+
+  Future<void> _loadUserProfile() async {
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users') // or your users collection name
+        .doc(user!.uid)
+        .get();
+
+    if (doc.exists) {
+      _userProfile = doc.data();
+    }
+  }
+
+  double computeScore(Map<String, dynamic> data) {
+    final views = (data['views'] ?? 0).toDouble();
+    final likes = (data['likes'] ?? 0).toDouble();
+    final premium = (data['premium'] ?? 0).toDouble();
+    final createdAt = (data['time'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final city = data['city'] ?? '';
+    final country = data['country'] ?? '';
+    final videoId = data['id'] ?? '';
+
+    double watchRatio = 1.0;
+
+    int hoursSincePost = DateTime.now().difference(createdAt).inHours;
+    int daysSincePost = DateTime.now().difference(createdAt).inDays;
+    double freshnessScore = 1 / (1 + hoursSincePost);
+
+    // 🌟 NEW LISTING BOOST: Time-decayed + Engagement-aware
+    double newListingBoost = 1.0;
+
+    if (daysSincePost <= 14) {
+      // Time decay: from 1.3 → 1.0 over 14 days
+      double decayFactor = 1.3 - (0.3 * (daysSincePost / 14.0)).clamp(0.0, 1.0);
+
+      // Engagement boost: use like/view ratio
+      double engagementScore =
+          (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
+
+      if (engagementScore >= 0.3) {
+        newListingBoost = decayFactor;
+      } else if (engagementScore >= 0.1) {
+        newListingBoost = decayFactor * 0.9;
+      } else {
+        newListingBoost = decayFactor * 0.7;
+      }
+    }
+
+    // 🔼 Premium boost
+    double premiumBoost = 0.0;
+    if (premium == 6) {
+      premiumBoost = 1.2;
+    } else if (premium == 5) {
+      premiumBoost = 1.0;
+    } else if (premium == 3 && views < 500) {
+      premiumBoost = 0.25;
+    }
+    premiumBoost *= freshnessScore * 2;
+
+    // 📍 User location match
+    double userMatchScore = 0;
+    if (_userProfile != null) {
+      final userCountry = _userProfile!['country'] ?? '';
+      final userCity = _userProfile!['city'] ?? '';
+      if (userCountry == country || userCity == city) {
+        userMatchScore = 1.0;
+      }
+    }
+
+    // 👁️ Viewed penalty
+    double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
+
+    // 📊 Base score
+    double score = (views * 0.2) +
+        (likes * 0.25) +
+        (watchRatio * 0.2) +
+        (freshnessScore * 0.15) +
+        (premium * 0.1) +
+        (userMatchScore * 0.1);
+
+    score = (score + premiumBoost) * newListingBoost * viewedPenalty;
+
+    return score;
+  }
+
+  void _cleanupFarControllers(int centerIndex) {
+    final keysToRemove = _controllers.keys.where((index) {
+      return (index - centerIndex).abs() > 2;
+    }).toList();
+
+    for (final index in keysToRemove) {
+      final controller = _controllers.remove(index);
+      controller?.pause();
+      controller?.dispose();
+    }
+  }
+
+  // Helper function to break consecutive Premium 5 and 6 videos
+  void _breakConsecutivePremiums(List<DocumentSnapshot> videos) {
+    for (int i = 1; i < videos.length; i++) {
+      final current = videos[i].data() as Map<String, dynamic>;
+      final previous = videos[i - 1].data() as Map<String, dynamic>;
+
+      final currentPremium = current['premium'] ?? 0;
+      final previousPremium = previous['premium'] ?? 0;
+
+      // If both are 5 or 6, try to swap current with a lower-premium video further down
+      if ((currentPremium == 5 || currentPremium == 6) &&
+          (previousPremium == 5 || previousPremium == 6)) {
+        for (int j = i + 1; j < videos.length; j++) {
+          final future = videos[j].data() as Map<String, dynamic>;
+          final futurePremium = future['premium'] ?? 0;
+
+          // Swap with a video that's not 5 or 6
+          if (futurePremium < 5) {
+            final temp = videos[i];
+            videos[i] = videos[j];
+            videos[j] = temp;
+            break;
+          }
+        }
+      }
+    }
   }
 
   // Function to load videos from Firestore and cache them locally
   Future<void> _loadVideos() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('reels')
-        .orderBy('time', descending: true)
-        .get();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('reels')
+          .orderBy('time', descending: true)
+          .get();
 
-    setState(() {
-      _allVideos = snapshot.docs; // Cache all videos locally
-      _filteredVideos = _allVideos; // Initially, show all videos
-    });
+      // Preload first 4 videos from the cache
+      _allVideos = snapshot.docs;
 
-    // Preload first 4 videos from the cache
-    for (int i = 0; i <= 3 && i < _filteredVideos.length; i++) {
-      _preloadVideo(i);
+      _allVideos.sort((a, b) {
+        double scoreA = computeScore(a.data() as Map<String, dynamic>);
+        double scoreB = computeScore(b.data() as Map<String, dynamic>);
+        return scoreB.compareTo(scoreA); // descending
+      });
+
+      if (_allVideos.length > 2) {
+        final rand = _allVideos.removeAt(2);
+        _allVideos.insert(0, rand);
+      }
+// Filter out non-premium videos
+      _filteredVideos = _allVideos.where((video) {
+        final data = video.data() as Map<String, dynamic>;
+        final premium = data['premium'] ?? 0;
+        return premium != 0;
+      }).toList();
+
+      int initialPage = 0;
+      // ✅ Handle deep link scroll
+      final reelId = widget.reelId;
+
+      if (reelId != null && reelId.isNotEmpty) {
+        final targetIndex = _filteredVideos.indexWhere((video) {
+          final data = video.data() as Map<String, dynamic>;
+          return data['id'] == reelId;
+        });
+
+        if (targetIndex != -1) {
+          initialPage = targetIndex;
+          _currentIndex = targetIndex;
+        }
+      }
+
+      // Prevent Premium 5 and 6 from being consecutive
+      _breakConsecutivePremiums(_filteredVideos);
+
+      setState(() {});
+
+      // Preload first few videos
+      for (int i = 0; i <= 1 && i < _filteredVideos.length; i++) {
+        _preloadVideo(i);
+      }
+
+      // Start caching the rest in the background
+      _cacheVideosInBackground(startFromIndex: 4);
+    } catch (e) {
+      print("Error loading videos: $e");
     }
-
-    // Start background caching for the rest of the videos
-    _cacheVideosInBackground(startFromIndex: 4);
   }
 
   // Function to preload videos from the cache
@@ -93,18 +271,14 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     controller.setLooping(true);
 
     // ✅ Volume control based on premium
-    if (controller.value.isInitialized) {
-      // Ensure volume is set based on premium and mute status
-      if (premium >= 3) {
-        controller.setVolume(
-            1.0); // Play the original video sound, but respect mute status
-      } else {
-        controller
-            .setVolume(0.0); // Mute video sound when premium is less than 3
-      }
-
-      // Play the video
-      controller.play();
+    if (premium == 6) {
+      controller.setVolume(1.0);
+    } else if (premium == 5) {
+      controller.setVolume(0.0);
+    } else if (premium >= 3) {
+      controller.setVolume(_isMuted ? 0.0 : 1.0);
+    } else {
+      controller.setVolume(0.0);
     }
 
     // controller.setVolume(0.0); // Muting video sound
@@ -361,7 +535,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           RefreshIndicator(
             onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
-                ? Center(child: _buildNoResults())
+                ? ListView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: 250),
+                      _buildNoResults(),
+                    ],
+                  )
                 : PageView.builder(
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
@@ -381,35 +561,42 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       // Preload the current video (if not preloaded)
                       _preloadVideo(index);
 
+                      // Optionally preload nearby
+                      _preloadVideo(index + 1);
+                      _preloadVideo(index - 1);
+
+                      _cleanupFarControllers(index);
+
                       // Play the current video
                       final controller = _controllers[index];
-                      if (controller != null &&
-                          controller.value.isInitialized) {
-                        // ✅ Set the volume based on premium and _isMuted
+                      if (controller != null) {
+                        if (!controller.value.isInitialized) {
+                          try {
+                            await controller.initialize();
+                          } catch (e) {
+                            print("Failed to initialize controller: $e");
+                            return;
+                          }
+                        }
+
                         var videoData = _filteredVideos[index].data()
                             as Map<String, dynamic>;
-                        var premium = videoData['premium'] ??
-                            0; // Get premium from the video data
+                        var premium = videoData['premium'] ?? 0;
 
-                        if (premium >= 3) {
-                          // Premium users can hear audio, so adjust based on mute status
-                          controller
-                              .setVolume(1.0); // Set volume based on _isMuted
+                        if (premium == 6) {
+                          controller.setVolume(1.0);
+                        } else if (premium == 5) {
+                          controller.setVolume(0.0);
+                        } else if (premium >= 3) {
+                          controller.setVolume(_isMuted ? 0.0 : 1.0);
                         } else {
-                          // Non-premium users: Always mute
                           controller.setVolume(0.0);
                         }
 
-                        // Play the current video
                         controller.play();
                       }
 
-                      // Play audio for the current video
-                      final videoData =
-                          _filteredVideos[index].data() as Map<String, dynamic>;
-                      _playAudio(index, videoData['audioName']);
-
-                      setState(() {}); // To update UI if needed
+                      setState(() {});
                     },
                     itemBuilder: (context, index) {
                       var videoData =
@@ -444,7 +631,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
             child: IconButton(
               icon: Icon(Icons.home, size: 40, color: Colors.pinkAccent),
               onPressed: () async {
-                await stopAllAudio(); // ✅ ensures audio stops
+                await _stopAllAudio(); // ✅ ensures audio stops
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => GuestHomeScreen()),
@@ -467,7 +654,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 style: TextStyle(
                     color: Colors.white), // Text color inside the field
                 decoration: InputDecoration(
-                  hintText: 'location...',
+                  hintText: 'Find cots by city, state or country',
                   hintStyle: TextStyle(
                       color: Colors.white60), // Lighter color for hint text
                   filled: true,
@@ -493,6 +680,45 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 ),
               ),
             ),
+          Positioned(
+            right: 16, // Position the "Ask AI" button to the right
+            top: MediaQuery.of(context).size.height / 1.85 -
+                30, // Center vertically
+            child: GestureDetector(
+              onTap: () async {
+                await _stopAllAudio();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CotmindChat(), // Replace with your target screen
+                  ),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize
+                    .min, // To ensure the column doesn't take up more space than needed
+                crossAxisAlignment: CrossAxisAlignment
+                    .center, // Align items in the middle horizontally
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: CircleAvatar(child: Icon(Icons.smart_toy)),
+                  ),
+                  Transform.translate(
+                    offset: Offset(0, -4), // move text up slightly
+                    child: Text(
+                      "Ask AI",
+                      style: TextStyle(
+                        color: Colors.pinkAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -521,14 +747,14 @@ class VideoReelsItem extends StatefulWidget {
   final AudioPlayer? audioPlayer;
   final VoidCallback stopAudio;
 
-  const VideoReelsItem({
+  VideoReelsItem({
     Key? key,
     required this.controller,
     required this.videoData,
     required this.isMuted,
-    required this.documentId,
-    required this.audioName,
+    required this.documentId, // <–– ADD THIS
     required this.onToggleMute,
+    required this.audioName,
     required this.audioPlayer,
     required this.stopAudio, // Add it here, make optional if you want
   }) : super(key: key);
@@ -543,6 +769,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   bool showHeart = false;
   late String uid;
   MemoryImage? displayImage;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -554,24 +781,22 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
   Future<void> _checkIfLiked() async {
-  final likeRef = FirebaseFirestore.instance
-      .collection('reels')
-      .doc(widget.documentId)
-      .collection('likes')
-      .doc(AppConstants.currentUser.id);
+    final likeRef = FirebaseFirestore.instance
+        .collection('reels')
+        .doc(widget.documentId)
+        .collection('likes')
+        .doc(AppConstants.currentUser.id);
 
-  final likeSnapshot = await likeRef.get();
+    final likeSnapshot = await likeRef.get();
 
-  if (mounted) {
-    setState(() {
-      liked = likeSnapshot.exists;
-    });
+    if (mounted) {
+      setState(() {
+        liked = likeSnapshot.exists;
+      });
+    }
   }
-}
 
-  // Optionally, add a method to stop audio on demand
-
-  // Call PHP backend to send push notification
+// Call PHP backend to send push notification
   Future<void> sendLikePushNotification(String token, String reelId) async {
     final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
 
@@ -655,209 +880,306 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
           showHeart = false;
         });
       });
-    }}
-
-    void _shareVideo() {
-      Share.share('Check out this video: ${widget.videoData['reelsVideo']}');
     }
+  }
 
-    void _pausePlayVideo() {
-      if (widget.controller != null) {
-        if (widget.controller!.value.isPlaying) {
-          widget.controller!.pause();
-        } else {
-          widget.controller!.play();
-        }
+  void _shareVideo() async {
+    setState(() => _isLoading = true);
+
+    final caption = widget.videoData['caption'] ?? '';
+    final email = widget.videoData['email'] ?? '';
+    final firstName = email.split('@')[0];
+    final linkUrl = 'https://cotmade.com/app?param=${widget.documentId}';
+
+    final message = '''
+    *$caption*
+
+    👤 Posted by: *$firstName*
+
+    🔗 View & Book here:
+    $linkUrl
+    ''';
+
+    try {
+      final postingId = widget.videoData['postingId'];
+      final posting = PostingModel(id: postingId);
+      await posting.getPostingInfoFromFirestore();
+
+      if (posting.imageNames == null || posting.imageNames!.isEmpty) {
+        Share.share(message);
+        return;
       }
-    }
 
-    // Function to get image from Firebase Storage
-    getImageFromStorage(uid) async {
-      try {
-        final imageDataInBytes = await FirebaseStorage.instance
-            .ref()
-            .child("userImages")
-            .child(uid)
-            .child(uid + ".png")
-            .getData(1024 * 1024);
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('postingImages')
+          .child(postingId)
+          .child(posting.imageNames!.first);
+      final rawData = await ref.getData(1024 * 1024);
 
-        setState(() {
-          displayImage = MemoryImage(imageDataInBytes!);
-        });
-      } catch (e) {
-        print("Error fetching image: $e");
-        // Handle error: You might want to show a default image or leave it null
+      if (rawData == null) {
+        Share.share(message);
+        return;
       }
-    }
 
-    void _blockUser() {
-      Get.snackbar("Blocked", "User has been blocked.");
-    }
+      final original = img.decodeImage(rawData);
+      if (original == null) {
+        Share.share(message);
+        return;
+      }
 
-    void _showMoreOptions() {
-      showModalBottomSheet(
-        context: context,
-        builder: (BuildContext context) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.report),
-                title: Text('Report'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => FeedbackScreen(),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.block),
-                title: Text('Block User'),
-                onTap: () {
-                  _blockUser();
-                },
-              ),
-            ],
-          );
-        },
+      final minSize =
+          original.width < original.height ? original.width : original.height;
+
+      final square = img.copyCrop(
+        original,
+        x: (original.width - minSize) ~/ 2,
+        y: (original.height - minSize) ~/ 2,
+        width: minSize,
+        height: minSize,
       );
+
+      final thumbnail = img.copyResize(square, width: 300, height: 300);
+      final jpgData = img.encodeJpg(thumbnail, quality: 85);
+
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/thumb_share.jpg';
+      final file = File(filePath)..writeAsBytesSync(jpgData);
+
+      await Share.shareXFiles([XFile(file.path)], text: message);
+    } catch (e) {
+      print('🚨 Error sharing image: $e');
+      Share.share(message);
+    } finally {
+      // Always turn off the loader
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _pausePlayVideo() {
+    if (widget.controller != null) {
+      if (widget.controller!.value.isPlaying) {
+        widget.controller!.pause();
+      } else {
+        widget.controller!.play();
+      }
+    }
+  }
+
+  // Function to get image from Firebase Storage
+  getImageFromStorage(uid) async {
+    try {
+      final imageDataInBytes = await FirebaseStorage.instance
+          .ref()
+          .child("userImages")
+          .child(uid)
+          .child(uid + ".png")
+          .getData(1024 * 1024);
+
+      setState(() {
+        displayImage = MemoryImage(imageDataInBytes!);
+      });
+    } catch (e) {
+      print("Error fetching image: $e");
+      // Handle error: You might want to show a default image or leave it null
+    }
+  }
+
+  void _showMoreOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.report),
+              title: Text('Report'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FeedbackScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.block),
+              title: Text('Block User'),
+              onTap: () {
+                _blockUser();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _blockUser() {
+    Get.snackbar("Blocked", "User has been blocked.");
+  }
+
+  void _handleLink(BuildContext context, String linkUrl) async {
+    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
+      // Open URL in internal WebView
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewScreen(
+            url: linkUrl,
+            title: "",
+          ),
+        ),
+      );
+    } else {
+      // Treat as WhatsApp number
+      final phoneNumber = linkUrl.replaceAll(RegExp(r'[^+\d]'), '');
+      final whatsappUrl = Uri.parse('https://wa.me/$phoneNumber');
+
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.controller == null || !widget.controller!.value.isInitialized) {
+      return Center(child: CircularProgressIndicator());
     }
 
-    @override
-    Widget build(BuildContext context) {
-      if (widget.controller == null ||
-          !widget.controller!.value.isInitialized) {
-        return Center(child: CircularProgressIndicator());
-      }
+    // Extracting audioName from the videoData
+    final audioName = widget.videoData['audioName'] ?? "Unknown Audio";
 
-      // Extracting audioName from the videoData
-      final audioName = widget.videoData['audioName'] ?? "Unknown Audio";
-
-      return GestureDetector(
-        onDoubleTap: _toggleLike,
-        onLongPress: _pausePlayVideo,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: widget.controller!.value.size.width,
-                  height: widget.controller!.value.size.height,
-                  child: CachedVideoPlayer(widget.controller!),
-                ),
+    return GestureDetector(
+      onDoubleTap: _toggleLike,
+      onLongPress: _pausePlayVideo,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: widget.controller!.value.size.width,
+                height: widget.controller!.value.size.height,
+                child: VideoPlayer(widget.controller!),
               ),
             ),
-            Positioned(
-              top: 60, // Adjust position as necessary
-              left: 16,
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width *
-                      0.6, // 60% of screen width
-                ), // Adjust max width as needed
-                child: Text(
-                  widget.audioName.split('.')[0],
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.normal,
-                    fontSize: 13,
-                  ),
-                  overflow: TextOverflow.ellipsis, // Show "..." if too long
-                  maxLines: 1, // Keep it to one line
-                  softWrap: false,
+          ),
+          Positioned(
+            top: 70, // Adjust position as necessary
+            left: 16,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width *
+                    0.6, // 60% of screen width
+              ), // Adjust max width as needed
+              child: Text(
+                widget.audioName.split('.')[0],
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13,
                 ),
+                overflow: TextOverflow.ellipsis, // Show "..." if too long
+                maxLines: 1, // Keep it to one line
+                softWrap: false,
               ),
             ),
-            if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
-            Positioned(
-              bottom: 60,
-              left: 16,
-              right: 16,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        widget.stopAudio();
-                        int premium = widget.videoData['premium'] ??
-                            0; // fallback if null
-                        if (premium <= 3) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  UserProfilePage(uid: widget.videoData['uid']),
-                            ),
-                          );
-                        } else {
-                          // Do nothing or show a message
-                          print('Navigation disabled for premium=4 reels');
-                        }
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.videoData['email'].split('@')[0],
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+          ),
+          if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
+          Positioned(
+            bottom: 60,
+            left: 16,
+            right: 16,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      int premium =
+                          widget.videoData['premium'] ?? 0; // fallback if null
+                      if (premium <= 3) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                UserProfilePage(uid: widget.videoData['uid']),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            widget.videoData['caption'],
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                        );
+                      } else {
+                        // Do nothing or show a message
+                        print('Navigation disabled for premium=4 reels');
+                      }
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.videoData['email'].split('@')[0],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                          SizedBox(height: 8),
-                          StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('postings')
-                                .doc(widget.videoData['postingId'])
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              }
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          widget.videoData['caption'],
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 8),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('postings')
+                              .doc(widget.videoData['postingId'])
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(child: CircularProgressIndicator());
+                            }
 
-                              if (snapshot.hasError || !snapshot.hasData) {
-                                return Text('Error loading posting data');
-                              }
+                            if (snapshot.hasError || !snapshot.hasData) {
+                              return Text('Error loading posting data');
+                            }
 
-                              final data =
-                                  snapshot.data!.data() as Map<String, dynamic>;
+                            final data =
+                                snapshot.data!.data() as Map<String, dynamic>;
 
-                              //  var review = data['reviews'] ??
-                              //     []; // Default to an empty list if null
-                              //  int numberOfReviews = review.length;
-                              final price = data['price'] ?? 'unknown';
-                              final city = data['city'] ?? 'Unknown City';
-                              final currency = data['currency'] ?? 'unknown';
-                              final country =
-                                  data['country'] ?? 'Unknown Country';
+                            final premium = widget.videoData['premium'] ?? 0;
 
-                              // Function to format only the price (without affecting currency)
-                              String formatPrice(price) {
-                                var formatter = NumberFormat('#,##0',
-                                    'en_US'); // No decimals (whole number only)
-                                return formatter.format(price);
-                              }
+                            // var review = data['reviews'] ??
+                            []; // Default to an empty list if null
+                            //  int numberOfReviews = review.length;
+                            final price = data['price'] ?? 'unknown';
+                            final city = data['city'] ?? 'Unknown City';
+                            final currency = data['currency'] ?? 'unknown';
+                            final country =
+                                data['country'] ?? 'Unknown Country';
 
-                              return Container(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+                            // Function to format only the price (without affecting currency)
+                            String formatPrice(price) {
+                              var formatter = NumberFormat('#,##0',
+                                  'en_US'); // No decimals (whole number only)
+                              return formatter.format(price);
+                            }
+
+                            return Container(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (premium != 5 && premium != 6) ...[
                                     Text(
                                       'Price: $currency ${formatPrice(price)}/night',
                                       style: TextStyle(
@@ -882,163 +1204,216 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                         fontSize: 16,
                                       ),
                                       overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 8),
-                                    StreamBuilder<DocumentSnapshot>(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('postings')
-                                          .doc(widget.videoData['postingId'])
-                                          .snapshots(),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState ==
-                                            ConnectionState.waiting) {
-                                          return Center(
-                                              child:
-                                                  CircularProgressIndicator());
-                                        }
+                                    )
+                                  ],
+                                  SizedBox(height: 8),
+                                  StreamBuilder<DocumentSnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('postings')
+                                        .doc(widget.videoData['postingId'])
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Center(
+                                            child: CircularProgressIndicator());
+                                      }
 
-                                        if (snapshot.hasError ||
-                                            !snapshot.hasData) {
-                                          return Text(
-                                              'Error loading posting data');
-                                        }
+                                      if (snapshot.hasError ||
+                                          !snapshot.hasData) {
+                                        return Text(
+                                            'Error loading posting data');
+                                      }
 
-                                        DocumentSnapshot postingSnapshot =
-                                            snapshot.data!;
-                                        PostingModel cPosting = PostingModel(
-                                            id: widget.videoData['postingId']);
-                                        cPosting.getPostingInfoFromSnapshot(
-                                            postingSnapshot);
+                                      DocumentSnapshot postingSnapshot =
+                                          snapshot.data!;
+                                      PostingModel cPosting = PostingModel(
+                                          id: widget.videoData['postingId']);
+                                      cPosting.getPostingInfoFromSnapshot(
+                                          postingSnapshot);
 
-                                        int premium =
-                                            widget.videoData['premium'] ?? 0;
+                                      int premium =
+                                          widget.videoData['premium'] ?? 0;
 
+                                      if (premium <= 3) {
                                         return GestureDetector(
-                                          onTap: () async {
-                                            widget.stopAudio();
-                                            if (premium <= 3) {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ViewPostingScreen(
-                                                          posting: cPosting),
-                                                ),
-                                              );
-                                            } else {
-                                              print(
-                                                  'Navigation disabled for premium=4 reels');
-                                            }
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ViewPostingScreen(
+                                                        posting: cPosting),
+                                              ),
+                                            );
                                           },
-                                          child: premium <= 3
-                                              ? Container(
-                                                  padding: EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 8),
-                                                  color: Colors.pinkAccent,
-                                                  child: Text(
-                                                    'Book Now',
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(
+                                                vertical: 8, horizontal: 8),
+                                            color: Colors.pinkAccent,
+                                            child: Text(
+                                              'Book Now',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      } else if (premium == 5 || premium == 6) {
+                                        final String? linkUrl = widget
+                                                .videoData[
+                                            'linkUrl']; // make sure this field exists
+                                        final int views =
+                                            widget.videoData['views'] ??
+                                                0; // Fetch views safely
+                                        if (linkUrl != null &&
+                                            linkUrl.isNotEmpty) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              _handleLink(context, linkUrl);
+                                            },
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  vertical: 8, horizontal: 8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.pinkAccent
+                                                    .withOpacity(
+                                                        0.2), // 20% opacity pink
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Text(
+                                                    'Visit',
                                                     style: TextStyle(
-                                                      color: Colors.white,
+                                                      color: Colors.pinkAccent,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 15,
                                                     ),
                                                   ),
-                                                )
-                                              : SizedBox
-                                                  .shrink(), // Empty widget if premium > 3
-                                        );
-                                      },
-                                    )
-
-                                    //  SizedBox(height: 8),
-                                    //   Text(
-                                    //    '$numberOfReviews Reviews',
-                                    //    style: TextStyle(
-                                    //     color: Colors.white,
-                                    //    fontSize: 16,
-                                    //   ),
-                                    //  ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          widget.stopAudio();
-                          int premium = widget.videoData['premium'] ??
-                              0; // fallback if null
-                          if (premium <= 3) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => UserProfilePage(
-                                    uid: widget.videoData['uid']),
+                                                  SizedBox(height: 3),
+                                                  Text(
+                                                    '$views views',
+                                                    style: TextStyle(
+                                                      color: Colors.pinkAccent,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          final int views =
+                                              widget.videoData['views'] ?? 0;
+                                          return Text(
+                                            '$views views',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white70,
+                                            ),
+                                          ); // No button if no link
+                                        }
+                                      } else {
+                                        return SizedBox
+                                            .shrink(); // No button for premium 4 or others
+                                      }
+                                    },
+                                  ),
+                                  //  SizedBox(height: 8),
+                                  //   Text(
+                                  //    '$numberOfReviews Reviews',
+                                  //    style: TextStyle(
+                                  //     color: Colors.white,
+                                  //    fontSize: 16,
+                                  //   ),
+                                  //  ),
+                                ],
                               ),
                             );
-                          } else {
-                            // Do nothing or show a message
-                            print('Navigation disabled for premium=4 reels');
-                          }
-                        },
-                        child: CircleAvatar(
-                          backgroundColor: Colors.black,
-                          radius: 30,
-                          child: displayImage != null
-                              ? CircleAvatar(
-                                  backgroundImage: displayImage,
-                                  radius: 29,
-                                )
-                              : Icon(
-                                  Icons.account_circle,
-                                  size: 30,
-                                  color: Colors.white,
-                                ),
+                          },
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      IconButton(
-                        icon: Icon(
-                          liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
-                          color: liked ? Colors.pinkAccent : Colors.white,
-                        ),
-                        onPressed: _toggleLike,
-                      ),
-                      Text('$likes', style: TextStyle(color: Colors.white)),
-                      IconButton(
-                        icon: Icon(Icons.share, color: Colors.white),
-                        onPressed: _shareVideo,
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.more_vert, color: Colors.white),
-                        onPressed: _showMoreOptions,
-                      ),
-                      Opacity(
-                        opacity: 0.0,
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.volume_off,
-                            color: Colors.white,
-                          ),
-                          onPressed: widget.onToggleMute,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        int premium = widget.videoData['premium'] ??
+                            0; // fallback if null
+                        if (premium <= 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserProfilePage(uid: widget.videoData['uid']),
+                            ),
+                          );
+                        } else {
+                          // Do nothing or show a message
+                          print('Navigation disabled for premium=4 reels');
+                        }
+                      },
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black,
+                        radius: 30,
+                        child: displayImage != null
+                            ? CircleAvatar(
+                                backgroundImage: displayImage,
+                                radius: 29,
+                              )
+                            : Icon(
+                                Icons.account_circle,
+                                size: 30,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    IconButton(
+                      icon: Icon(
+                        liked ? Icons.thumb_up : Icons.thumb_up_off_alt,
+                        color: liked ? Colors.pinkAccent : Colors.white,
+                      ),
+                      onPressed: _toggleLike,
+                    ),
+                    Text('$likes', style: TextStyle(color: Colors.white)),
+                    IconButton(
+                      icon: Icon(Icons.share, color: Colors.white),
+                      onPressed: _shareVideo,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.more_vert, color: Colors.white),
+                      onPressed: _showMoreOptions,
+                    ),
+                    Opacity(
+                      opacity: 0.0,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.volume_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: widget.onToggleMute,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
-
+}
