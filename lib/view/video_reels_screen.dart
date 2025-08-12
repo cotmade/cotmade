@@ -716,12 +716,14 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     padding: const EdgeInsets.all(12),
                     child: CircleAvatar(child: Icon(Icons.smart_toy)),
                   ),
-                  //SizedBox(height: 6), // Add spacing between image and text
-                  Text(
-                    "Ask AI",
-                    style: TextStyle(
-                      color: Colors.pinkAccent,
-                      fontWeight: FontWeight.bold,
+                  Transform.translate(
+                    offset: Offset(0, -4), // move text up slightly
+                    child: Text(
+                      "Ask AI",
+                      style: TextStyle(
+                        color: Colors.pinkAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
