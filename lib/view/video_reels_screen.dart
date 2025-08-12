@@ -40,7 +40,7 @@ class VideoReelsPage extends StatefulWidget {
 
 class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
-  List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cach
+  List<DocumentSnapshot> _allVideos = []; // Store all videos in memory as cache
   List<DocumentSnapshot> _filteredVideos = [];
   Map<int, VideoPlayerController> _controllers = {};
   Map<int, AudioPlayer> _audioPlayers = {};
@@ -456,35 +456,39 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     final query = _searchController.text.toLowerCase().trim();
 
     if (query.isEmpty) {
+      // Reset to all premium videos
       setState(() {
         _filteredVideos = _allVideos.where((video) {
           final data = video.data() as Map<String, dynamic>;
-          final premium = data['premium'] ?? 0;
-          return premium > 0;
+          return (data['premium'] ?? 0) > 0;
         }).toList();
       });
       return;
     }
 
-    final queryWords =
-        query.split(RegExp(r'\s+')).map((e) => e.trim()).toList();
+    final queryWords = query.split(RegExp(r'\s+'));
+
+    final filtered = _allVideos.where((video) {
+      final data = video.data() as Map<String, dynamic>;
+      final premium = data['premium'] ?? 0;
+      if (premium == 0) return false;
+
+      final searchText = data['searchText'];
+      if (searchText == null || searchText is! List) return false;
+
+      final keywords =
+          searchText.whereType<String>().map((e) => e.toLowerCase()).toList();
+
+      // Return true if ANY query word matches ANY keyword
+      return queryWords.any((word) {
+        return keywords.any((kw) => kw.contains(word));
+      });
+    }).toList();
+
+    print('Search: "$query" → ${filtered.length} results found');
 
     setState(() {
-      _filteredVideos = _allVideos.where((video) {
-        final data = video.data() as Map<String, dynamic>;
-        final premium = data['premium'] ?? 0;
-
-        if (premium == 0) return false;
-
-        final List<String> keywords = (data['searchText'] as List?)
-                ?.map((e) => e.toString().toLowerCase())
-                .toList() ??
-            [];
-
-        return queryWords.any((word) =>
-            keywords.contains(word) ||
-            keywords.any((k) => k.contains(word))); // More flexible
-      }).toList();
+      _filteredVideos = filtered;
     });
   }
 
@@ -546,7 +550,13 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
           RefreshIndicator(
             onRefresh: _refreshVideos, // Trigger refresh when pulled
             child: _filteredVideos.isEmpty
-                ? Center(child: _buildNoResults())
+                ? ListView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: 250),
+                      _buildNoResults(),
+                    ],
+                  )
                 : PageView.builder(
                     controller: _pageController,
                     itemCount: _filteredVideos.length,
