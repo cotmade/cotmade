@@ -433,47 +433,43 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   // Function to handle search filtering based on postings data
-  Future<void> _filterVideos() async {
-    String queryText = formatSearchQuery(_searchController.text);
-    if (queryText.isEmpty) {
+  void _filterVideos() {
+    final query = _searchController.text.toLowerCase().trim();
+
+    if (query.isEmpty) {
+      // Reset to all premium videos
       setState(() {
-        _filteredVideos = _allVideos; // Show all videos if query is empty
+        _filteredVideos = _allVideos.where((video) {
+          final data = video.data() as Map<String, dynamic>;
+          return (data['premium'] ?? 0) > 0;
+        }).toList();
       });
       return;
     }
 
-    // Step 1: Query the postings collection to get matching postingIds based on country, city, or address
-    QuerySnapshot postingsSnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('country', isGreaterThanOrEqualTo: queryText)
-        .where('country', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
+    final queryWords = query.split(RegExp(r'\s+'));
 
-    // Query for city as well
-    QuerySnapshot citySnapshot = await FirebaseFirestore.instance
-        .collection('postings')
-        .where('city', isGreaterThanOrEqualTo: queryText)
-        .where('city', isLessThanOrEqualTo: queryText + '\uf8ff')
-        .get();
+    final filtered = _allVideos.where((video) {
+      final data = video.data() as Map<String, dynamic>;
+      final premium = data['premium'] ?? 0;
+      if (premium == 0) return false;
 
-    // Step 2: Get all matching postingIds from the postings collection
-    List<String> matchingPostingIds = [];
-    postingsSnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+      final searchText = data['searchText'];
+      if (searchText == null || searchText is! List) return false;
 
-    citySnapshot.docs.forEach((doc) {
-      var data = doc.data() as Map<String, dynamic>;
-      matchingPostingIds.add(data['id']);
-    });
+      final keywords =
+          searchText.whereType<String>().map((e) => e.toLowerCase()).toList();
 
-    // Step 3: Filter the cached videos based on the matching postingIds
+      // Return true if ANY query word matches ANY keyword
+      return queryWords.any((word) {
+        return keywords.any((kw) => kw.contains(word));
+      });
+    }).toList();
+
+    print('Search: "$query" → ${filtered.length} results found');
+
     setState(() {
-      _filteredVideos = _allVideos.where((video) {
-        var videoData = video.data() as Map<String, dynamic>;
-        return matchingPostingIds.contains(videoData['postingId']);
-      }).toList();
+      _filteredVideos = filtered;
     });
   }
 
