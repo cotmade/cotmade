@@ -13,6 +13,8 @@ import 'package:cotmade/view/guestScreens/faq_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/model/user_model.dart';
+import 'package:cotmade/view/webview_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({Key? key}) : super(key: key);
@@ -201,6 +203,29 @@ class _SettingScreenState extends State<SettingScreen> {
                 ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Card(
+                color: const Color(0xcaf6f6f6),
+                elevation: 4,
+                shadowColor: Colors.black12,
+                child: ListTile(
+                  leading: const Icon(Icons.language, color: Colors.black),
+                  title: const Text("Dispute Resolution",
+                      style: TextStyle(color: Colors.black)),
+                  trailing:
+                      const Icon(Icons.chevron_right, color: Colors.black),
+                  onTap: () {
+                    Get.to(() => WebViewScreen(
+                          url:
+                              "https://cotmade.com/conflict", // Or any external link
+                          title: "Dispute Resolution",
+                        ));
+                  },
+                ),
+              ),
+            ),
+
             SizedBox(height: 30),
             // Logout button
             Text('Legal',
