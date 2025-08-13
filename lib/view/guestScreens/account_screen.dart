@@ -439,7 +439,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             );
                           },
                         ),
-                        StreamBuilder<DocumentSnapshot>(
+                      /*  StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('apps')
                               .doc('dMB1JZPopW807a9yur4A')
@@ -507,7 +507,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             return SizedBox
                                 .shrink(); // Hide if advert is not true or document missing
                           },
-                        ),
+                        ), */
                       ],
                     ),
                   ),
