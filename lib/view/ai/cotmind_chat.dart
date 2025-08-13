@@ -423,7 +423,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
     setState(() {
-      _messages.add(ChatMessage(message: botReply, isUser: false));
+      //  _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
     });
 

@@ -558,8 +558,8 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                       _incrementViewCountIfNeeded(_filteredVideos[index].id);
 
-                      // Preload the current video (if not preloaded)
-                      _preloadVideo(index);
+                      // Preload the current video
+                      await _preloadVideo(index); // ✅ Wait for preload
 
                       // Optionally preload nearby
                       _preloadVideo(index + 1);
@@ -567,8 +567,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
                       _cleanupFarControllers(index);
 
-                      // Play the current video
+                      // Play the current video after ensuring it's initialized
                       final controller = _controllers[index];
+
                       if (controller != null) {
                         if (!controller.value.isInitialized) {
                           try {
