@@ -344,7 +344,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
   }
 
-  Future<void> stopAllAudio() async {
+  Future<void> _stopAllAudio() async {
     for (var player in _audioPlayers.values) {
       if (player.playing) {
         await player.stop();
@@ -365,7 +365,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   void deactivate() {
     super.deactivate();
     print("deactivate() called — stopping audio immediately.");
-    stopAllAudio(); // Or _disposeMedia() if you want to clean everything
+    _stopAllAudio(); // Or _disposeMedia() if you want to clean everything
   }
 
   // Add this function inside _VideoReelsPageState
@@ -706,7 +706,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     child: CircleAvatar(child: Icon(Icons.smart_toy)),
                   ),
                   Transform.translate(
-                    offset: Offset(0, -4), // move text up slightly
+                    offset: Offset(0, -6), // move text up slightly
                     child: Text(
                       "Ask AI",
                       style: TextStyle(
