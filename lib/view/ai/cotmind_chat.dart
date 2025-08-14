@@ -137,30 +137,42 @@ class CotmindBot {
       final data = doc.data();
       final videoUrl = data['reelsVideo'];
 
+      // Skip already seen or excluded videos
       if (videoUrl == null ||
           seenVideos.contains(videoUrl) ||
           excludeUrls.contains(videoUrl)) {
         continue;
       }
 
+      // Get search keywords from document
       final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
-      int score = keywords.fold(0,
-          (sum, keyword) => searchKeywords.contains(keyword) ? sum + 1 : sum);
 
-      scoredResults.add({'data': data, 'score': score});
+      // Calculate score based on how many keywords match the searchKeywords field
+      int score = 0;
+      for (final keyword in keywords) {
+        if (searchKeywords.contains(keyword)) {
+          score++;
+        }
+      }
+
+      // If score > 0, add to scoredResults
+      if (score > 0) {
+        scoredResults.add({'data': data, 'score': score});
+      }
+
       seenVideos.add(videoUrl);
     }
 
-    // Sort results by score descending
+    // Sort results by score in descending order
     scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
 
-    // Pick top 2
+    // Add the top 2 results
     for (final item in scoredResults) {
       if (results.length >= 2) break;
       results.add(item['data']);
     }
 
-    // Optional fallback if no results found (using looser match)
+    // If no matching results found, fallback to random videos
     if (results.isEmpty) {
       usedFallback = true;
 
@@ -170,6 +182,7 @@ class CotmindBot {
       for (final doc in fallbackSnapshot.docs) {
         final data = doc.data();
         final videoUrl = data['reelsVideo'];
+
         if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
 
         results.add(data);
@@ -202,6 +215,7 @@ class _CotmindChatState extends State<CotmindChat> {
   Set<String> _seenVideoUrls = {};
   int _followUpCount = 0;
   bool _awaitingMoreConfirmation = false;
+  bool _showRecordingIndicator = false;
 
   @override
   void initState() {
@@ -493,28 +507,53 @@ class _CotmindChatState extends State<CotmindChat> {
     }
   }
 
+  Timer? _timeoutTimer;
+
   void _startListening() async {
     bool available = await _speech.initialize(
-      onStatus: (_) {},
-      onError: (e) => print("Speech error: $e"),
+      onStatus: (status) {
+        if (status == 'done' || status == 'stopped') {
+          _stopListening();
+        }
+      },
+      onError: (e) {
+        print("Speech error: $e");
+        _stopListening();
+      },
     );
+
     if (available) {
-      setState(() => _isListening = true);
+      setState(() {
+        _isListening = true;
+        _showRecordingIndicator = true;
+      });
+
       _speech.listen(
         onResult: (result) {
           _controller.text = result.recognizedWords;
           if (result.finalResult) {
             _handleSend(result.recognizedWords);
-            _stopListening();
+            _stopListening(); // Automatically stop listening after result is final
           }
         },
       );
+
+      // Start a timeout to stop listening if no speech is detected within 5 seconds
+      _timeoutTimer = Timer(Duration(seconds: 5), () {
+        if (_isListening) {
+          _stopListening();
+        }
+      });
     }
   }
 
   void _stopListening() {
+    _timeoutTimer?.cancel(); // Cancel timeout timer when speech stops
     _speech.stop();
-    setState(() => _isListening = false);
+    setState(() {
+      _isListening = false;
+      _showRecordingIndicator = false;
+    });
   }
 
   void _scrollToBottom() {
@@ -657,26 +696,50 @@ class _CotmindChatState extends State<CotmindChat> {
 
   Widget _buildInputBar() {
     return SafeArea(
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-            onPressed: _isListening ? _stopListening : _startListening,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              onSubmitted: _handleSend,
-              decoration: InputDecoration(
-                hintText: "Ask something...",
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+          if (_showRecordingIndicator)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.mic, color: Colors.redAccent),
+                  SizedBox(width: 6),
+                  Text(
+                    "Listening...",
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send),
-            onPressed: () => _handleSend(_controller.text),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                onPressed: _isListening ? _stopListening : _startListening,
+                color: _isListening ? Colors.redAccent : null,
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  onSubmitted: _handleSend,
+                  decoration: InputDecoration(
+                    hintText: "Ask something...",
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.send),
+                onPressed: () => _handleSend(_controller.text),
+              ),
+            ],
           ),
         ],
       ),

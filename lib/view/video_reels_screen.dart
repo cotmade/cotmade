@@ -81,76 +81,101 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   }
 
   double computeScore(Map<String, dynamic> data) {
-    final views = (data['views'] ?? 0).toDouble();
-    final likes = (data['likes'] ?? 0).toDouble();
-    final premium = (data['premium'] ?? 0).toDouble();
-    final createdAt = (data['time'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final city = data['city'] ?? '';
-    final country = data['country'] ?? '';
-    final videoId = data['id'] ?? '';
+  final views = (data['views'] ?? 0).toDouble();
+  final likes = (data['likes'] ?? 0).toDouble();
+  final premium = (data['premium'] ?? 0).toDouble();
+  final createdAt = (data['time'] as Timestamp?)?.toDate() ?? DateTime.now();
+  final city = data['city'] ?? '';
+  final country = data['country'] ?? '';
+  final videoId = data['id'] ?? '';
 
-    double watchRatio = 1.0;
+  double watchRatio = 1.0;
 
-    int hoursSincePost = DateTime.now().difference(createdAt).inHours;
-    int daysSincePost = DateTime.now().difference(createdAt).inDays;
-    double freshnessScore = 1 / (1 + hoursSincePost);
+  int hoursSincePost = DateTime.now().difference(createdAt).inHours;
+  int daysSincePost = DateTime.now().difference(createdAt).inDays;
 
-    // 🌟 NEW LISTING BOOST: Time-decayed + Engagement-aware
-    double newListingBoost = 1.0;
-
-    if (daysSincePost <= 14) {
-      // Time decay: from 1.3 → 1.0 over 14 days
-      double decayFactor = 1.3 - (0.3 * (daysSincePost / 14.0)).clamp(0.0, 1.0);
-
-      // Engagement boost: use like/view ratio
-      double engagementScore =
-          (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
-
-      if (engagementScore >= 0.3) {
-        newListingBoost = decayFactor;
-      } else if (engagementScore >= 0.1) {
-        newListingBoost = decayFactor * 0.9;
-      } else {
-        newListingBoost = decayFactor * 0.7;
-      }
+  // Freshness boost: Apply a score of 5 for new videos up to 48 hours
+  double freshnessBoost = 1.0;
+  if (hoursSincePost <= 48) {
+    freshnessBoost = 8.0; // Give a score of 5 to new videos
+  } else {
+    // Decay the freshness boost after 48 hours
+    double decayHours = hoursSincePost - 48;
+    if (decayHours >= 24) {
+      freshnessBoost = 1.0;
+    } else {
+      freshnessBoost = 8.0 - (decayHours / 24);
     }
-
-    // 🔼 Premium boost
-    double premiumBoost = 0.0;
-    if (premium == 6) {
-      premiumBoost = 1.2;
-    } else if (premium == 5) {
-      premiumBoost = 1.0;
-    } else if (premium == 3 && views < 500) {
-      premiumBoost = 0.25;
-    }
-    premiumBoost *= freshnessScore * 2;
-
-    // 📍 User location match
-    double userMatchScore = 0;
-    if (_userProfile != null) {
-      final userCountry = _userProfile!['country'] ?? '';
-      final userCity = _userProfile!['city'] ?? '';
-      if (userCountry == country || userCity == city) {
-        userMatchScore = 1.0;
-      }
-    }
-
-    // 👁️ Viewed penalty
-    double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
-
-    // 📊 Base score
-    double score = (views * 0.2) +
-        (likes * 0.25) +
-        (watchRatio * 0.2) +
-        (freshnessScore * 0.15) +
-        (premium * 0.1) +
-        (userMatchScore * 0.1);
-
-    score = (score + premiumBoost) * newListingBoost * viewedPenalty;
-
-    return score;
   }
+
+  // NEW LISTING BOOST: Up to 3 days, then decay
+  double newListingBoost = 1.0;
+  if (daysSincePost <= 3) {
+    newListingBoost = 2.0;
+  } else if (daysSincePost <= 14) {
+    double decayFactor =
+        1.5 - (0.5 * ((daysSincePost - 3) / 11)).clamp(0.0, 1.0);
+    double engagementScore =
+        (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
+
+    if (engagementScore >= 0.3) {
+      newListingBoost = decayFactor;
+    } else if (engagementScore >= 0.1) {
+      newListingBoost = decayFactor * 0.85;
+    } else {
+      newListingBoost = decayFactor * 0.6;
+    }
+  }
+
+  // PREMIUM boost
+  double premiumBoost = 0.0;
+  if (premium == 6) {
+    premiumBoost = 1.2;
+  } else if (premium == 5) {
+    premiumBoost = 1.0;
+  } else if (premium == 3 && views < 500) {
+    premiumBoost = 0.25;
+  }
+
+  // Premium boost is amplified by freshness
+  premiumBoost *= freshnessBoost;
+
+  // USER LOCATION MATCH
+  double userMatchScore = 0;
+  if (_userProfile != null) {
+    final userCountry = _userProfile!['country'] ?? '';
+    final userCity = _userProfile!['city'] ?? '';
+    if (userCountry == country || userCity == city) {
+      userMatchScore = 1.0;
+    }
+  }
+
+  // VIEWED PENALTY
+  double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
+
+  // BASE SCORE: Ensure fresh unseen videos still rank
+  double baseBias = 1.0;
+
+  double score = (views * 0.2) +
+      (likes * 0.25) +
+      (watchRatio * 0.2) +
+      (premium * 0.1) +
+      (userMatchScore * 0.1) +
+      (1 / (1 + hoursSincePost) * 0.15) +
+      baseBias;
+
+  // FINAL SCORE WITH MULTIPLICATIVE BOOSTS
+  score = (score + premiumBoost) *
+      newListingBoost *
+      freshnessBoost *
+      viewedPenalty;
+
+  // DEBUG LOGGING
+  print(
+      '🎯 Video $videoId → score=$score, hours=$hoursSincePost, views=$views, likes=$likes, newBoost=$newListingBoost, freshBoost=$freshnessBoost, premBoost=$premiumBoost, seenPenalty=$viewedPenalty');
+
+  return score;
+}
 
   void _cleanupFarControllers(int centerIndex) {
     final keysToRemove = _controllers.keys.where((index) {
