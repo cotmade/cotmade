@@ -112,12 +112,17 @@ class CotmindBot {
     String query, {
     List<String> excludeUrls = const [],
   }) async {
-    final keywords = extractKeywords(query);
     final firestore = FirebaseFirestore.instance;
     final results = <Map<String, dynamic>>[];
     final seenVideos = <String>{};
     final scoredResults = <Map<String, dynamic>>[];
     bool usedFallback = false;
+
+    final keywords = query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.trim().isNotEmpty)
+        .toList();
 
     if (keywords.isEmpty) {
       return {
@@ -126,15 +131,8 @@ class CotmindBot {
       };
     }
 
-    final snapshot = await firestore
-        .collection('reels')
-        .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
-        .limit(200)
-        .get();
-
-    // Filter videos that contain all keywords
-    final allKeywordsMatches = <Map<String, dynamic>>[];
-    final partialMatches = <Map<String, dynamic>>[];
+    // Pull a big batch of data to manually filter
+    final snapshot = await firestore.collection('reels').limit(200).get();
 
     for (final doc in snapshot.docs) {
       final data = doc.data();
@@ -145,35 +143,31 @@ class CotmindBot {
         continue;
       }
 
-      final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
-      final matchesAll = keywords.every((k) => searchKeywords.contains(k));
+      final searchText = (data['searchText'] ?? '').toLowerCase();
 
-      if (matchesAll) {
-        allKeywordsMatches.add(data);
-      } else {
-        // Score partial matches by number of matched keywords
-        int score = keywords.fold(0,
-            (sum, keyword) => searchKeywords.contains(keyword) ? sum + 1 : sum);
-        if (score > 0) {
-          partialMatches.add({
-            'data': data,
-            'score': score,
-          });
+      // Score based on how many keywords are found in searchText
+      int score = 0;
+      for (final keyword in keywords) {
+        if (searchText.contains(keyword)) {
+          score++;
         }
+      }
+
+      if (score > 0) {
+        scoredResults.add({
+          'data': data,
+          'score': score,
+        });
       }
 
       seenVideos.add(videoUrl);
     }
 
-    if (allKeywordsMatches.isNotEmpty) {
-      // If found videos matching all keywords, pick top 2
-      results.addAll(allKeywordsMatches.take(2));
-    } else if (partialMatches.isNotEmpty) {
-      // Sort partial matches by score descending and pick top 2
-      partialMatches.sort((a, b) => b['score'].compareTo(a['score']));
-      results.addAll(partialMatches.take(2).map((e) => e['data']));
+    if (scoredResults.isNotEmpty) {
+      scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+      results.addAll(scoredResults.take(2).map((e) => e['data']));
     } else {
-      // fallback to random videos if none found
+      // fallback to random videos
       usedFallback = true;
 
       final fallbackSnapshot =
@@ -506,16 +500,18 @@ class _CotmindChatState extends State<CotmindChat> {
     }
   }
 
+  Timer? _timeoutTimer;
+
   void _startListening() async {
     bool available = await _speech.initialize(
       onStatus: (status) {
-        if (status == 'done') {
+        if (status == 'done' || status == 'stopped') {
           _stopListening();
         }
       },
       onError: (e) {
         print("Speech error: $e");
-        _stopListening(); // stop on error too
+        _stopListening();
       },
     );
 
@@ -530,14 +526,22 @@ class _CotmindChatState extends State<CotmindChat> {
           _controller.text = result.recognizedWords;
           if (result.finalResult) {
             _handleSend(result.recognizedWords);
-            _stopListening();
+            _stopListening(); // Automatically stop listening after result is final
           }
         },
       );
+
+      // Start a timeout to stop listening if no speech is detected within 5 seconds
+      _timeoutTimer = Timer(Duration(seconds: 5), () {
+        if (_isListening) {
+          _stopListening();
+        }
+      });
     }
   }
 
   void _stopListening() {
+    _timeoutTimer?.cancel(); // Cancel timeout timer when speech stops
     _speech.stop();
     setState(() {
       _isListening = false;
