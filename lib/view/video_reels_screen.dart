@@ -93,29 +93,36 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
     int hoursSincePost = DateTime.now().difference(createdAt).inHours;
     int daysSincePost = DateTime.now().difference(createdAt).inDays;
+
+    // Calculate freshness score (inverse decay)
     double freshnessScore = 1 / (1 + hoursSincePost);
 
-    // 🌟 NEW LISTING BOOST: Time-decayed + Engagement-aware
+    // NEW LISTING BOOST: Time-decayed + Engagement-aware
     double newListingBoost = 1.0;
 
-    if (daysSincePost <= 14) {
-      // Time decay: from 1.3 → 1.0 over 14 days
-      double decayFactor = 1.3 - (0.3 * (daysSincePost / 14.0)).clamp(0.0, 1.0);
+    if (daysSincePost <= 3) {
+      newListingBoost = 2.0; // 🚀 Very high priority for fresh videos
+    } else if (daysSincePost <= 14) {
+      // Time decay: from 1.5 → 1.0 over days 4 to 14
+      double decayFactor =
+          1.5 - (0.5 * ((daysSincePost - 3) / 11)).clamp(0.0, 1.0);
 
-      // Engagement boost: use like/view ratio
+      // Engagement-aware adjustment
       double engagementScore =
           (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
 
       if (engagementScore >= 0.3) {
         newListingBoost = decayFactor;
       } else if (engagementScore >= 0.1) {
-        newListingBoost = decayFactor * 0.9;
+        newListingBoost = decayFactor * 0.85;
       } else {
-        newListingBoost = decayFactor * 0.7;
+        newListingBoost = decayFactor * 0.6;
       }
+    } else {
+      newListingBoost = 1.0; // No boost
     }
 
-    // 🔼 Premium boost
+    // PREMIUM boost
     double premiumBoost = 0.0;
     if (premium == 6) {
       premiumBoost = 1.2;
@@ -126,7 +133,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     }
     premiumBoost *= freshnessScore * 2;
 
-    // 📍 User location match
+    // USER LOCATION MATCH
     double userMatchScore = 0;
     if (_userProfile != null) {
       final userCountry = _userProfile!['country'] ?? '';
@@ -136,10 +143,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
       }
     }
 
-    // 👁️ Viewed penalty
+    // VIEWED PENALTY
     double viewedPenalty = _viewedVideoIds.contains(videoId) ? 0.5 : 1.0;
 
-    // 📊 Base score
+    // BASE SCORE
     double score = (views * 0.2) +
         (likes * 0.25) +
         (watchRatio * 0.2) +
@@ -147,7 +154,22 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
         (premium * 0.1) +
         (userMatchScore * 0.1);
 
-    score = (score + premiumBoost) * newListingBoost * viewedPenalty;
+    // 🌟 Freshness boost: max 2.0 for first 48h, then fades over 24h, then 1.0
+    double freshnessBoost = 2.0;
+    if (hoursSincePost > 48) {
+      double decayHours = hoursSincePost - 48;
+      if (decayHours >= 24) {
+        freshnessBoost = 1.0;
+      } else {
+        freshnessBoost = 2.0 - (decayHours / 24);
+      }
+    }
+
+    // FINAL SCORE WITH MULTIPLICATIVE BOOSTS
+    score = (score + premiumBoost) *
+        newListingBoost *
+        freshnessBoost *
+        viewedPenalty;
 
     return score;
   }

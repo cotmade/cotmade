@@ -126,17 +126,19 @@ class CotmindBot {
       };
     }
 
-    // Perform one single query using arrayContainsAny with searchKeywords
     final snapshot = await firestore
         .collection('reels')
         .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
-        .limit(50)
+        .limit(200)
         .get();
+
+    // Filter videos that contain all keywords
+    final allKeywordsMatches = <Map<String, dynamic>>[];
+    final partialMatches = <Map<String, dynamic>>[];
 
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final videoUrl = data['reelsVideo'];
-
       if (videoUrl == null ||
           seenVideos.contains(videoUrl) ||
           excludeUrls.contains(videoUrl)) {
@@ -144,24 +146,34 @@ class CotmindBot {
       }
 
       final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
-      int score = keywords.fold(0,
-          (sum, keyword) => searchKeywords.contains(keyword) ? sum + 1 : sum);
+      final matchesAll = keywords.every((k) => searchKeywords.contains(k));
 
-      scoredResults.add({'data': data, 'score': score});
+      if (matchesAll) {
+        allKeywordsMatches.add(data);
+      } else {
+        // Score partial matches by number of matched keywords
+        int score = keywords.fold(0,
+            (sum, keyword) => searchKeywords.contains(keyword) ? sum + 1 : sum);
+        if (score > 0) {
+          partialMatches.add({
+            'data': data,
+            'score': score,
+          });
+        }
+      }
+
       seenVideos.add(videoUrl);
     }
 
-    // Sort results by score descending
-    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
-
-    // Pick top 2
-    for (final item in scoredResults) {
-      if (results.length >= 2) break;
-      results.add(item['data']);
-    }
-
-    // Optional fallback if no results found (using looser match)
-    if (results.isEmpty) {
+    if (allKeywordsMatches.isNotEmpty) {
+      // If found videos matching all keywords, pick top 2
+      results.addAll(allKeywordsMatches.take(2));
+    } else if (partialMatches.isNotEmpty) {
+      // Sort partial matches by score descending and pick top 2
+      partialMatches.sort((a, b) => b['score'].compareTo(a['score']));
+      results.addAll(partialMatches.take(2).map((e) => e['data']));
+    } else {
+      // fallback to random videos if none found
       usedFallback = true;
 
       final fallbackSnapshot =
@@ -180,7 +192,7 @@ class CotmindBot {
     }
 
     return {
-      'results': results,
+      'results': results.take(2).toList(),
       'usedFallback': usedFallback,
     };
   }
@@ -423,7 +435,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
     setState(() {
-      //  _messages.add(ChatMessage(message: botReply, isUser: false));
+      _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
     });
 
