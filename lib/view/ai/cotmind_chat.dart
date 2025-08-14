@@ -117,11 +117,56 @@ class CotmindBot {
     final seenVideos = <String>{};
     bool usedFallback = false;
 
+    /// Keyword extractor to remove filler words
+    List<String> extractKeywords(String input) {
+      const stopWords = {
+        'i',
+        'am',
+        'looking',
+        'for',
+        'a',
+        'an',
+        'the',
+        'in',
+        'on',
+        'at',
+        'to',
+        'is',
+        'are',
+        'with',
+        'me',
+        'you',
+        'of',
+        'my',
+        'do',
+        'how',
+        'can',
+        'please',
+        'show',
+        'find',
+        'need',
+        'want',
+        'help',
+        'it',
+        'and',
+        'or',
+        'that',
+        'this',
+        'more'
+      };
+
+      return input
+          .toLowerCase()
+          .split(RegExp(r'\W+')) // Split by non-word characters
+          .where((word) => word.isNotEmpty && !stopWords.contains(word))
+          .toList();
+    }
+
     final trimmedQuery = query.trim().toLowerCase();
-    final queryWords = trimmedQuery.split(RegExp(r'\s+'));
+    final queryWords = extractKeywords(trimmedQuery);
 
     if (queryWords.isEmpty) {
-      print("❗ Query is empty");
+      print("❗ Query is empty after filtering stopwords.");
       return {
         'results': [],
         'usedFallback': false,
@@ -129,14 +174,16 @@ class CotmindBot {
     }
 
     try {
-      // 1. Fetch all (or limited) premium/active videos
       final snapshot = await firestore
           .collection('reels')
-          .where('premium', isGreaterThan: 0) // Optional filter
-          .limit(50) // Limit to reasonable number
+          .where('premium', isGreaterThan: 0)
+          .limit(50)
           .get();
 
       print("🔍 Fetched ${snapshot.docs.length} documents from Firestore");
+
+      // Score-based matching
+      final scoredResults = <Map<String, dynamic>>[];
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
@@ -154,22 +201,35 @@ class CotmindBot {
         final keywords =
             searchText.whereType<String>().map((e) => e.toLowerCase()).toList();
 
-        // Same logic as your _filterVideos: ANY query word matches ANY keyword
-        final matches = queryWords.any((word) {
-          return keywords.any((kw) => kw.contains(word));
-        });
+        int score = 0;
 
-        if (matches) {
-          results.add(data);
+        for (final word in queryWords) {
+          for (final keyword in keywords) {
+            if (keyword == word) {
+              score += 2; // Exact match
+            } else if (keyword.contains(word) || word.contains(keyword)) {
+              score += 1; // Partial match
+            }
+          }
+        }
+
+        if (score > 0) {
+          scoredResults.add({'data': data, 'score': score});
           seenVideos.add(videoUrl);
-
-          if (results.length >= 2) break; // Limit to top 2 results
         }
       }
 
+      // Sort by score (highest match first)
+      scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+
+      for (final item in scoredResults) {
+        if (results.length >= 2) break;
+        results.add(item['data']);
+      }
+
+      // Fallback if nothing found
       if (results.isEmpty) {
         usedFallback = true;
-
         final fallbackSnapshot =
             await firestore.collection('reels').limit(10).get();
         print("🔁 Fallback: ${fallbackSnapshot.docs.length} reels fetched");
@@ -357,7 +417,7 @@ class _CotmindChatState extends State<CotmindChat> {
     final isFollowUp = _isFollowUpRequest(trimmedInput);
 
     setState(() {
-      //  _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
       _isBotTyping = true;
     });
 
