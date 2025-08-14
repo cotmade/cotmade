@@ -112,90 +112,92 @@ class CotmindBot {
     String query, {
     List<String> excludeUrls = const [],
   }) async {
-    final keywords = extractKeywords(query);
     final firestore = FirebaseFirestore.instance;
     final results = <Map<String, dynamic>>[];
     final seenVideos = <String>{};
-    final scoredResults = <Map<String, dynamic>>[];
     bool usedFallback = false;
 
-    if (keywords.isEmpty) {
+    final trimmedQuery = query.trim().toLowerCase();
+    final queryWords = trimmedQuery.split(RegExp(r'\s+'));
+
+    if (queryWords.isEmpty) {
+      print("❗ Query is empty");
       return {
         'results': [],
         'usedFallback': false,
       };
     }
 
-    // Perform one single query using arrayContainsAny with searchKeywords
-    final snapshot = await firestore
-        .collection('reels')
-        .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
-        .limit(50)
-        .get();
+    try {
+      // 1. Fetch all (or limited) premium/active videos
+      final snapshot = await firestore
+          .collection('reels')
+          .where('premium', isGreaterThan: 0) // Optional filter
+          .limit(50) // Limit to reasonable number
+          .get();
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final videoUrl = data['reelsVideo'];
+      print("🔍 Fetched ${snapshot.docs.length} documents from Firestore");
 
-      // Skip already seen or excluded videos
-      if (videoUrl == null ||
-          seenVideos.contains(videoUrl) ||
-          excludeUrls.contains(videoUrl)) {
-        continue;
-      }
-
-      // Get search keywords from document
-      final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
-
-      // Calculate score based on how many keywords match the searchKeywords field
-      int score = 0;
-      for (final keyword in keywords) {
-        if (searchKeywords.contains(keyword)) {
-          score++;
-        }
-      }
-
-      // If score > 0, add to scoredResults
-      if (score > 0) {
-        scoredResults.add({'data': data, 'score': score});
-      }
-
-      seenVideos.add(videoUrl);
-    }
-
-    // Sort results by score in descending order
-    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
-
-    // Add the top 2 results
-    for (final item in scoredResults) {
-      if (results.length >= 2) break;
-      results.add(item['data']);
-    }
-
-    // If no matching results found, fallback to random videos
-    if (results.isEmpty) {
-      usedFallback = true;
-
-      final fallbackSnapshot =
-          await firestore.collection('reels').limit(10).get();
-
-      for (final doc in fallbackSnapshot.docs) {
+      for (final doc in snapshot.docs) {
         final data = doc.data();
         final videoUrl = data['reelsVideo'];
 
-        if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+        if (videoUrl == null ||
+            seenVideos.contains(videoUrl) ||
+            excludeUrls.contains(videoUrl)) {
+          continue;
+        }
 
-        results.add(data);
-        seenVideos.add(videoUrl);
+        final searchText = data['searchText'];
+        if (searchText == null || searchText is! List) continue;
 
-        if (results.length >= 2) break;
+        final keywords =
+            searchText.whereType<String>().map((e) => e.toLowerCase()).toList();
+
+        // Same logic as your _filterVideos: ANY query word matches ANY keyword
+        final matches = queryWords.any((word) {
+          return keywords.any((kw) => kw.contains(word));
+        });
+
+        if (matches) {
+          results.add(data);
+          seenVideos.add(videoUrl);
+
+          if (results.length >= 2) break; // Limit to top 2 results
+        }
       }
-    }
 
-    return {
-      'results': results,
-      'usedFallback': usedFallback,
-    };
+      if (results.isEmpty) {
+        usedFallback = true;
+
+        final fallbackSnapshot =
+            await firestore.collection('reels').limit(10).get();
+        print("🔁 Fallback: ${fallbackSnapshot.docs.length} reels fetched");
+
+        for (final doc in fallbackSnapshot.docs) {
+          final data = doc.data();
+          final videoUrl = data['reelsVideo'];
+
+          if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+
+          results.add(data);
+          seenVideos.add(videoUrl);
+
+          if (results.length >= 2) break;
+        }
+      }
+
+      return {
+        'results': results,
+        'usedFallback': usedFallback,
+      };
+    } catch (e) {
+      print("❌ Error in fetchVideosBySearch: $e");
+      return {
+        'results': [],
+        'usedFallback': false,
+      };
+    }
   }
 }
 
@@ -355,7 +357,7 @@ class _CotmindChatState extends State<CotmindChat> {
     final isFollowUp = _isFollowUpRequest(trimmedInput);
 
     setState(() {
-      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      //  _messages.add(ChatMessage(message: trimmedInput, isUser: true));
       _isBotTyping = true;
     });
 
@@ -437,7 +439,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
     setState(() {
-      _messages.add(ChatMessage(message: botReply, isUser: false));
+      //  _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
     });
 

@@ -742,7 +742,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     child: CircleAvatar(child: Icon(Icons.smart_toy)),
                   ),
                   Transform.translate(
-                    offset: Offset(0, -4), // move text up slightly
+                    offset: Offset(0, -6), // move text up slightly
                     child: Text(
                       "Ask AI",
                       style: TextStyle(
