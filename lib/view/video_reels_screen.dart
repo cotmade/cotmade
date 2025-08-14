@@ -78,9 +78,9 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     if (doc.exists) {
       _userProfile = doc.data();
     }
-  }
+    }
 
-  double computeScore(Map<String, dynamic> data) {
+    double computeScore(Map<String, dynamic> data) {
   final views = (data['views'] ?? 0).toDouble();
   final likes = (data['likes'] ?? 0).toDouble();
   final premium = (data['premium'] ?? 0).toDouble();
@@ -94,14 +94,17 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   int hoursSincePost = DateTime.now().difference(createdAt).inHours;
   int daysSincePost = DateTime.now().difference(createdAt).inDays;
 
-  // FRESHNESS BOOST: Active for 48h, then fades over next 24h
-  double freshnessBoost = 2.0;
-  if (hoursSincePost > 48) {
+  // Freshness boost: Apply a score of 5 for new videos up to 48 hours
+  double freshnessBoost = 1.0;
+  if (hoursSincePost <= 48) {
+    freshnessBoost = 5.0; // Give a score of 5 to new videos
+  } else {
+    // Decay the freshness boost after 48 hours
     double decayHours = hoursSincePost - 48;
     if (decayHours >= 24) {
       freshnessBoost = 1.0;
     } else {
-      freshnessBoost = 2.0 - (decayHours / 24);
+      freshnessBoost = 5.0 - (decayHours / 24);
     }
   }
 
@@ -110,8 +113,10 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   if (daysSincePost <= 3) {
     newListingBoost = 2.0;
   } else if (daysSincePost <= 14) {
-    double decayFactor = 1.5 - (0.5 * ((daysSincePost - 3) / 11)).clamp(0.0, 1.0);
-    double engagementScore = (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
+    double decayFactor =
+        1.5 - (0.5 * ((daysSincePost - 3) / 11)).clamp(0.0, 1.0);
+    double engagementScore =
+        (views > 0) ? (likes / views).clamp(0.0, 1.0) : 0.0;
 
     if (engagementScore >= 0.3) {
       newListingBoost = decayFactor;

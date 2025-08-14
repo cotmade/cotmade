@@ -34,7 +34,7 @@ class CotmindBot {
   // final apiKey = await ApiConfig.getApiKey();
   static const _cohereEndpoint = 'https://api.cohere.ai/v1/generate';
 
-  static List<String> extractKeywords(String input) {
+static List<String> extractKeywords(String input) {
     final stopWords = {
       'what',
       'is',
@@ -108,88 +108,112 @@ class CotmindBot {
     }
   }
 
-  static Future<Map<String, dynamic>> fetchVideosBySearch(
-    String query, {
-    List<String> excludeUrls = const [],
-  }) async {
-    final firestore = FirebaseFirestore.instance;
-    final results = <Map<String, dynamic>>[];
-    final seenVideos = <String>{};
-    final scoredResults = <Map<String, dynamic>>[];
-    bool usedFallback = false;
+/// Function to compare the query with a video and calculate a relevance score.
+ static int compareWithQuery(String query, Map<String, dynamic> videoData) {
+  final keywords = extractKeywords(query);
+  final searchText = videoData['searchText'] as List<String>;
+  int score = 0;
 
-    final keywords = query
-        .toLowerCase()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.trim().isNotEmpty)
-        .toList();
-
-    if (keywords.isEmpty) {
-      return {
-        'results': [],
-        'usedFallback': false,
-      };
+  // Match keywords in searchText
+  final searchWords = searchText.toSet();
+  for (final keyword in keywords) {
+    if (searchWords.contains(keyword.toLowerCase())) {
+      score++;
     }
+  }
 
-    // Pull a big batch of data to manually filter
-    final snapshot = await firestore.collection('reels').limit(200).get();
+  // Boost score for premium videos
+  if (videoData['premium'] == 1) {
+    score += 2; // Premium videos get an additional boost
+  }
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final videoUrl = data['reelsVideo'];
-      if (videoUrl == null ||
-          seenVideos.contains(videoUrl) ||
-          excludeUrls.contains(videoUrl)) {
-        continue;
-      }
+  // Optionally, add more scoring criteria like likes, views, etc.
+  if (videoData['likes'] != null && videoData['likes'] > 50) {
+    score += 1; // Videos with more than 50 likes get a small boost
+  }
 
-      final searchText = (data['searchText'] ?? '').toLowerCase();
+  // Optional: Add view-based scoring (more views = higher score)
+  if (videoData['views'] != null && videoData['views'] > 100) {
+    score += 1; // Videos with more than 100 views get a small boost
+  }
 
-      // Score based on how many keywords are found in searchText
-      int score = 0;
-      for (final keyword in keywords) {
-        if (searchText.contains(keyword)) {
-          score++;
-        }
-      }
+  return score;
+}
 
-      if (score > 0) {
-        scoredResults.add({
-          'data': data,
-          'score': score,
-        });
-      }
+  /// Function to filter and sort videos based on the search query.
+ static Future<Map<String, dynamic>> fetchVideosBySearch(String query, {List<String> excludeUrls = const []}) async {
+  final firestore = FirebaseFirestore.instance;
+  final results = <Map<String, dynamic>>[];
+  final seenVideos = <String>{};
+  final scoredResults = <Map<String, dynamic>>[];
+  bool usedFallback = false;
 
-      seenVideos.add(videoUrl);
-    }
+  final keywords = extractKeywords(query);
 
-    if (scoredResults.isNotEmpty) {
-      scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
-      results.addAll(scoredResults.take(2).map((e) => e['data']));
-    } else {
-      // fallback to random videos
-      usedFallback = true;
-
-      final fallbackSnapshot =
-          await firestore.collection('reels').limit(10).get();
-
-      for (final doc in fallbackSnapshot.docs) {
-        final data = doc.data();
-        final videoUrl = data['reelsVideo'];
-        if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
-
-        results.add(data);
-        seenVideos.add(videoUrl);
-
-        if (results.length >= 2) break;
-      }
-    }
-
+  if (keywords.isEmpty) {
     return {
-      'results': results.take(2).toList(),
-      'usedFallback': usedFallback,
+      'results': [],
+      'usedFallback': false,
     };
   }
+
+  // Pull a big batch of data to manually filter
+  final snapshot = await firestore.collection('reels')
+      .where('searchText', arrayContainsAny: keywords) // Firestore search filtering
+      .limit(100) // Limit the results to 100
+      .get();
+
+  // Process the search results from Firestore
+  for (final doc in snapshot.docs) {
+    final data = doc.data();
+    final videoUrl = data['reelsVideo'];
+    if (videoUrl == null || seenVideos.contains(videoUrl) || excludeUrls.contains(videoUrl)) {
+      continue;
+    }
+
+    final searchText = (data['searchText'] ?? '').toList().map((e) => e.toLowerCase()).toList();
+
+    // Score based on how many keywords match in searchText
+    int score = compareWithQuery(query, data);
+
+    if (score > 0) {
+      scoredResults.add({
+        'data': data,
+        'score': score,
+      });
+    }
+
+    seenVideos.add(videoUrl);
+  }
+
+  // If matching results were found, sort them by score
+  if (scoredResults.isNotEmpty) {
+    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+    results.addAll(scoredResults.take(2).map((e) => e['data']));
+  } else {
+    // Fallback to random videos if no matching results were found
+    usedFallback = true;
+
+    final fallbackSnapshot =
+        await firestore.collection('reels').limit(10).get();
+
+    for (final doc in fallbackSnapshot.docs) {
+      final data = doc.data();
+      final videoUrl = data['reelsVideo'];
+      if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+
+      results.add(data);
+      seenVideos.add(videoUrl);
+
+      if (results.length >= 2) break;
+    }
+  }
+
+  return {
+    'results': results.take(2).toList(),
+    'usedFallback': usedFallback,
+  };
+}
 }
 
 class CotmindChat extends StatefulWidget {
