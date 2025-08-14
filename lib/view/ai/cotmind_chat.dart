@@ -214,6 +214,7 @@ class _CotmindChatState extends State<CotmindChat> {
   Set<String> _seenVideoUrls = {};
   int _followUpCount = 0;
   bool _awaitingMoreConfirmation = false;
+  bool _showRecordingIndicator = false;
 
   @override
   void initState() {
@@ -507,11 +508,23 @@ class _CotmindChatState extends State<CotmindChat> {
 
   void _startListening() async {
     bool available = await _speech.initialize(
-      onStatus: (_) {},
-      onError: (e) => print("Speech error: $e"),
+      onStatus: (status) {
+        if (status == 'done') {
+          _stopListening();
+        }
+      },
+      onError: (e) {
+        print("Speech error: $e");
+        _stopListening(); // stop on error too
+      },
     );
+
     if (available) {
-      setState(() => _isListening = true);
+      setState(() {
+        _isListening = true;
+        _showRecordingIndicator = true;
+      });
+
       _speech.listen(
         onResult: (result) {
           _controller.text = result.recognizedWords;
@@ -526,7 +539,10 @@ class _CotmindChatState extends State<CotmindChat> {
 
   void _stopListening() {
     _speech.stop();
-    setState(() => _isListening = false);
+    setState(() {
+      _isListening = false;
+      _showRecordingIndicator = false;
+    });
   }
 
   void _scrollToBottom() {
@@ -669,26 +685,50 @@ class _CotmindChatState extends State<CotmindChat> {
 
   Widget _buildInputBar() {
     return SafeArea(
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-            onPressed: _isListening ? _stopListening : _startListening,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              onSubmitted: _handleSend,
-              decoration: InputDecoration(
-                hintText: "Ask something...",
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+          if (_showRecordingIndicator)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.mic, color: Colors.redAccent),
+                  SizedBox(width: 6),
+                  Text(
+                    "Listening...",
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send),
-            onPressed: () => _handleSend(_controller.text),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                onPressed: _isListening ? _stopListening : _startListening,
+                color: _isListening ? Colors.redAccent : null,
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  onSubmitted: _handleSend,
+                  decoration: InputDecoration(
+                    hintText: "Ask something...",
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.send),
+                onPressed: () => _handleSend(_controller.text),
+              ),
+            ],
           ),
         ],
       ),
