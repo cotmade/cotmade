@@ -97,14 +97,14 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   // Freshness boost: Apply a score of 5 for new videos up to 48 hours
   double freshnessBoost = 1.0;
   if (hoursSincePost <= 48) {
-    freshnessBoost = 5.0; // Give a score of 5 to new videos
+    freshnessBoost = 8.0; // Give a score of 5 to new videos
   } else {
     // Decay the freshness boost after 48 hours
     double decayHours = hoursSincePost - 48;
     if (decayHours >= 24) {
       freshnessBoost = 1.0;
     } else {
-      freshnessBoost = 5.0 - (decayHours / 24);
+      freshnessBoost = 8.0 - (decayHours / 24);
     }
   }
 

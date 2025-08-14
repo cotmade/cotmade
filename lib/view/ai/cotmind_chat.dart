@@ -34,7 +34,7 @@ class CotmindBot {
   // final apiKey = await ApiConfig.getApiKey();
   static const _cohereEndpoint = 'https://api.cohere.ai/v1/generate';
 
-static List<String> extractKeywords(String input) {
+  static List<String> extractKeywords(String input) {
     final stopWords = {
       'what',
       'is',
@@ -108,112 +108,95 @@ static List<String> extractKeywords(String input) {
     }
   }
 
-/// Function to compare the query with a video and calculate a relevance score.
- static int compareWithQuery(String query, Map<String, dynamic> videoData) {
-  final keywords = extractKeywords(query);
-  final searchText = videoData['searchText'] as List<String>;
-  int score = 0;
+  static Future<Map<String, dynamic>> fetchVideosBySearch(
+    String query, {
+    List<String> excludeUrls = const [],
+  }) async {
+    final keywords = extractKeywords(query);
+    final firestore = FirebaseFirestore.instance;
+    final results = <Map<String, dynamic>>[];
+    final seenVideos = <String>{};
+    final scoredResults = <Map<String, dynamic>>[];
+    bool usedFallback = false;
 
-  // Match keywords in searchText
-  final searchWords = searchText.toSet();
-  for (final keyword in keywords) {
-    if (searchWords.contains(keyword.toLowerCase())) {
-      score++;
-    }
-  }
-
-  // Boost score for premium videos
-  if (videoData['premium'] == 1) {
-    score += 2; // Premium videos get an additional boost
-  }
-
-  // Optionally, add more scoring criteria like likes, views, etc.
-  if (videoData['likes'] != null && videoData['likes'] > 50) {
-    score += 1; // Videos with more than 50 likes get a small boost
-  }
-
-  // Optional: Add view-based scoring (more views = higher score)
-  if (videoData['views'] != null && videoData['views'] > 100) {
-    score += 1; // Videos with more than 100 views get a small boost
-  }
-
-  return score;
-}
-
-  /// Function to filter and sort videos based on the search query.
- static Future<Map<String, dynamic>> fetchVideosBySearch(String query, {List<String> excludeUrls = const []}) async {
-  final firestore = FirebaseFirestore.instance;
-  final results = <Map<String, dynamic>>[];
-  final seenVideos = <String>{};
-  final scoredResults = <Map<String, dynamic>>[];
-  bool usedFallback = false;
-
-  final keywords = extractKeywords(query);
-
-  if (keywords.isEmpty) {
-    return {
-      'results': [],
-      'usedFallback': false,
-    };
-  }
-
-  // Pull a big batch of data to manually filter
-  final snapshot = await firestore.collection('reels')
-      .where('searchText', arrayContainsAny: keywords) // Firestore search filtering
-      .limit(100) // Limit the results to 100
-      .get();
-
-  // Process the search results from Firestore
-  for (final doc in snapshot.docs) {
-    final data = doc.data();
-    final videoUrl = data['reelsVideo'];
-    if (videoUrl == null || seenVideos.contains(videoUrl) || excludeUrls.contains(videoUrl)) {
-      continue;
+    if (keywords.isEmpty) {
+      return {
+        'results': [],
+        'usedFallback': false,
+      };
     }
 
-    final searchText = (data['searchText'] ?? '').toList().map((e) => e.toLowerCase()).toList();
+    // Perform one single query using arrayContainsAny with searchKeywords
+    final snapshot = await firestore
+        .collection('reels')
+        .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
+        .limit(50)
+        .get();
 
-    // Score based on how many keywords match in searchText
-    int score = compareWithQuery(query, data);
-
-    if (score > 0) {
-      scoredResults.add({
-        'data': data,
-        'score': score,
-      });
-    }
-
-    seenVideos.add(videoUrl);
-  }
-
-  // If matching results were found, sort them by score
-  if (scoredResults.isNotEmpty) {
-    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
-    results.addAll(scoredResults.take(2).map((e) => e['data']));
-  } else {
-    // Fallback to random videos if no matching results were found
-    usedFallback = true;
-
-    final fallbackSnapshot =
-        await firestore.collection('reels').limit(10).get();
-
-    for (final doc in fallbackSnapshot.docs) {
+    for (final doc in snapshot.docs) {
       final data = doc.data();
       final videoUrl = data['reelsVideo'];
-      if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
 
-      results.add(data);
+      // Skip already seen or excluded videos
+      if (videoUrl == null ||
+          seenVideos.contains(videoUrl) ||
+          excludeUrls.contains(videoUrl)) {
+        continue;
+      }
+
+      // Get search keywords from document
+      final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
+
+      // Calculate score based on how many keywords match the searchKeywords field
+      int score = 0;
+      for (final keyword in keywords) {
+        if (searchKeywords.contains(keyword)) {
+          score++;
+        }
+      }
+
+      // If score > 0, add to scoredResults
+      if (score > 0) {
+        scoredResults.add({'data': data, 'score': score});
+      }
+
       seenVideos.add(videoUrl);
-
-      if (results.length >= 2) break;
     }
-  }
 
-  return {
-    'results': results.take(2).toList(),
-    'usedFallback': usedFallback,
-  };
-}
+    // Sort results by score in descending order
+    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+
+    // Add the top 2 results
+    for (final item in scoredResults) {
+      if (results.length >= 2) break;
+      results.add(item['data']);
+    }
+
+    // If no matching results found, fallback to random videos
+    if (results.isEmpty) {
+      usedFallback = true;
+
+      final fallbackSnapshot =
+          await firestore.collection('reels').limit(10).get();
+
+      for (final doc in fallbackSnapshot.docs) {
+        final data = doc.data();
+        final videoUrl = data['reelsVideo'];
+
+        if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+
+        results.add(data);
+        seenVideos.add(videoUrl);
+
+        if (results.length >= 2) break;
+      }
+    }
+
+    return {
+      'results': results,
+      'usedFallback': usedFallback,
+    };
+  }
 }
 
 class CotmindChat extends StatefulWidget {
