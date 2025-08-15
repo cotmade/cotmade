@@ -872,6 +872,27 @@ class _CotmindChatState extends State<CotmindChat> {
                 icon: Icon(Icons.send),
                 onPressed: () => _handleSend(_controller.text),
               ),
+              SizedBox(height: 6),
+              Center(
+                child: Text(
+                  "cotmind 1.0 – beta phase",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              SizedBox(height: 2),
+              Center(
+                child: Text(
+                  "Tip: Ask about rentals, listings, areas or amenities!",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
