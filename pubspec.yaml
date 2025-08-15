@@ -59,7 +59,7 @@ dependencies:
   url_launcher:
   image:
   speech_to_text:
-  tflite_flutter:
+  tflite:
 
 dev_dependencies:
   flutter_test:
