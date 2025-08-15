@@ -38,7 +38,7 @@ class CotmindBot {
     final trimmedInput = input.trim();
 
     if (trimmedInput.isEmpty) {
-      return "❌ Input empty or whitespace only.";
+      return "❌ Input is empty or whitespace only.";
     }
 
     final apiKey = await ApiConfig.getApiKey();
@@ -284,7 +284,7 @@ class CotmindBot {
           }
         }
 
-        if (score > 0) {
+        if (score >= 2) {
           scoredResults.add({'data': data, 'score': score});
           seenVideos.add(videoUrl);
         }
@@ -302,8 +302,8 @@ class CotmindBot {
       if (results.isEmpty) {
         usedFallback = true;
         final fallbackSnapshot =
-            await firestore.collection('reels').limit(40).get();
-        print("🔁 Fallback: ${fallbackSnapshot.docs.length} reels fetched");
+            await firestore.collection('reels').limit(50).get();
+        print("🔁 Fallback: checking fallback scores...");
 
         for (final doc in fallbackSnapshot.docs) {
           final data = doc.data();
@@ -311,13 +311,33 @@ class CotmindBot {
 
           if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
 
-          results.add(data);
-          seenVideos.add(videoUrl);
+          final searchText = data['searchText'];
+          if (searchText == null || searchText is! List) continue;
+
+          final keywords = searchText
+              .whereType<String>()
+              .map((e) => e.toLowerCase())
+              .toList();
+          int score = 0;
+
+          for (final word in queryWords) {
+            for (final keyword in keywords) {
+              if (keyword == word) {
+                score += 2;
+              } else if (keyword.contains(word) || word.contains(keyword)) {
+                score += 1;
+              }
+            }
+          }
+
+          if (score <= 1) {
+            results.add(data);
+            seenVideos.add(videoUrl);
+          }
 
           if (results.length >= 2) break;
         }
       }
-
       return {
         'results': results,
         'usedFallback': usedFallback,
@@ -890,13 +910,14 @@ class _CotmindChatState extends State<CotmindChat> {
               SizedBox(height: 2),
               Center(
                 child: Text(
-                  "Tip: Ask about rentals, listings, areas or amenities!",
+                  "Tip: Ask about rentals, listings, areas, amenities or price/night",
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: Colors.black,
                   ),
                 ),
               ),
+              SizedBox(height: 2),
             ],
           ),
         ],
