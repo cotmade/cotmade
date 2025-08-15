@@ -59,6 +59,7 @@ dependencies:
   url_launcher:
   image:
   speech_to_text:
+  tflite_flutter:
 
 dev_dependencies:
   flutter_test:
@@ -79,6 +80,8 @@ flutter:
   assets:
     - images/
     - assets/audio/
+    - tflite/mobilenet_v1.tflite
+    - tflite/labels.txt
   
   # fonts:
   #   - family: Schyler

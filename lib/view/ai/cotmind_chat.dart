@@ -15,6 +15,9 @@ import 'package:cotmade/model/app_constants.dart';
 import 'dart:math';
 import 'package:cotmade/view/ai/api_config.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:tflite/tflite.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ChatMessage {
   final String message;
@@ -38,7 +41,7 @@ class CotmindBot {
     final trimmedInput = input.trim();
 
     if (trimmedInput.isEmpty) {
-      return "❌ Input empty or whitespace only.";
+      return "❌ Input is empty or whitespace only.";
     }
 
     final apiKey = await ApiConfig.getApiKey();
@@ -369,15 +372,102 @@ class _CotmindChatState extends State<CotmindChat> {
   int _followUpCount = 0;
   bool _awaitingMoreConfirmation = false;
   bool _showRecordingIndicator = false;
+  File? _selectedImage;
 
   @override
   void initState() {
     super.initState();
+    _loadTFLiteModel();
     _speech = stt.SpeechToText();
 
     // Add greeting message from the bot
     final greeting = _generateGreeting();
     _messages.add(ChatMessage(message: greeting, isUser: false));
+  }
+
+  Future<void> _handleImageUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final image = File(picked.path);
+    setState(() => _selectedImage = image);
+
+    _classifyImage(image);
+  }
+
+  Future<void> _classifyImage(File image) async {
+    final results = await Tflite.runModelOnImage(
+      path: image.path,
+      numResults: 3,
+      threshold: 0.4,
+    );
+
+    if (results == null || results.isEmpty) {
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "❌ Couldn't understand the image.",
+          isUser: false,
+        ));
+      });
+      return;
+    }
+
+    final topLabels = results.map((e) => e['label']).join(", ");
+
+    // Show labels to user
+    setState(() {
+      _messages.add(ChatMessage(
+        message: "📷 Detected: $topLabels\nLet me find listings for this...",
+        isUser: false,
+      ));
+      _isBotTyping = true;
+    });
+
+    // Use labels as search query
+    final query = results.map((e) => e['label']).join(" ");
+    final videoResult = await CotmindBot.fetchVideosBySearch(query);
+
+    final videoSuggestions = videoResult['results'];
+    final usedFallback = videoResult['usedFallback'];
+
+    setState(() {
+      _isBotTyping = false;
+
+      if (usedFallback && videoSuggestions.isNotEmpty) {
+        _messages.add(ChatMessage(
+          message: _getRandomFallbackMessage(),
+          isUser: false,
+        ));
+      }
+
+      for (var video in videoSuggestions) {
+        _seenVideoUrls.add(video['reelsVideo']);
+        final postingId = video['postingId'];
+        _addPostingData(postingId, video);
+      }
+
+      if (videoSuggestions.length == 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+            _scrollToBottom();
+          });
+        });
+      }
+    });
+  }
+
+  Future<void> _loadTFLiteModel() async {
+    String? res = await Tflite.loadModel(
+      model: "assets/tflite/mobilenet_v1.tflite",
+      labels: "assets/tflite/labels.txt",
+    );
+    print("🔍 TFLite model loaded: $res");
   }
 
   String _generateGreeting() {
@@ -725,6 +815,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
   @override
   void dispose() {
+    Tflite.close();
     _messages.clear();
     _speech.stop();
     super.dispose();
@@ -858,6 +949,11 @@ class _CotmindChatState extends State<CotmindChat> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  IconButton(
+                    icon: Icon(Icons.image),
+                    onPressed: _handleImageUpload,
+                  ),
+                  SizedBox(width: 3),
                   Icon(Icons.mic, color: Colors.redAccent),
                   SizedBox(width: 6),
                   Text(
