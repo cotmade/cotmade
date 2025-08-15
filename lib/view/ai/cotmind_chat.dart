@@ -302,7 +302,7 @@ class CotmindBot {
       if (results.isEmpty) {
         usedFallback = true;
         final fallbackSnapshot =
-            await firestore.collection('reels').limit(10).get();
+            await firestore.collection('reels').limit(40).get();
         print("🔁 Fallback: ${fallbackSnapshot.docs.length} reels fetched");
 
         for (final doc in fallbackSnapshot.docs) {
@@ -872,7 +872,11 @@ class _CotmindChatState extends State<CotmindChat> {
                 icon: Icon(Icons.send),
                 onPressed: () => _handleSend(_controller.text),
               ),
-              SizedBox(height: 6),
+            ],
+          ),
+          SizedBox(height: 6),
+          Column(
+            children: [
               Center(
                 child: Text(
                   "cotmind 1.0 – beta phase",
