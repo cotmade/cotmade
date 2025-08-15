@@ -41,7 +41,7 @@ class CotmindBot {
     final trimmedInput = input.trim();
 
     if (trimmedInput.isEmpty) {
-      return "❌ Input is empty or whitespace only.";
+      return "❌ Input is empty or whitespace only";
     }
 
     final apiKey = await ApiConfig.getApiKey();
