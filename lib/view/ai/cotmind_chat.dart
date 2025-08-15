@@ -34,44 +34,6 @@ class CotmindBot {
   // final apiKey = await ApiConfig.getApiKey();
   static const _cohereEndpoint = 'https://api.cohere.ai/v1/generate';
 
-  static List<String> extractKeywords(String input) {
-    final stopWords = {
-      'what',
-      'is',
-      'the',
-      'a',
-      'in',
-      'of',
-      'to',
-      'on',
-      'with',
-      'how',
-      'can',
-      'i',
-      'you',
-      'tell',
-      'me',
-      'about',
-      'need',
-      'know',
-      'where',
-      'why',
-      'are',
-      'for',
-      'and',
-      'or',
-      'an',
-      'do'
-    };
-
-    return input
-        .toLowerCase()
-        .split(RegExp(r'\W+'))
-        .where((word) => word.isNotEmpty && !stopWords.contains(word))
-        .toSet()
-        .toList();
-  }
-
   static Future<String> getAIResponse(String input) async {
     final trimmedInput = input.trim();
 
@@ -112,90 +74,261 @@ class CotmindBot {
     String query, {
     List<String> excludeUrls = const [],
   }) async {
-    final keywords = extractKeywords(query);
     final firestore = FirebaseFirestore.instance;
     final results = <Map<String, dynamic>>[];
     final seenVideos = <String>{};
-    final scoredResults = <Map<String, dynamic>>[];
     bool usedFallback = false;
 
-    if (keywords.isEmpty) {
+    /// Keyword extractor to remove filler words
+    List<String> extractKeywords(String input) {
+      const stopWords = {
+        'i',
+        'me',
+        'my',
+        'myself',
+        'we',
+        'our',
+        'ours',
+        'ourselves',
+        'you',
+        'your',
+        'yours',
+        'yourself',
+        'yourselves',
+        'he',
+        'him',
+        'his',
+        'himself',
+        'she',
+        'her',
+        'hers',
+        'herself',
+        'it',
+        'its',
+        'itself',
+        'they',
+        'them',
+        'their',
+        'theirs',
+        'themselves',
+        'what',
+        'which',
+        'who',
+        'whom',
+        'this',
+        'that',
+        'these',
+        'those',
+        'am',
+        'is',
+        'are',
+        'was',
+        'were',
+        'be',
+        'been',
+        'being',
+        'have',
+        'has',
+        'had',
+        'having',
+        'do',
+        'does',
+        'did',
+        'doing',
+        'a',
+        'an',
+        'the',
+        'and',
+        'but',
+        'if',
+        'or',
+        'because',
+        'as',
+        'until',
+        'while',
+        'of',
+        'at',
+        'by',
+        'for',
+        'with',
+        'about',
+        'against',
+        'between',
+        'into',
+        'through',
+        'during',
+        'before',
+        'after',
+        'above',
+        'below',
+        'to',
+        'from',
+        'up',
+        'down',
+        'in',
+        'out',
+        'on',
+        'off',
+        'over',
+        'under',
+        'again',
+        'further',
+        'then',
+        'once',
+        'here',
+        'there',
+        'when',
+        'where',
+        'why',
+        'how',
+        'all',
+        'any',
+        'both',
+        'each',
+        'few',
+        'more',
+        'most',
+        'other',
+        'some',
+        'such',
+        'no',
+        'nor',
+        'not',
+        'only',
+        'own',
+        'same',
+        'so',
+        'than',
+        'too',
+        'very',
+        'can',
+        'will',
+        'just',
+        'don',
+        'should',
+        'now',
+        'need',
+        'want',
+        'find',
+        'looking',
+        'searching',
+        'show',
+        'please',
+        'let',
+        'could',
+        'would',
+        'may',
+        'might',
+        'shall',
+        'must',
+        'another',
+        'people',
+        'friends'
+      };
+
+      return input
+          .toLowerCase()
+          .split(RegExp(r'\W+')) // Split by non-word characters
+          .where((word) => word.isNotEmpty && !stopWords.contains(word))
+          .toList();
+    }
+
+    final trimmedQuery = query.trim().toLowerCase();
+    final queryWords = extractKeywords(trimmedQuery);
+
+    if (queryWords.isEmpty) {
+      print("❗ Query is empty after filtering stopwords.");
       return {
         'results': [],
         'usedFallback': false,
       };
     }
 
-    // Perform one single query using arrayContainsAny with searchKeywords
-    final snapshot = await firestore
-        .collection('reels')
-        .where('searchKeywords', arrayContainsAny: keywords.take(40).toList())
-        .limit(50)
-        .get();
+    try {
+      final snapshot = await firestore
+          .collection('reels')
+          .where('premium', isGreaterThan: 0)
+          .limit(50)
+          .get();
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final videoUrl = data['reelsVideo'];
+      print("🔍 Fetched ${snapshot.docs.length} documents from Firestore");
 
-      // Skip already seen or excluded videos
-      if (videoUrl == null ||
-          seenVideos.contains(videoUrl) ||
-          excludeUrls.contains(videoUrl)) {
-        continue;
-      }
+      // Score-based matching
+      final scoredResults = <Map<String, dynamic>>[];
 
-      // Get search keywords from document
-      final searchKeywords = List<String>.from(data['searchKeywords'] ?? []);
-
-      // Calculate score based on how many keywords match the searchKeywords field
-      int score = 0;
-      for (final keyword in keywords) {
-        if (searchKeywords.contains(keyword)) {
-          score++;
-        }
-      }
-
-      // If score > 0, add to scoredResults
-      if (score > 0) {
-        scoredResults.add({'data': data, 'score': score});
-      }
-
-      seenVideos.add(videoUrl);
-    }
-
-    // Sort results by score in descending order
-    scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
-
-    // Add the top 2 results
-    for (final item in scoredResults) {
-      if (results.length >= 2) break;
-      results.add(item['data']);
-    }
-
-    // If no matching results found, fallback to random videos
-    if (results.isEmpty) {
-      usedFallback = true;
-
-      final fallbackSnapshot =
-          await firestore.collection('reels').limit(10).get();
-
-      for (final doc in fallbackSnapshot.docs) {
+      for (final doc in snapshot.docs) {
         final data = doc.data();
         final videoUrl = data['reelsVideo'];
 
-        if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+        if (videoUrl == null ||
+            seenVideos.contains(videoUrl) ||
+            excludeUrls.contains(videoUrl)) {
+          continue;
+        }
 
-        results.add(data);
-        seenVideos.add(videoUrl);
+        final searchText = data['searchText'];
+        if (searchText == null || searchText is! List) continue;
 
-        if (results.length >= 2) break;
+        final keywords =
+            searchText.whereType<String>().map((e) => e.toLowerCase()).toList();
+
+        int score = 0;
+
+        for (final word in queryWords) {
+          for (final keyword in keywords) {
+            if (keyword == word) {
+              score += 2; // Exact match
+            } else if (keyword.contains(word) || word.contains(keyword)) {
+              score += 1; // Partial match
+            }
+          }
+        }
+
+        if (score > 0) {
+          scoredResults.add({'data': data, 'score': score});
+          seenVideos.add(videoUrl);
+        }
       }
-    }
 
-    return {
-      'results': results,
-      'usedFallback': usedFallback,
-    };
+      // Sort by score (highest match first)
+      scoredResults.sort((a, b) => b['score'].compareTo(a['score']));
+
+      for (final item in scoredResults) {
+        if (results.length >= 2) break;
+        results.add(item['data']);
+      }
+
+      // Fallback if nothing found
+      if (results.isEmpty) {
+        usedFallback = true;
+        final fallbackSnapshot =
+            await firestore.collection('reels').limit(10).get();
+        print("🔁 Fallback: ${fallbackSnapshot.docs.length} reels fetched");
+
+        for (final doc in fallbackSnapshot.docs) {
+          final data = doc.data();
+          final videoUrl = data['reelsVideo'];
+
+          if (videoUrl == null || seenVideos.contains(videoUrl)) continue;
+
+          results.add(data);
+          seenVideos.add(videoUrl);
+
+          if (results.length >= 2) break;
+        }
+      }
+
+      return {
+        'results': results,
+        'usedFallback': usedFallback,
+      };
+    } catch (e) {
+      print("❌ Error in fetchVideosBySearch: $e");
+      return {
+        'results': [],
+        'usedFallback': false,
+      };
+    }
   }
 }
 
@@ -437,7 +570,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
     setState(() {
-      _messages.add(ChatMessage(message: botReply, isUser: false));
+      //  _messages.add(ChatMessage(message: botReply, isUser: false));
       _isBotTyping = false;
     });
 
