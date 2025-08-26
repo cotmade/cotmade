@@ -66,7 +66,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.2
-  icons_launcher: ^3.0.1
 
 icons_launcher:
   image_path: "images/icon.png"
