@@ -16,8 +16,9 @@ import 'dart:math';
 import 'package:cotmade/view/ai/api_config.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:tflite/tflite.dart';
+import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
 
 class ChatMessage {
   final String message;
@@ -41,7 +42,7 @@ class CotmindBot {
     final trimmedInput = input.trim();
 
     if (trimmedInput.isEmpty) {
-      return "❌ Input is empty or whitespace only";
+      return "❌ Input is empty or whitespace only.";
     }
 
     final apiKey = await ApiConfig.getApiKey();
@@ -374,6 +375,11 @@ class _CotmindChatState extends State<CotmindChat> {
   bool _showRecordingIndicator = false;
   File? _selectedImage;
 
+  late Interpreter _interpreter;
+  late List<String> _labels;
+  late ImageProcessor _imageProcessor;
+  late TensorImage _inputImage;
+
   @override
   void initState() {
     super.initState();
@@ -396,26 +402,57 @@ class _CotmindChatState extends State<CotmindChat> {
     _classifyImage(image);
   }
 
-  Future<void> _classifyImage(File image) async {
-    final results = await Tflite.runModelOnImage(
-      path: image.path,
-      numResults: 3,
-      threshold: 0.4,
-    );
-
-    if (results == null || results.isEmpty) {
+  Future<void> _classifyImage(File imageFile) async {
+    // Load image file into memory
+    final rawImage = img.decodeImage(imageFile.readAsBytesSync());
+    if (rawImage == null) {
       setState(() {
-        _messages.add(ChatMessage(
-          message: "❌ Couldn't understand the image.",
-          isUser: false,
-        ));
+        _messages.add(
+            ChatMessage(message: "❌ Failed to read the image.", isUser: false));
       });
       return;
     }
 
-    final topLabels = results.map((e) => e['label']).join(", ");
+    // Resize and normalize the image
+    final inputSize = 224; // MobileNet v1 input
+    _inputImage = TensorImage.fromImage(rawImage);
+    _imageProcessor = ImageProcessorBuilder()
+        .add(ResizeOp(inputSize, inputSize, ResizeMethod.BILINEAR))
+        .add(NormalizeOp(127.5, 127.5)) // Normalize to [-1,1]
+        .build();
 
-    // Show labels to user
+    _inputImage = _imageProcessor.process(_inputImage);
+
+    // Prepare output buffer
+    TensorBuffer outputBuffer = TensorBuffer.createFixedSize(
+      [1, 1001], // MobileNet returns 1001 labels
+      TfLiteType.float32,
+    );
+
+    // Run inference
+    _interpreter.run(_inputImage.buffer, outputBuffer.buffer);
+
+    // Post-process to get top results
+    final topK = TensorLabel.fromList(_labels, outputBuffer)
+        .getMapWithFloatValue()
+        .entries
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topResults = topK.take(3).toList();
+
+    if (topResults.isEmpty) {
+      setState(() {
+        _messages.add(ChatMessage(
+            message: "❌ Couldn't understand the image.", isUser: false));
+      });
+      return;
+    }
+
+    final topLabels = topResults
+        .map((e) => "${e.key} (${(e.value * 100).toStringAsFixed(1)}%)")
+        .join(", ");
+
     setState(() {
       _messages.add(ChatMessage(
         message: "📷 Detected: $topLabels\nLet me find listings for this...",
@@ -424,10 +461,8 @@ class _CotmindChatState extends State<CotmindChat> {
       _isBotTyping = true;
     });
 
-    // Use labels as search query
-    final query = results.map((e) => e['label']).join(" ");
+    final query = topResults.map((e) => e.key).join(" ");
     final videoResult = await CotmindBot.fetchVideosBySearch(query);
-
     final videoSuggestions = videoResult['results'];
     final usedFallback = videoResult['usedFallback'];
 
@@ -463,11 +498,21 @@ class _CotmindChatState extends State<CotmindChat> {
   }
 
   Future<void> _loadTFLiteModel() async {
-    String? res = await Tflite.loadModel(
-      model: "assets/tflite/mobilenet_v1.tflite",
-      labels: "assets/tflite/labels.txt",
-    );
-    print("🔍 TFLite model loaded: $res");
+    try {
+      final interpreterOptions = InterpreterOptions()..threads = 2;
+
+      _interpreter = await Interpreter.fromAsset(
+        'assets/tflite/mobilenet_v1.tflite',
+        options: interpreterOptions,
+      );
+
+      final labelData = await rootBundle.loadString('assets/tflite/labels.txt');
+      _labels = labelData.split('\n');
+
+      print("✅ TFLite model and labels loaded.");
+    } catch (e) {
+      print("❌ Failed to load TFLite model: $e");
+    }
   }
 
   String _generateGreeting() {
@@ -815,7 +860,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
   @override
   void dispose() {
-    Tflite.close();
+    _interpreter.close();
     _messages.clear();
     _speech.stop();
     super.dispose();

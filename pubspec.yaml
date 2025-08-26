@@ -59,13 +59,14 @@ dependencies:
   url_launcher:
   image:
   speech_to_text:
-  tflite:
+  tflite_flutter:
+  tflite_flutter_helper:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.2
-  icons_launcher: ^3.0.1
+  icons_launcher:
 
 icons_launcher:
   image_path: "images/icon.png"
