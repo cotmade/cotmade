@@ -33,7 +33,7 @@ dependencies:
   flutter_spinkit:
   email_otp:
   is_first_run:
-  #flick_video_player: ^0.9.0
+  flick_video_player: ^0.9.0
   flutter_rating_bar:
   flutterwave_standard: ^1.0.8
   intl:
@@ -57,10 +57,10 @@ dependencies:
   flutter_local_notifications:
   webview_flutter:
   url_launcher:
-  image: ^3.0.2
+  image:
   speech_to_text:
-  tflite_flutter: ^0.9.0
-  tflite_flutter_helper: ^0.3.0
+  tflite_flutter:
+  tflite_flutter_helper:
 
 dev_dependencies:
   flutter_test:
