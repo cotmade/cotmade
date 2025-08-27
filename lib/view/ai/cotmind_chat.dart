@@ -402,106 +402,112 @@ class _CotmindChatState extends State<CotmindChat> {
     _classifyImage(image);
   }
 
-Future<void> _classifyImage(File imageFile) async {
-  final rawBytes = await imageFile.readAsBytes();
-  final rawImage = img.decodeImage(rawBytes);
+  Future<void> _classifyImage(File imageFile) async {
+    // Decode the image from file
+    final rawBytes = await imageFile.readAsBytes();
+    final rawImage = img.decodeImage(rawBytes);
 
-  if (rawImage == null) {
-    setState(() {
-      _messages.add(ChatMessage(
-        message: "❌ Failed to decode the image.",
-        isUser: false,
-      ));
-    });
-    return;
-  }
-
-  const inputSize = 224; // MobileNet expects 224x224
-  final resizedImage = img.copyResize(rawImage, width: inputSize, height: inputSize);
-
-  // Convert raw image pixels to a Float32List in [–1, 1] range
-  final input = Float32List(inputSize * inputSize * 3);
-  final bytes = resizedImage.getBytes(format: img.Format.rgb); // Returns R, G, B sequence
-
-  for (int i = 0, pixelIndex = 0; i < bytes.length; i += 3) {
-    final r = bytes[i].toDouble();
-    final g = bytes[i + 1].toDouble();
-    final b = bytes[i + 2].toDouble();
-
-    input[pixelIndex++] = (r - 127.5) / 127.5;
-    input[pixelIndex++] = (g - 127.5) / 127.5;
-    input[pixelIndex++] = (b - 127.5) / 127.5;
-  }
-
-  // Run inference
-  final output = List.filled(1001, 0.0).reshape([1, 1001]);
-  _interpreter.run(input, output);
-
-  // Process top results
-  final results = List.generate(
-    1001,
-    (i) => MapEntry(i, output[0][i]),
-  )..sort((a, b) => b.value.compareTo(a.value));
-  final topResults = results.take(3).toList();
-
-  if (topResults.isEmpty) {
-    setState(() {
-      _messages.add(ChatMessage(
-        message: "❌ Couldn't classify the image.",
-        isUser: false,
-      ));
-    });
-    return;
-  }
-
-  final labelsStr = topResults.map((e) {
-    final label = e.key < _labels.length ? _labels[e.key] : "Unknown";
-    return "$label (${(e.value * 100).toStringAsFixed(1)}%)";
-  }).join(", ");
-
-  setState(() {
-    _messages.add(ChatMessage(
-      message: "📷 Detected: $labelsStr\nLet me find listings for this...",
-      isUser: false,
-    ));
-    _isBotTyping = true;
-  });
-
-  final query = topResults.map((e) => _labels[e.key]).join(" ");
-  final videoResult = await CotmindBot.fetchVideosBySearch(query);
-  final videoSuggestions = videoResult['results'];
-  final usedFallback = videoResult['usedFallback'];
-
-  setState(() {
-    _isBotTyping = false;
-
-    if (usedFallback && videoSuggestions.isNotEmpty) {
-      _messages.add(ChatMessage(
-        message: _getRandomFallbackMessage(),
-        isUser: false,
-      ));
-    }
-
-    for (var video in videoSuggestions) {
-      _seenVideoUrls.add(video['reelsVideo']);
-      _addPostingData(video['postingId'], video);
-    }
-
-    if (videoSuggestions.length == 2) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _messages.add(ChatMessage(
-            message: _getMorePromptMessage(),
-            isUser: false,
-          ));
-          _awaitingMoreConfirmation = true;
-          _scrollToBottom();
-        });
+    if (rawImage == null) {
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "❌ Failed to decode the image.",
+          isUser: false,
+        ));
       });
+      return;
     }
-  });
-}
 
+    const inputSize = 224; // MobileNet expects 224x224 input
+    final resizedImage = img.copyResize(
+      rawImage,
+      width: inputSize,
+      height: inputSize,
+      interpolation: img.Interpolation.linear,
+    );
+
+    // Convert resized image to normalized Float32List input
+    final input = Float32List(inputSize * inputSize * 3);
+    final bytes = resizedImage.getBytes(); // RGB sequence
+
+    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 3) {
+      final r = bytes[i].toDouble();
+      final g = bytes[i + 1].toDouble();
+      final b = bytes[i + 2].toDouble();
+
+      input[pixelIndex++] = (r - 127.5) / 127.5;
+      input[pixelIndex++] = (g - 127.5) / 127.5;
+      input[pixelIndex++] = (b - 127.5) / 127.5;
+    }
+
+    // Run inference
+    final output = List.filled(1001, 0.0).reshape([1, 1001]);
+    _interpreter.run(input, output);
+
+    // Process top 3 predictions
+    final results = List.generate(
+      1001,
+      (i) => MapEntry(i, output[0][i]),
+    )..sort((a, b) => b.value.compareTo(a.value));
+
+    final topResults = results.take(3).toList();
+
+    if (topResults.isEmpty) {
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "❌ Couldn't classify the image.",
+          isUser: false,
+        ));
+      });
+      return;
+    }
+
+    final labelsStr = topResults.map((e) {
+      final label = e.key < _labels.length ? _labels[e.key] : "Unknown";
+      return "$label (${(e.value * 100).toStringAsFixed(1)}%)";
+    }).join(", ");
+
+    setState(() {
+      _messages.add(ChatMessage(
+        message: "📷 Detected: $labelsStr\nLet me find listings for this...",
+        isUser: false,
+      ));
+      _isBotTyping = true;
+    });
+
+    final query = topResults.map((e) => _labels[e.key]).join(" ");
+    final videoResult = await CotmindBot.fetchVideosBySearch(query);
+    final videoSuggestions = videoResult['results'];
+    final usedFallback = videoResult['usedFallback'];
+
+    setState(() {
+      _isBotTyping = false;
+
+      if (usedFallback && videoSuggestions.isNotEmpty) {
+        _messages.add(ChatMessage(
+          message: _getRandomFallbackMessage(),
+          isUser: false,
+        ));
+      }
+
+      for (var video in videoSuggestions) {
+        _seenVideoUrls.add(video['reelsVideo']);
+        _addPostingData(video['postingId'], video);
+      }
+
+      if (videoSuggestions.length == 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+            _scrollToBottom();
+          });
+        });
+      }
+    });
+  }
 
   Future<void> _loadTFLiteModel() async {
     try {
