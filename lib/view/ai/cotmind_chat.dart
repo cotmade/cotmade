@@ -440,9 +440,9 @@ class _CotmindChatState extends State<CotmindChat> {
 
     // Convert resized image to normalized Float32List input
     final input = Float32List(inputSize * inputSize * 3);
-    final bytes = resizedImage.getBytes(); // RGB sequence
+    final bytes = resizedImage.getBytes(); // Usually RGBA
 
-    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 3) {
+    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 4) {
       final r = bytes[i].toDouble();
       final g = bytes[i + 1].toDouble();
       final b = bytes[i + 2].toDouble();
@@ -452,13 +452,18 @@ class _CotmindChatState extends State<CotmindChat> {
       input[pixelIndex++] = (b - 127.5) / 127.5;
     }
 
-    // Run inference
-    final output = List.filled(1001, 0.0).reshape([1, 1001]);
-    _interpreter.run(input, output);
+// Prepare output tensor based on model's output shape
+    final outputTensor = _interpreter.getOutputTensor(0);
+    final outputShape = outputTensor.shape;
+    final outputSize = outputShape.reduce((a, b) => a * b);
+    final output = List.filled(outputSize, 0.0).reshape(outputShape);
+
+// Run inference
+    _interpreter.run(input.reshape([1, 224, 224, 3]), output);
 
     // Process top 3 predictions
     final results = List.generate(
-      1001,
+      output[0].length,
       (i) => MapEntry(i, output[0][i]),
     )..sort((a, b) => b.value.compareTo(a.value));
 
