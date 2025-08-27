@@ -512,11 +512,11 @@ class _CotmindChatState extends State<CotmindChat> {
   Future<void> _loadTFLiteModel() async {
     try {
       _interpreter = await Interpreter.fromAsset(
-        'assets/tflite/mobilenet_v1.tflite',
+        'tflite/mobilenet_v1.tflite',
         options: InterpreterOptions()..threads = 2,
       );
 
-      final labelData = await rootBundle.loadString('assets/tflite/labels.txt');
+      final labelData = await rootBundle.loadString('tflite/labels.txt');
       _labels = labelData.split('\n');
 
       print("✅ Model and labels loaded.");
