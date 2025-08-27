@@ -60,7 +60,6 @@ dependencies:
   image:
   speech_to_text:
   tflite_flutter:
-  tflite_flutter_helper:
 
 dev_dependencies:
   flutter_test:
