@@ -501,7 +501,7 @@ class _CotmindChatState extends State<CotmindChat> {
   Future<void> _loadTFLiteModel() async {
     try {
       _interpreter = await Interpreter.fromAsset(
-        'tflite/mobilenet_v1.tflite',
+        'tflite/housing_model.tflite',
         options: InterpreterOptions()..threads = 2,
       );
 
@@ -699,16 +699,12 @@ class _CotmindChatState extends State<CotmindChat> {
         }
 
         if (videoSuggestions.length == 2) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _messages.add(ChatMessage(
-                message: _getMorePromptMessage(),
-                isUser: false,
-              ));
-              _awaitingMoreConfirmation = true;
-              _scrollToBottom();
-            });
-          });
+          _messages.add(ChatMessage(
+            message: _getMorePromptMessage(),
+            isUser: false,
+          ));
+          _awaitingMoreConfirmation = true;
+          _scrollToBottom();
         }
       });
 
@@ -764,16 +760,12 @@ class _CotmindChatState extends State<CotmindChat> {
           }
 
           if (videoSuggestions.length == 2) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              setState(() {
-                _messages.add(ChatMessage(
-                  message: _getMorePromptMessage(),
-                  isUser: false,
-                ));
-                _awaitingMoreConfirmation = true;
-                _scrollToBottom();
-              });
-            });
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+            _scrollToBottom();
           }
         });
       } else {
@@ -825,16 +817,12 @@ class _CotmindChatState extends State<CotmindChat> {
       }
 
       if (videoSuggestions.length == 2) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _messages.add(ChatMessage(
-              message: _getMorePromptMessage(),
-              isUser: false,
-            ));
-            _awaitingMoreConfirmation = true;
-            _scrollToBottom();
-          });
-        });
+        _messages.add(ChatMessage(
+          message: _getMorePromptMessage(),
+          isUser: false,
+        ));
+        _awaitingMoreConfirmation = true;
+        _scrollToBottom();
       }
     });
   }
