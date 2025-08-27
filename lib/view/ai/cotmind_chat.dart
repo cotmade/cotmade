@@ -679,8 +679,8 @@ class _CotmindChatState extends State<CotmindChat> {
     if (input.trim().isEmpty) return;
 
     final trimmedInput = input.trim();
-    final isFollowUp = _isFollowUpRequest(trimmedInput);
 
+    // 1. Handle Location Input
     if (_isAwaitingLocation) {
       _userLocation = trimmedInput;
       _isAwaitingLocation = false;
@@ -699,6 +699,7 @@ class _CotmindChatState extends State<CotmindChat> {
       return;
     }
 
+    // 2. Handle Filters Input
     if (_isAwaitingFilters) {
       _userFilters = trimmedInput;
       _isAwaitingFilters = false;
@@ -708,11 +709,13 @@ class _CotmindChatState extends State<CotmindChat> {
         _isBotTyping = true;
       });
 
-      final searchQuery =
-          "$_lastImageClassification in $_userLocation with $_userFilters";
+      final searchQuery = [
+        if (_lastImageClassification!.isNotEmpty) _lastImageClassification,
+        if (_userLocation!.isNotEmpty) "in $_userLocation",
+        if (_userFilters!.isNotEmpty) "with $_userFilters"
+      ].join(" ");
 
       final videoResult = await CotmindBot.fetchVideosBySearch(searchQuery);
-
       final List<Map<String, dynamic>> videoSuggestions =
           videoResult['results'];
       final bool usedFallback = videoResult['usedFallback'];
@@ -753,23 +756,20 @@ class _CotmindChatState extends State<CotmindChat> {
       return;
     }
 
-    setState(() {
-      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
-      _isBotTyping = true;
-    });
-
-    _controller.clear();
-    _scrollToBottom();
-
+    // 3. User is responding to "Want to see more?" prompt
     if (_awaitingMoreConfirmation) {
       _awaitingMoreConfirmation = false;
+      final isPositive = _isPositiveResponse(trimmedInput);
 
-      if (_isPositiveResponse(trimmedInput)) {
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      });
+
+      if (isPositive) {
         _followUpCount++;
 
         if (_followUpCount >= 2) {
           setState(() {
-            _isBotTyping = false;
             _messages.add(ChatMessage(
               message: _getRefinementPrompt(),
               isUser: false,
@@ -802,23 +802,22 @@ class _CotmindChatState extends State<CotmindChat> {
             final postingId = video['postingId'];
             _addPostingData(postingId, video);
           }
-        });
 
-        if (videoSuggestions.length == 2) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _messages.add(ChatMessage(
-                message: _getMorePromptMessage(),
-                isUser: false,
-              ));
-              _awaitingMoreConfirmation = true;
-              _scrollToBottom();
+          if (videoSuggestions.length == 2) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              setState(() {
+                _messages.add(ChatMessage(
+                  message: _getMorePromptMessage(),
+                  isUser: false,
+                ));
+                _awaitingMoreConfirmation = true;
+                _scrollToBottom();
+              });
             });
-          });
-        }
+          }
+        });
       } else {
         setState(() {
-          _isBotTyping = false;
           _messages.add(ChatMessage(
             message: _getRefinementPrompt(),
             isUser: false,
@@ -826,25 +825,25 @@ class _CotmindChatState extends State<CotmindChat> {
         });
       }
 
+      _controller.clear();
       return;
     }
 
-    // Fresh search
+    // 4. Fresh User Query (No state awaiting input)
+    setState(() {
+      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      _isBotTyping = true;
+    });
+
+    _controller.clear();
+    _scrollToBottom();
+
     _lastQuery = trimmedInput;
     _followUpCount = 0;
     _seenVideoUrls.clear();
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
-    setState(() {
-      //  _messages.add(ChatMessage(message: botReply, isUser: false));
-      _isBotTyping = false;
-    });
-
-    if (_isCasualGreeting(trimmedInput)) return;
-
-// Continue with video search only if not a casual message
     final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
-
     final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
     final bool usedFallback = videoResult['usedFallback'];
 
@@ -864,20 +863,20 @@ class _CotmindChatState extends State<CotmindChat> {
         final postingId = video['postingId'];
         _addPostingData(postingId, video);
       }
-    });
 
-    if (videoSuggestions.length == 2) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _messages.add(ChatMessage(
-            message: _getMorePromptMessage(),
-            isUser: false,
-          ));
-          _awaitingMoreConfirmation = true;
-          _scrollToBottom();
+      if (videoSuggestions.length == 2) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+            _scrollToBottom();
+          });
         });
-      });
-    }
+      }
+    });
   }
 
   Future<void> _addPostingData(
