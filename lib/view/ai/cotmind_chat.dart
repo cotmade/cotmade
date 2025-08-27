@@ -516,7 +516,7 @@ class _CotmindChatState extends State<CotmindChat> {
         options: InterpreterOptions()..threads = 2,
       );
 
-      final labelData = await rootBundle.loadString('tflite/labels.txt');
+      final labelData = await rootBundle.loadString('tflite/label.txt');
       _labels = labelData.split('\n');
 
       print("✅ Model and labels loaded.");

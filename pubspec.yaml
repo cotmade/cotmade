@@ -79,9 +79,9 @@ flutter:
   uses-material-design: true
   assets:
     - images/
-    - audio/
+    - assets/audio/
     - tflite/mobilenet_v1.tflite
-    - tflite/labels.txt
+    - tflite/label.txt
   
   # fonts:
   #   - family: Schyler
