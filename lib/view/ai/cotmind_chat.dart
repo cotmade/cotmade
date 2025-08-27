@@ -425,9 +425,9 @@ class _CotmindChatState extends State<CotmindChat> {
     for (int y = 0; y < inputSize; y++) {
       for (int x = 0; x < inputSize; x++) {
         final pixel = resizedImage.getPixel(x, y);
-        input[pixelIndex++] = ((img.getRed(pixel)) - 127.5) / 127.5;
-        input[pixelIndex++] = ((img.getGreen(pixel)) - 127.5) / 127.5;
-        input[pixelIndex++] = ((img.getBlue(pixel)) - 127.5) / 127.5;
+        input[pixelIndex++] = (((pixel >> 16) & 0xFF) - 127.5) / 127.5; // Red
+        input[pixelIndex++] = (((pixel >> 8) & 0xFF) - 127.5) / 127.5; // Green
+        input[pixelIndex++] = ((pixel & 0xFF) - 127.5) / 127.5; // Blue
       }
     }
 
