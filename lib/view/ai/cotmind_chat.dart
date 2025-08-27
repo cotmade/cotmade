@@ -452,13 +452,13 @@ class _CotmindChatState extends State<CotmindChat> {
       input[pixelIndex++] = (b - 127.5) / 127.5;
     }
 
-// Prepare output tensor based on model's output shape
+    // Prepare output tensor based on model's output shape
     final outputTensor = _interpreter.getOutputTensor(0);
     final outputShape = outputTensor.shape;
     final outputSize = outputShape.reduce((a, b) => a * b);
     final output = List.filled(outputSize, 0.0).reshape(outputShape);
 
-// Run inference
+    // Run inference
     _interpreter.run(input.reshape([1, 224, 224, 3]), output);
 
     // Process top 3 predictions
@@ -484,57 +484,17 @@ class _CotmindChatState extends State<CotmindChat> {
       return "$label (${(e.value * 100).toStringAsFixed(1)}%)";
     }).join(", ");
 
+    // Store classification
+    _lastImageClassification = topResults.map((e) => _labels[e.key]).join(" ");
+
+    // Prompt user for location
     setState(() {
       _messages.add(ChatMessage(
-        message: "📷 Detected: $labelsStr\nLet me find listings for this...",
+        message:
+            "📷 Detected: $labelsStr\n📍 What location are you looking at?",
         isUser: false,
       ));
-      _isBotTyping = true;
-    });
-
-    final query = topResults.map((e) => _labels[e.key]).join(" ");
-    final videoResult = await CotmindBot.fetchVideosBySearch(query);
-    final videoSuggestions = videoResult['results'];
-    final usedFallback = videoResult['usedFallback'];
-
-    setState(() {
-      _isBotTyping = false;
-
-      _lastImageClassification =
-          topResults.map((e) => _labels[e.key]).join(" ");
-
-      setState(() {
-        _messages.add(ChatMessage(
-          message: "📍 Where would you like to stay?",
-          isUser: false,
-        ));
-        _isAwaitingLocation = true;
-      });
-
-      if (usedFallback && videoSuggestions.isNotEmpty) {
-        _messages.add(ChatMessage(
-          message: _getRandomFallbackMessage(),
-          isUser: false,
-        ));
-      }
-
-      for (var video in videoSuggestions) {
-        _seenVideoUrls.add(video['reelsVideo']);
-        _addPostingData(video['postingId'], video);
-      }
-
-      if (videoSuggestions.length == 2) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _messages.add(ChatMessage(
-              message: _getMorePromptMessage(),
-              isUser: false,
-            ));
-            _awaitingMoreConfirmation = true;
-            _scrollToBottom();
-          });
-        });
-      }
+      _isAwaitingLocation = true;
     });
   }
 
