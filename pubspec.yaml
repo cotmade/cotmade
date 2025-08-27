@@ -57,7 +57,7 @@ dependencies:
   flutter_local_notifications:
   webview_flutter:
   url_launcher:
-  image: ^4.5.3
+  image: ^3.2.2
   speech_to_text:
   tflite_flutter: ^0.9.0
   tflite_flutter_helper: ^0.3.0
