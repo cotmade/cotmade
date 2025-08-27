@@ -33,7 +33,7 @@ dependencies:
   flutter_spinkit:
   email_otp:
   is_first_run:
-  flick_video_player: ^0.9.0
+  #flick_video_player: ^0.9.0
   flutter_rating_bar:
   flutterwave_standard: ^1.0.8
   intl:
