@@ -27,12 +27,14 @@ class ChatMessage {
   final bool isUser;
   final String? videoUrl;
   final PostingModel? posting;
+  final File? imageFile;
 
   ChatMessage({
     required this.message,
     required this.isUser,
     this.videoUrl,
     this.posting,
+    this.imageFile,
   });
 }
 
@@ -376,7 +378,11 @@ class _CotmindChatState extends State<CotmindChat> {
   bool _awaitingMoreConfirmation = false;
   bool _showRecordingIndicator = false;
   File? _selectedImage;
-
+  bool _isAwaitingLocation = false;
+  bool _isAwaitingFilters = false;
+  String? _userLocation;
+  String? _userFilters;
+  String? _lastImageClassification;
   late Interpreter _interpreter;
   late List<String> _labels;
 
@@ -397,7 +403,14 @@ class _CotmindChatState extends State<CotmindChat> {
     if (picked == null) return;
 
     final image = File(picked.path);
-    setState(() => _selectedImage = image);
+    setState(() {
+      _selectedImage = image;
+      _messages.add(ChatMessage(
+        message: "📷 You uploaded an image.",
+        isUser: true,
+        imageFile: image,
+      ));
+    });
 
     _classifyImage(image);
   }
@@ -481,6 +494,17 @@ class _CotmindChatState extends State<CotmindChat> {
 
     setState(() {
       _isBotTyping = false;
+
+      _lastImageClassification =
+          topResults.map((e) => _labels[e.key]).join(" ");
+
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "📍 Where would you like to stay?",
+          isUser: false,
+        ));
+        _isAwaitingLocation = true;
+      });
 
       if (usedFallback && videoSuggestions.isNotEmpty) {
         _messages.add(ChatMessage(
@@ -651,6 +675,78 @@ class _CotmindChatState extends State<CotmindChat> {
 
     final trimmedInput = input.trim();
     final isFollowUp = _isFollowUpRequest(trimmedInput);
+
+    if (_isAwaitingLocation) {
+      _userLocation = trimmedInput;
+      _isAwaitingLocation = false;
+
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+        _messages.add(ChatMessage(
+          message:
+              "🛏️ Great! Any price range, listing type, or amenities you're looking for?",
+          isUser: false,
+        ));
+      });
+
+      _isAwaitingFilters = true;
+      _controller.clear();
+      return;
+    }
+
+    if (_isAwaitingFilters) {
+      _userFilters = trimmedInput;
+      _isAwaitingFilters = false;
+
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+        _isBotTyping = true;
+      });
+
+      final searchQuery =
+          "$_lastImageClassification in $_userLocation with $_userFilters";
+
+      final videoResult = await CotmindBot.fetchVideosBySearch(searchQuery);
+
+      final List<Map<String, dynamic>> videoSuggestions =
+          videoResult['results'];
+      final bool usedFallback = videoResult['usedFallback'];
+
+      setState(() {
+        _isBotTyping = false;
+        _lastQuery = searchQuery;
+        _seenVideoUrls.clear();
+
+        if (usedFallback && videoSuggestions.isNotEmpty) {
+          _messages.add(ChatMessage(
+            message: _getRandomFallbackMessage(),
+            isUser: false,
+          ));
+        }
+
+        for (var video in videoSuggestions) {
+          _seenVideoUrls.add(video['reelsVideo']);
+          final postingId = video['postingId'];
+          _addPostingData(postingId, video);
+        }
+
+        if (videoSuggestions.length == 2) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              _messages.add(ChatMessage(
+                message: _getMorePromptMessage(),
+                isUser: false,
+              ));
+              _awaitingMoreConfirmation = true;
+              _scrollToBottom();
+            });
+          });
+        }
+      });
+
+      _controller.clear();
+      return;
+    }
 
     setState(() {
       _messages.add(ChatMessage(message: trimmedInput, isUser: true));
@@ -950,6 +1046,7 @@ class _CotmindChatState extends State<CotmindChat> {
                     ),
                   ),
                 ),
+                if (msg.imageFile != null) _buildImageBubble(msg.imageFile!),
                 if (msg.videoUrl != null) _buildVideoCard(msg),
               ],
             ),
@@ -968,6 +1065,20 @@ class _CotmindChatState extends State<CotmindChat> {
                     ))
               : Container(), // or another widget for bot
         ],
+      ),
+    );
+  }
+
+  Widget _buildImageBubble(File imageFile) {
+    return Container(
+      margin: EdgeInsets.only(top: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          imageFile,
+          width: 200,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
@@ -1004,11 +1115,6 @@ class _CotmindChatState extends State<CotmindChat> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.image),
-                    onPressed: _handleImageUpload,
-                  ),
-                  SizedBox(width: 3),
                   Icon(Icons.mic, color: Colors.redAccent),
                   SizedBox(width: 6),
                   Text(
@@ -1023,6 +1129,11 @@ class _CotmindChatState extends State<CotmindChat> {
             ),
           Row(
             children: [
+              IconButton(
+                icon: Icon(Icons.image),
+                onPressed: _handleImageUpload,
+              ),
+              SizedBox(width: 2),
               IconButton(
                 icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
                 onPressed: _isListening ? _stopListening : _startListening,
