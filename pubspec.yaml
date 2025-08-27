@@ -80,7 +80,7 @@ flutter:
   assets:
     - images/
     - audio/
-    - tflite/housing_model.tflite
+    - tflite/mobilenet_v1.tflite
     - tflite/label.txt
   
   # fonts:
