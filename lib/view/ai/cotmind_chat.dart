@@ -405,14 +405,66 @@ class _CotmindChatState extends State<CotmindChat> {
     final image = File(picked.path);
     setState(() {
       _selectedImage = image;
+    });
+
+    // Classify image and get label
+    String detectedLabel = await _classifyImageAndReturnLabel(image);
+
+    // Fallback to generic message if no label
+    if (detectedLabel.isEmpty) {
+      detectedLabel = "an image";
+    }
+
+    setState(() {
       _messages.add(ChatMessage(
-        message: "📷 You uploaded an image.",
+        message: "📷 You uploaded a photo of $detectedLabel.",
         isUser: true,
         imageFile: image,
       ));
     });
 
     _classifyImage(image);
+  }
+
+  /// This version of classifyImage just returns the top label
+  Future<String> _classifyImageAndReturnLabel(File imageFile) async {
+    final rawBytes = await imageFile.readAsBytes();
+    final rawImage = img.decodeImage(rawBytes);
+
+    if (rawImage == null) return "";
+
+    const inputSize = 224;
+    final resizedImage =
+        img.copyResize(rawImage, width: inputSize, height: inputSize);
+
+    final input = Float32List(inputSize * inputSize * 3);
+    final bytes = resizedImage.getBytes();
+
+    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 4) {
+      final r = bytes[i].toDouble();
+      final g = bytes[i + 1].toDouble();
+      final b = bytes[i + 2].toDouble();
+
+      input[pixelIndex++] = (r - 127.5) / 127.5;
+      input[pixelIndex++] = (g - 127.5) / 127.5;
+      input[pixelIndex++] = (b - 127.5) / 127.5;
+    }
+
+    final outputTensor = _interpreter.getOutputTensor(0);
+    final outputShape = outputTensor.shape;
+    final outputSize = outputShape.reduce((a, b) => a * b);
+    final output = List.filled(outputSize, 0.0).reshape(outputShape);
+
+    _interpreter.run(input.reshape([1, 224, 224, 3]), output);
+
+    final results =
+        List.generate(output[0].length, (i) => MapEntry(i, output[0][i]))
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (results.isEmpty) return "";
+
+    final top = results.first;
+    return top.key < _labels.length ? _labels[top.key] : "Unknown";
   }
 
   Future<void> _classifyImage(File imageFile) async {
@@ -1085,7 +1137,7 @@ class _CotmindChatState extends State<CotmindChat> {
                 icon: Icon(Icons.image),
                 onPressed: _handleImageUpload,
               ),
-              SizedBox(width: 2),
+              SizedBox(width: 1),
               IconButton(
                 icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
                 onPressed: _isListening ? _stopListening : _startListening,
@@ -1113,7 +1165,7 @@ class _CotmindChatState extends State<CotmindChat> {
             children: [
               Center(
                 child: Text(
-                  "cotmind 1.0 – beta phase",
+                  "cotmind 2.0 – beta phase",
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.black,
@@ -1124,11 +1176,12 @@ class _CotmindChatState extends State<CotmindChat> {
               SizedBox(height: 2),
               Center(
                 child: Text(
-                  "Tip: Ask about rentals, listings, areas, amenities or price/night",
+                  "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.black,
                   ),
+                  softWrap: true,
                 ),
               ),
               SizedBox(height: 2),
