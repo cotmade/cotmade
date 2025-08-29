@@ -553,7 +553,7 @@ class _CotmindChatState extends State<CotmindChat> {
   Future<void> _loadTFLiteModel() async {
     try {
       _interpreter = await Interpreter.fromAsset(
-        'tflite/mobilenet_v1.tflite',
+        'tflite/housing_model.tflite',
         options: InterpreterOptions()..threads = 2,
       );
 

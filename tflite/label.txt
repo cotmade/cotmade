@@ -1,57 +1,23 @@
-apartment building
-studio apartment
-loft apartment
-penthouse apartment
-duplex apartment
 townhouse
 bungalow
 villa
 mansion
-beach house
 cabin
 cottage
 farmhouse
-container home
-tiny house
-mobile home
-modern house
-colonial house
-ranch style house
-mid-century modern house
-luxury home
-office building
-shop front
 hotel
 resort
-guest house
 hostel
-bed and breakfast
-living room
 bedroom
-master bedroom
-children's bedroom
 bathroom
 kitchen
-modern kitchen
-dining room
-home office
-walk-in closet
 balcony
 terrace
-rooftop terrace
 garage
 driveway
 garden
 backyard
-swimming pool
-indoor pool
 jacuzzi
-spa room
-gym room
-cinema room
-library room
-wine cellar
-laundry room
 corridor
 entryway
 foyer
@@ -59,44 +25,16 @@ patio
 deck
 sunroom
 veranda
-outdoor seating area
-barbecue area
-fire pit area
 gazebo
 shed
 greenhouse
 playground
-basketball court
-tennis court
-soccer field
-golf course
 fence
 gate
-front door
-back door
-sliding glass door
 window
-bay window
 skylight
 staircase
-spiral staircase
 elevator
 hallway
-parking lot
 carport
-driveway gate
-brick wall
-stone wall
-wooden wall
-metal fence
-hedge fence
-waterfront property
-mountain view property
-city view property
-seaside property
-desert property
-forest cabin
-lake house
-riverside home
-floating house
 treehouse
