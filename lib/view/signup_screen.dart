@@ -1347,25 +1347,33 @@ class _SignupScreenState extends State<SignupScreen> {
             // Loading overlay (shown when isLoading is true)
             if (isLoading) ...[
               // The overlay itself
-              Container(
-                color: Colors.black.withOpacity(0.5), // Darken the background
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                      sigmaX: 5.0, sigmaY: 5.0), // Apply blur effect
+                  child: Container(
+                    color:
+                        Colors.black.withOpacity(0.5), // Darken the background
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                          SizedBox(height: 20),
+                          Text(
+                            "Account is being created, please hold",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 20),
-                      Text(
-                        "Account is being created, pleae hold",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
