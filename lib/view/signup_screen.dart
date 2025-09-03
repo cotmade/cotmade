@@ -28,7 +28,7 @@ class _SignupScreenState extends State<SignupScreen> {
   String? selectedState;
   bool isLoading = false; // Add this variable to track loading state
 
-  // TextEditingController for search input
+  // TextEditingController for search inputt
   TextEditingController _countrySearchController = TextEditingController();
   TextEditingController _stateSearchController = TextEditingController();
 
