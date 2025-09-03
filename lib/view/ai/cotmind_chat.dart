@@ -1178,13 +1178,15 @@ class _CotmindChatState extends State<CotmindChat> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0), // 16px left & right
-                  child: Text(
-                    "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black,
+                  child: Center(
+                    child: Text(
+                      "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black,
+                      ),
+                      softWrap: true,
                     ),
-                    softWrap: true,
                   ),
                 ),
               ),
