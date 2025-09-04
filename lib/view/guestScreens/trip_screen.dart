@@ -316,19 +316,55 @@ class TripScreen extends StatelessWidget {
                                   if (!hideReviewButton)
                                     ElevatedButton(
                                       onPressed: () {
-                                        // Pass postingID to the WriteReviewScreen
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                WriteReviewScreen(
-                                                    postingID: posting
-                                                        .id), // Pass posting ID
+                                        // Show an AlertDialog with two options: Text Review and Video Review
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('Write a Review'),
+                                            content: Text(
+                                                'Choose the type of review you want to leave:'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  // Navigate to WriteReviewScreen with isVideoReview set to false
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          WriteReviewScreen(
+                                                        postingID: posting.id,
+                                                        isVideoReview:
+                                                            false, // For text review
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Text('Text Review'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  // Navigate to WriteReviewScreen with isVideoReview set to true
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          WriteReviewScreen(
+                                                        postingID: posting.id,
+                                                        isVideoReview:
+                                                            true, // For video review
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Text('Video Review'),
+                                              ),
+                                            ],
                                           ),
                                         );
                                       },
                                       child: Text('Write a review'),
                                     ),
+
                                   Row(
                                     children: [
                                       ElevatedButton.icon(

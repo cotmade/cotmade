@@ -267,17 +267,83 @@ class _AccountScreenState extends State<AccountScreen> {
                                     });
                                   }
                                 },
-                                child: Text(
-                                  (_aliasName != null && _aliasName!.isNotEmpty)
-                                      ? _aliasName!
-                                      : "Add alias name",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.pinkAccent,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Text(
+                                      (_aliasName != null &&
+                                              _aliasName!.isNotEmpty)
+                                          ? _aliasName!
+                                          : "Add alias name",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.pinkAccent,
+                                        fontStyle: FontStyle.normal,
+                                      ),
+                                    ),
+                                    if (_aliasName != null &&
+                                        _aliasName!.isNotEmpty)
+                                      IconButton(
+                                        onPressed: () async {
+                                          String? newAlias = await showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              TextEditingController controller =
+                                                  TextEditingController(
+                                                      text: _aliasName ?? '');
+                                              return AlertDialog(
+                                                title: Text("Edit Alias Name"),
+                                                content: TextField(
+                                                  controller: controller,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    hintText:
+                                                        "Enter alias name",
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, null),
+                                                    child: const Text("Cancel"),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context,
+                                                            controller.text
+                                                                .trim()),
+                                                    child: const Text("Save"),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+
+                                          if (newAlias != null &&
+                                              newAlias.isNotEmpty) {
+                                            await FirebaseFirestore.instance
+                                                .collection('users')
+                                                .doc(FirebaseAuth
+                                                    .instance.currentUser!.uid)
+                                                .update({'alias': newAlias});
+
+                                            setState(() {
+                                              _aliasName = newAlias;
+                                            });
+                                          }
+                                        },
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.pinkAccent,
+                                          size: 20,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
+
                               Text(
                                 AppConstants.currentUser.email.toString(),
                                 style: const TextStyle(fontSize: 15),
