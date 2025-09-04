@@ -171,29 +171,30 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tap to rate',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-            SizedBox(height: 20),
-            // Center the RatingBar
-            Center(
-              child: RatingBar.builder(
-                initialRating: _rating,
-                minRating: 1,
-                itemSize: 40,
-                itemBuilder: (context, _) => Icon(
-                  Icons.star,
-                  color: Colors.pinkAccent,
-                ),
-                onRatingUpdate: (rating) {
-                  setState(() {
-                    _rating = rating;
-                  });
-                },
-              ),
-            ),
-            SizedBox(height: 20),
-            // Text Review Section
+            // If it's not a video review, show the rating section
             if (!widget.isVideoReview) ...[
+              Text('Tap to rate',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+              SizedBox(height: 20),
+              // Center the RatingBar
+              Center(
+                child: RatingBar.builder(
+                  initialRating: _rating,
+                  minRating: 1,
+                  itemSize: 40,
+                  itemBuilder: (context, _) => Icon(
+                    Icons.star,
+                    color: Colors.pinkAccent,
+                  ),
+                  onRatingUpdate: (rating) {
+                    setState(() {
+                      _rating = rating;
+                    });
+                  },
+                ),
+              ),
+              SizedBox(height: 20),
+              // Text Review Section
               TextField(
                 controller: _reviewController,
                 maxLines: 5,
@@ -216,26 +217,62 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                       EdgeInsets.symmetric(vertical: 16.0, horizontal: 10.0),
                 ),
               ),
+              SizedBox(height: 20),
+              // Smiley Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.sentiment_very_satisfied,
+                      color: Colors.green, size: 40),
+                  SizedBox(width: 10),
+                  Icon(Icons.sentiment_neutral, color: Colors.orange, size: 40),
+                  SizedBox(width: 10),
+                  Icon(Icons.sentiment_dissatisfied,
+                      color: Colors.red, size: 40),
+                  SizedBox(width: 10),
+                  Icon(Icons.sentiment_very_dissatisfied,
+                      color: Colors.purple, size: 40),
+                ],
+              ),
             ],
             // Video Review Section
             if (widget.isVideoReview) ...[
-              ElevatedButton(
-                onPressed: _pickVideo,
-                child: Text('Pick Video'),
-              ),
-              SizedBox(height: 20),
+              // Preview video in a well-sized container
               if (_videoFile != null)
-                _videoController != null &&
-                        _videoController!.value.isInitialized
-                    ? AspectRatio(
-                        aspectRatio: _videoController!.value.aspectRatio,
-                        child: VideoPlayer(_videoController!),
-                      )
-                    : Container(
-                        height: 200,
-                        color: Colors.grey,
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
+                Center(
+                  child: Container(
+                    height: 200,
+                    width: 300,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.black,
+                    ),
+                    child: _videoController != null &&
+                            _videoController!.value.isInitialized
+                        ? AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(_videoController!),
+                          )
+                        : Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              SizedBox(height: 20),
+              // Center the "Pick Video" button
+              Center(
+                child: ElevatedButton(
+                  onPressed: _pickVideo,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    backgroundColor: Colors.grey,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text(
+                    'Pick Video',
+                    style: TextStyle(color: Colors.black, fontSize: 18),
+                  ),
+                ),
+              ),
             ],
             SizedBox(height: 20),
             // Submit button
@@ -265,21 +302,6 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
               ),
             ),
             SizedBox(height: 20),
-            // Smiley Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.sentiment_very_satisfied,
-                    color: Colors.green, size: 40),
-                SizedBox(width: 10),
-                Icon(Icons.sentiment_neutral, color: Colors.orange, size: 40),
-                SizedBox(width: 10),
-                Icon(Icons.sentiment_dissatisfied, color: Colors.red, size: 40),
-                SizedBox(width: 10),
-                Icon(Icons.sentiment_very_dissatisfied,
-                    color: Colors.purple, size: 40),
-              ],
-            ),
           ],
         ),
       ),

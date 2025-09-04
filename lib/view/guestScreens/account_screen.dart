@@ -229,7 +229,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                     builder: (context) {
                                       TextEditingController controller =
                                           TextEditingController(
-                                              text: _aliasName ?? '');
+                                              text: _aliasName ??
+                                                  ''); // Populate with existing alias
                                       return AlertDialog(
                                         title: Text("Edit Alias Name"),
                                         content: TextField(
@@ -263,7 +264,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                         .update({'alias': newAlias});
 
                                     setState(() {
-                                      _aliasName = newAlias;
+                                      _aliasName =
+                                          newAlias; // Update the alias in the state
                                     });
                                   }
                                 },
@@ -330,7 +332,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                                 .update({'alias': newAlias});
 
                                             setState(() {
-                                              _aliasName = newAlias;
+                                              _aliasName =
+                                                  newAlias; // Update the alias in the state
                                             });
                                           }
                                         },

@@ -324,39 +324,51 @@ class TripScreen extends StatelessWidget {
                                             content: Text(
                                                 'Choose the type of review you want to leave:'),
                                             actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  // Navigate to WriteReviewScreen with isVideoReview set to false
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          WriteReviewScreen(
-                                                        postingID: posting.id,
-                                                        isVideoReview:
-                                                            false, // For text review
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                                child: Text('Text Review'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  // Navigate to WriteReviewScreen with isVideoReview set to true
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          WriteReviewScreen(
-                                                        postingID: posting.id,
-                                                        isVideoReview:
-                                                            true, // For video review
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                                child: Text('Video Review'),
+                                              // Row with buttons in the middle
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment
+                                                    .center, // Center the buttons
+                                                children: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      // Navigate to WriteReviewScreen with isVideoReview set to false
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              WriteReviewScreen(
+                                                            postingID:
+                                                                posting.id,
+                                                            isVideoReview:
+                                                                false, // For text review
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: Text('Text Review'),
+                                                  ),
+                                                  SizedBox(
+                                                      width:
+                                                          20), // Add space between the buttons
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      // Navigate to WriteReviewScreen with isVideoReview set to true
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              WriteReviewScreen(
+                                                            postingID:
+                                                                posting.id,
+                                                            isVideoReview:
+                                                                true, // For video review
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: Text('Video Review'),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
