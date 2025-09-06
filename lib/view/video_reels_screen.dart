@@ -1323,7 +1323,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                               child: Column(
                                                 children: [
                                                   Text(
-                                                    'Visit',
+                                                    'Click Here',
                                                     style: TextStyle(
                                                       color: Colors.pinkAccent,
                                                       fontWeight:
@@ -1332,7 +1332,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                                     ),
                                                   ),
                                                   SizedBox(height: 3),
-                                                  Text(
+                                                  /*  Text(
                                                     '$views views',
                                                     style: TextStyle(
                                                       color: Colors.pinkAccent,
@@ -1340,7 +1340,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                                                           FontWeight.bold,
                                                       fontSize: 15,
                                                     ),
-                                                  ),
+                                                  ), */
                                                 ],
                                               ),
                                             ),
