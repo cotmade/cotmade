@@ -840,432 +840,434 @@ class _SignupScreenState extends State<SignupScreen> {
                 ],
               ),
             ),
-            child: ListView(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 30.0, right: 20.0),
-                  child: const Text(
-                    "Get Started!",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      fontSize: 25.0,
-                    ),
-                    textAlign: TextAlign.left,
+            child: ListView(children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 30.0, right: 20.0),
+                child: const Text(
+                  "Get Started!",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    fontSize: 25.0,
                   ),
+                  textAlign: TextAlign.left,
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 30.0, right: 20.0),
-                  child: const Text(
-                    "Create an account to continue.",
-                    style: TextStyle(
-                      fontWeight: FontWeight.normal,
-                      color: Colors.black,
-                      fontSize: 16.0,
-                    ),
-                    textAlign: TextAlign.left,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 30.0, right: 20.0),
+                child: const Text(
+                  "Create an account to continue.",
+                  style: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    color: Colors.black,
+                    fontSize: 16.0,
                   ),
+                  textAlign: TextAlign.left,
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(30.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 0.0),
-                          child: TextFormField(
-                            enabled:
-                                !_isSubmitting, // Disable field during submit
-                            decoration: InputDecoration(
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelText: 'Email',
-                              labelStyle:
-                                  TextStyle(color: Colors.black, fontSize: 15),
-                              prefixIcon: Icon(Icons.email),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(30.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 0.0),
+                        child: TextFormField(
+                          enabled:
+                              !_isSubmitting, // Disable field during submit
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(color: Colors.black),
                             ),
-                            //  style: const TextStyle(
-                            // fontSize: 24,
-                            // ),
-                            controller: _emailTextController,
-                            validator: (valueEmail) {
-                              if (!valueEmail!.contains("@")) {
-                                return "kindly enter valid email";
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: TextFormField(
-                            enabled: !_isSubmitting,
-                            decoration: InputDecoration(
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelText: 'Password',
-                              labelStyle:
-                                  TextStyle(color: Colors.black, fontSize: 15),
-                              prefixIcon: Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.visibility_off),
-                                selectedIcon: const Icon(Icons.visibility),
-                                onPressed: toggleShowPassword,
-                                // _textFocusNode.requestFocus();
-                                // handlePressed(controller);
-                              ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                              borderSide: BorderSide(color: Colors.black),
                             ),
-                            obscureText: !showPassword,
-                            controller: _passwordTextController,
-                            validator: (valuePassword) {
-                              if (valuePassword!.length < 5) {
-                                return "Password must be at least 6 or more characters.";
-                              }
-                              return null;
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                password =
-                                    value; // Update the password when input changes
-                              });
-                            },
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelText: 'Email',
+                            labelStyle:
+                                TextStyle(color: Colors.black, fontSize: 15),
+                            prefixIcon: Icon(Icons.email),
                           ),
-                        ),
-                        Text(
-                          "password must be at least 6 or more characters",
-                          style: TextStyle(
-                            fontWeight: FontWeight.normal,
-                            color: Colors.black,
-                            fontSize: 12.0,
-                          ),
-                          textAlign: TextAlign.left,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: TextFormField(
-                            enabled: !_isSubmitting,
-                            decoration: InputDecoration(
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelText: 'First Name',
-                              labelStyle:
-                                  TextStyle(color: Colors.black, fontSize: 15),
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            //  style: const TextStyle(
-                            // fontSize: 24,
-                            // ),
-                            controller: _firstNameTextController,
-                            validator: (text) {
-                              if (text!.isEmpty) {
-                                return "please enter first name";
-                              }
-                              return null;
-                            },
-                            textCapitalization: TextCapitalization.words,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: TextFormField(
-                            enabled: !_isSubmitting,
-                            decoration: InputDecoration(
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelText: 'Last Name',
-                              labelStyle:
-                                  TextStyle(color: Colors.black, fontSize: 15),
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            //  style: const TextStyle(
-                            // fontSize: 24,
-                            // ),
-                            controller: _lastNameTextController,
-                            validator: (text) {
-                              if (text!.isEmpty) {
-                                return "please enter last name";
-                              }
-                              return null;
-                            },
-                            textCapitalization: TextCapitalization.words,
-                          ),
-                        ),
-                        // Ensure this import is present
-
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: TextFormField(
-                            enabled: !_isSubmitting,
-                            decoration: InputDecoration(
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20.0),
-                                borderSide: BorderSide(color: Colors.black),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelText: 'Mobile Number',
-                              labelStyle:
-                                  TextStyle(color: Colors.black, fontSize: 15),
-                              prefixIcon: Icon(Icons.call),
-                            ),
-                            controller: _mobileNumberTextController,
-                            validator: (text) {
-                              if (text!.isEmpty) {
-                                return "Please enter a mobile number";
-                              } else if (text.length < 10) {
-                                return "Please enter a valid mobile number";
-                              }
-                              return null;
-                            },
-                            //textCapitalization: TextCapitalization.none,
-                            keyboardType:
-                                TextInputType.phone, // Shows numeric keyboard
-                            inputFormatters: <TextInputFormatter>[
-                              FilteringTextInputFormatter
-                                  .digitsOnly, // Only allows digits
-                            ],
-                          ),
-                        ),
-
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: GestureDetector(
-                            onTap: showCountryDialog,
-                            child: AbsorbPointer(
-                              child: TextFormField(
-                                enabled: !_isSubmitting,
-                                decoration: InputDecoration(
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  labelText: 'Country',
-                                  prefixIcon: Icon(Icons.location_on),
-                                ),
-                                controller: TextEditingController(
-                                    text: selectedCountry),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: GestureDetector(
-                            onTap: showStateDialog,
-                            child: AbsorbPointer(
-                              child: TextFormField(
-                                enabled: !_isSubmitting,
-                                decoration: InputDecoration(
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  labelText: 'State',
-                                  prefixIcon: Icon(Icons.place),
-                                ),
-                                controller:
-                                    TextEditingController(text: selectedState),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 26.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                enabled: !_isSubmitting,
-                                decoration: InputDecoration(
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20.0),
-                                    borderSide: BorderSide(color: Colors.black),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  labelText: 'Bio',
-                                  labelStyle: TextStyle(
-                                      color: Colors.black, fontSize: 15),
-                                  prefixIcon: Icon(Icons.person_2),
-                                ),
-                                controller: _bioTextController,
-                                validator: (text) {
-                                  if (text!.isEmpty) {
-                                    return "Please enter bio";
-                                  }
-                                  return null;
-                                },
-                                textCapitalization: TextCapitalization.words,
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: const [
-                                  Icon(Icons.info_outline,
-                                      color: Colors.pinkAccent, size: 18),
-                                  SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Your bio helps others know you better',
-                                      style: TextStyle(
-                                          fontSize: 13, color: Colors.black),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    var imageFile = await ImagePicker()
-                        .pickImage(source: ImageSource.gallery);
-                    if (imageFile != null) {
-                      imageFileOfUser =
-                          File(imageFile.path); // Save the image file
-
-                      setState(() {
-                        // Trigger UI update when a new image is selected
-                      });
-                    }
-                  },
-                  child: CircleAvatar(
-                    radius: MediaQuery.of(context).size.width *
-                        0.10, // Adjust size as needed
-                    backgroundColor: Colors.grey,
-                    child: imageFileOfUser == null
-                        ? Icon(
-                            Icons.add_photo_alternate_sharp,
-                            color: Colors.white,
-                            size: MediaQuery.of(context).size.width *
-                                0.10, // Adjust size of the icon
-                          )
-                        : ClipOval(
-                            child: Image.file(
-                              imageFileOfUser!,
-                              width: MediaQuery.of(context).size.width *
-                                  0.20, // Adjust the size of the image
-                              height: MediaQuery.of(context).size.width * 0.20,
-                              fit: BoxFit
-                                  .cover, // Ensure the image covers the circle
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Center(
-                  child: Row(
-                    mainAxisSize:
-                        MainAxisSize.min, // Prevent Row from taking full width
-                    children: const [
-                      Icon(Icons.info_outline,
-                          color: Colors.pinkAccent, size: 18),
-                      SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Image must not exceed 5MB',
-                          style: TextStyle(fontSize: 13, color: Colors.black),
+                          //  style: const TextStyle(
+                          // fontSize: 24,
+                          // ),
+                          controller: _emailTextController,
+                          validator: (valueEmail) {
+                            if (!valueEmail!.contains("@")) {
+                              return "kindly enter valid email";
+                            }
+                            return null;
+                          },
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: TextFormField(
+                          enabled: !_isSubmitting,
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelText: 'Password',
+                            labelStyle:
+                                TextStyle(color: Colors.black, fontSize: 15),
+                            prefixIcon: Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.visibility_off),
+                              selectedIcon: const Icon(Icons.visibility),
+                              onPressed: toggleShowPassword,
+                              // _textFocusNode.requestFocus();
+                              // handlePressed(controller);
+                            ),
+                          ),
+                          obscureText: !showPassword,
+                          controller: _passwordTextController,
+                          validator: (valuePassword) {
+                            if (valuePassword!.length < 5) {
+                              return "Password must be at least 6 or more characters.";
+                            }
+                            return null;
+                          },
+                          onChanged: (value) {
+                            setState(() {
+                              password =
+                                  value; // Update the password when input changes
+                            });
+                          },
+                        ),
+                      ),
+                      Text(
+                        "password must be at least 6 or more characters",
+                        style: TextStyle(
+                          fontWeight: FontWeight.normal,
+                          color: Colors.black,
+                          fontSize: 12.0,
+                        ),
+                        textAlign: TextAlign.left,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: TextFormField(
+                          enabled: !_isSubmitting,
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelText: 'First Name',
+                            labelStyle:
+                                TextStyle(color: Colors.black, fontSize: 15),
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          //  style: const TextStyle(
+                          // fontSize: 24,
+                          // ),
+                          controller: _firstNameTextController,
+                          validator: (text) {
+                            if (text!.isEmpty) {
+                              return "please enter first name";
+                            }
+                            return null;
+                          },
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: TextFormField(
+                          enabled: !_isSubmitting,
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelText: 'Last Name',
+                            labelStyle:
+                                TextStyle(color: Colors.black, fontSize: 15),
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          //  style: const TextStyle(
+                          // fontSize: 24,
+                          // ),
+                          controller: _lastNameTextController,
+                          validator: (text) {
+                            if (text!.isEmpty) {
+                              return "please enter last name";
+                            }
+                            return null;
+                          },
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                      ),
+                      // Ensure this import is present
+
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: TextFormField(
+                          enabled: !_isSubmitting,
+                          decoration: InputDecoration(
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                              borderSide: BorderSide(color: Colors.black),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            labelText: 'Mobile Number',
+                            labelStyle:
+                                TextStyle(color: Colors.black, fontSize: 15),
+                            prefixIcon: Icon(Icons.call),
+                          ),
+                          controller: _mobileNumberTextController,
+                          validator: (text) {
+                            if (text!.isEmpty) {
+                              return "Please enter a mobile number";
+                            } else if (text.length < 10) {
+                              return "Please enter a valid mobile number";
+                            }
+                            return null;
+                          },
+                          //textCapitalization: TextCapitalization.none,
+                          keyboardType:
+                              TextInputType.phone, // Shows numeric keyboard
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter
+                                .digitsOnly, // Only allows digits
+                          ],
+                        ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: GestureDetector(
+                          onTap: showCountryDialog,
+                          child: AbsorbPointer(
+                            child: TextFormField(
+                              enabled: !_isSubmitting,
+                              decoration: InputDecoration(
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelText: 'Country',
+                                prefixIcon: Icon(Icons.location_on),
+                              ),
+                              controller:
+                                  TextEditingController(text: selectedCountry),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: GestureDetector(
+                          onTap: showStateDialog,
+                          child: AbsorbPointer(
+                            child: TextFormField(
+                              enabled: !_isSubmitting,
+                              decoration: InputDecoration(
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelText: 'State',
+                                prefixIcon: Icon(Icons.place),
+                              ),
+                              controller:
+                                  TextEditingController(text: selectedState),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 26.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              enabled: !_isSubmitting,
+                              decoration: InputDecoration(
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  borderSide: BorderSide(color: Colors.black),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                labelText: 'Bio',
+                                labelStyle: TextStyle(
+                                    color: Colors.black, fontSize: 15),
+                                prefixIcon: Icon(Icons.person_2),
+                              ),
+                              controller: _bioTextController,
+                              validator: (text) {
+                                if (text!.isEmpty) {
+                                  return "Please enter bio";
+                                }
+                                return null;
+                              },
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: const [
+                                Icon(Icons.info_outline,
+                                    color: Colors.pinkAccent, size: 18),
+                                SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Your bio helps others know you better',
+                                    style: TextStyle(
+                                        fontSize: 13, color: Colors.black),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(30.0),
-                  child: Container(
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: Color(0xff000000),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting
-                          ? null // Disable button during submit
-                          : () {
-                              if (!_formKey.currentState!.validate() ||
-                                  imageFileOfUser == null) {
-                                Get.snackbar("field missing",
-                                    "Please choose image and complete form");
-                                return;
-                              }
-                              if (_emailTextController.text.isEmpty &&
-                                  _passwordTextController.text.isEmpty) {
-                                Get.snackbar(
-                                    "field missing", "Please complete form");
-                                return;
-                              }
-                              userViewModel.signUp(
-                                _emailTextController.text.trim(),
-                                _passwordTextController.text.trim(),
-                                _firstNameTextController.text.trim(),
-                                _lastNameTextController.text.trim(),
-                                selectedCountry,
-                                selectedState,
-                                _mobileNumberTextController.text.trim(),
-                                _bioTextController.text.trim(),
-                                imageFileOfUser,
-                              );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
+              ),
+              GestureDetector(
+                onTap: () async {
+                  var imageFile = await ImagePicker()
+                      .pickImage(source: ImageSource.gallery);
+                  if (imageFile != null) {
+                    imageFileOfUser =
+                        File(imageFile.path); // Save the image file
+
+                    setState(() {
+                      // Trigger UI update when a new image is selected
+                    });
+                  }
+                },
+                child: CircleAvatar(
+                  radius: MediaQuery.of(context).size.width *
+                      0.10, // Adjust size as needed
+                  backgroundColor: Colors.grey,
+                  child: imageFileOfUser == null
+                      ? Icon(
+                          Icons.add_photo_alternate_sharp,
+                          color: Colors.white,
+                          size: MediaQuery.of(context).size.width *
+                              0.10, // Adjust size of the icon
+                        )
+                      : ClipOval(
+                          child: Image.file(
+                            imageFileOfUser!,
+                            width: MediaQuery.of(context).size.width *
+                                0.20, // Adjust the size of the image
+                            height: MediaQuery.of(context).size.width * 0.20,
+                            fit: BoxFit
+                                .cover, // Ensure the image covers the circle
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Center(
+                child: Row(
+                  mainAxisSize:
+                      MainAxisSize.min, // Prevent Row from taking full width
+                  children: const [
+                    Icon(Icons.info_outline,
+                        color: Colors.pinkAccent, size: 18),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Image must not exceed 5MB',
+                        style: TextStyle(fontSize: 13, color: Colors.black),
                       ),
-                      child: _isSubmitting
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(30.0),
+                child: Container(
+                  height: 55,
+                  decoration: BoxDecoration(
+                    color: Color(0xff000000),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: userViewModel.isSubmitting.value
+                        ? null // Disable button during submit
+                        : () {
+                            if (!_formKey.currentState!.validate() ||
+                                imageFileOfUser == null) {
+                              Get.snackbar("field missing",
+                                  "Please choose image and complete form");
+                              return;
+                            }
+                            if (_emailTextController.text.isEmpty &&
+                                _passwordTextController.text.isEmpty) {
+                              Get.snackbar(
+                                  "field missing", "Please complete form");
+                              return;
+                            }
+
+                            userViewModel.signUp(
+                              _emailTextController.text.trim(),
+                              _passwordTextController.text.trim(),
+                              _firstNameTextController.text.trim(),
+                              _lastNameTextController.text.trim(),
+                              selectedCountry,
+                              selectedState,
+                              _mobileNumberTextController.text.trim(),
+                              _bioTextController.text.trim(),
+                              imageFileOfUser,
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                    ),
+                    child: Obx(() {
+                      // Use Obx to observe changes to isSubmitting
+                      return userViewModel.isSubmitting.value
                           ? CircularProgressIndicator(
                               color: Colors
                                   .white) // Show loading indicator when submitting
@@ -1276,27 +1278,11 @@ class _SignupScreenState extends State<SignupScreen> {
                                 fontSize: 25.0,
                                 color: Colors.white,
                               ),
-                            ),
-                    ),
+                            );
+                    }),
                   ),
                 ),
-              ],
-            )));
-    // Overlay with blurred effect and loading message
-    if (_isSubmitting)
-      BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-          child: Container(
-            color: Colors.black.withOpacity(0.5),
-            child: Center(
-              child: Text(
-                "Account is being created",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
               ),
-            ),
-          ));
+            ])));
   }
 }

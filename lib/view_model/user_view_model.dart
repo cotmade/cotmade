@@ -22,12 +22,13 @@ import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/api/firebase_api.dart';
 
 class UserViewModel {
+  RxBool isSubmitting = false.obs;  // Add isSubmitting to track the state
   UserModel userModel = UserModel();
 
   signUp(email, password, firstName, lastName, country, state, mobileNumber,
       bio, imageFileOfUser) async {
     //  var connectivityResult = await Connectivity().checkConnectivity();
-
+    isSubmitting.value = true;
     Get.snackbar("Please wait", "your account is being created");
 
     try {
@@ -66,6 +67,10 @@ class UserViewModel {
       });
     } catch (e) {
       Get.snackbar("Error", e.toString());
+    }
+    finally {
+      // Set isSubmitting to false after the process is done
+      isSubmitting.value = false;
     }
   }
 
