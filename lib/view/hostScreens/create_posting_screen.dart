@@ -48,6 +48,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
 
   TimeOfDay? _checkInTime;
   TimeOfDay? _checkOutTime;
+  bool _isSubmitting = false;
 
   final List<String> residenceTypes = [
     'Detatched House',

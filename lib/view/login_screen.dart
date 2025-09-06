@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController _emailTextController = TextEditingController();
   TextEditingController _passwordTextController = TextEditingController();
 
+  bool _isSubmitting = false;
   String password = ''; // Initialize the password variable
   bool showPassword = false; // Initialize the showPassword flag
 
