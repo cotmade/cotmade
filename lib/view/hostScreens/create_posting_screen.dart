@@ -530,92 +530,106 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
           leading: Column(
             children: [
               IconButton(
-                onPressed: () async {
-                  if (!formKey.currentState!.validate()) {
-                    return;
-                  }
+                onPressed: userViewModel.isSubmitting.value
+                    ? null // Disable button during submit
+                    : () async {
+                        if (!formKey.currentState!.validate()) {
+                          return;
+                        }
 
-                  if (residenceTypeSelected == "") {
-                    return;
-                  }
+                        if (residenceTypeSelected == "") {
+                          return;
+                        }
 
-                  if (_imagesList!.isEmpty) {
-                    return;
-                  }
+                        if (_imagesList!.isEmpty) {
+                          return;
+                        }
 
-                  postingModel.name = _nameTextEditingController.text;
-                  postingModel.price =
-                      double.parse(_priceTextEditingController.text);
-                  postingModel.caution =
-                      double.parse(_cautionTextEditingController.text);
-                  postingModel.description =
-                      _descriptionTextEditingController.text;
-                  postingModel.address = _addressTextEditingController.text;
-                  postingModel.city =
-                      selectedCity ?? _cityTextEditingController.text;
-                  postingModel.country =
-                      selectedCountry ?? _countryTextEditingController.text;
-                  postingModel.amenities =
-                      _amenitiesTextEditingController.text.split(",");
-                  postingModel.type = residenceTypeSelected;
-                  postingModel.beds = _beds;
-                  postingModel.bathrooms = _bathrooms;
-                  postingModel.displayImages = _imagesList;
-                  postingModel.currency = selectedCurrency;
-                  postingModel.checkInTime =
-                      _checkInTime != null ? _formatTime(_checkInTime!) : "";
-                  postingModel.checkOutTime =
-                      _checkOutTime != null ? _formatTime(_checkOutTime!) : "";
+                        postingModel.name = _nameTextEditingController.text;
+                        postingModel.price =
+                            double.parse(_priceTextEditingController.text);
+                        postingModel.caution =
+                            double.parse(_cautionTextEditingController.text);
+                        postingModel.description =
+                            _descriptionTextEditingController.text;
+                        postingModel.address =
+                            _addressTextEditingController.text;
+                        postingModel.city =
+                            selectedCity ?? _cityTextEditingController.text;
+                        postingModel.country = selectedCountry ??
+                            _countryTextEditingController.text;
+                        postingModel.amenities =
+                            _amenitiesTextEditingController.text.split(",");
+                        postingModel.type = residenceTypeSelected;
+                        postingModel.beds = _beds;
+                        postingModel.bathrooms = _bathrooms;
+                        postingModel.displayImages = _imagesList;
+                        postingModel.currency = selectedCurrency;
+                        postingModel.checkInTime = _checkInTime != null
+                            ? _formatTime(_checkInTime!)
+                            : "";
+                        postingModel.checkOutTime = _checkOutTime != null
+                            ? _formatTime(_checkOutTime!)
+                            : "";
 
-                  postingModel.host =
-                      AppConstants.currentUser.createUserFromContact();
+                        postingModel.host =
+                            AppConstants.currentUser.createUserFromContact();
 
-                  postingModel.setImagesNames();
+                        postingModel.setImagesNames();
 
-                  // if this is new post or old post
-                  if (widget.posting == null) {
-                    postingModel.rating = 3.5;
-                    postingModel.bookings = [];
-                    postingModel.reviews = [];
+                        // if this is new post or old post
+                        if (widget.posting == null) {
+                          postingModel.rating = 3.5;
+                          postingModel.bookings = [];
+                          postingModel.reviews = [];
 
-                    await postingViewModel.addListingInfoToFirestore();
+                          await postingViewModel.addListingInfoToFirestore();
 
-                    await postingViewModel.addImagesToFirebaseStorage();
+                          await postingViewModel.addImagesToFirebaseStorage();
 
-                    Get.snackbar("New Listing",
-                        "your new listing is uploaded successfully.");
-                  } else {
-                    postingModel.rating = widget.posting!.rating;
-                    postingModel.bookings = widget.posting!.bookings;
-                    postingModel.reviews = widget.posting!.reviews;
-                    postingModel.id = widget.posting!.id;
+                          Get.snackbar("New Listing",
+                              "your new listing is uploaded successfully.");
+                        } else {
+                          postingModel.rating = widget.posting!.rating;
+                          postingModel.bookings = widget.posting!.bookings;
+                          postingModel.reviews = widget.posting!.reviews;
+                          postingModel.id = widget.posting!.id;
 
-                    for (int i = 0;
-                        i < AppConstants.currentUser.myPostings!.length;
-                        i++) {
-                      if (AppConstants.currentUser.myPostings![i].id ==
-                          postingModel.id) {
-                        AppConstants.currentUser.myPostings![i] = postingModel;
-                        break;
-                      }
-                    }
+                          for (int i = 0;
+                              i < AppConstants.currentUser.myPostings!.length;
+                              i++) {
+                            if (AppConstants.currentUser.myPostings![i].id ==
+                                postingModel.id) {
+                              AppConstants.currentUser.myPostings![i] =
+                                  postingModel;
+                              break;
+                            }
+                          }
 
-                    await postingViewModel.updatePostingInfoToFirestore();
-                    await postingViewModel.addImagesToFirebaseStorage();
+                          await postingViewModel.updatePostingInfoToFirestore();
+                          await postingViewModel.addImagesToFirebaseStorage();
 
-                    Get.snackbar(
-                        "Updated", "your listing has updated successfully.");
-                  }
+                          Get.snackbar("Updated",
+                              "your listing has updated successfully.");
+                        }
 
-                  // clear posting model
-                  postingModel = PostingModel();
+                        // clear posting model
+                        postingModel = PostingModel();
 
-                  Get.to(HostHomeScreen());
-                },
+                        Get.to(HostHomeScreen());
+                      },
                 icon: const Icon(Icons.upload, size: 20, color: Colors.black),
                 tooltip: 'submit',
               ),
-              Text('submit', style: TextStyle(color: Colors.black, fontSize: 8))
+              Obx(() {
+                // Use Obx to observe changes to isSubmitting
+                return userViewModel.isSubmitting.value
+                    ? CircularProgressIndicator(
+                        color: Colors
+                            .white) // Show loading indicator when submitting
+                    : const Text('submit',
+                        style: TextStyle(color: Colors.black, fontSize: 8));
+              })
             ],
           )),
       body: Center(

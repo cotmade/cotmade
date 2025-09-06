@@ -353,7 +353,7 @@ class TripScreen extends StatelessWidget {
                                                   TextButton(
                                                     onPressed: () {
                                                       // Navigate to WriteReviewScreen with isVideoReview set to true
-                                                      Navigator.push(
+                                                      /* Navigator.push(
                                                         context,
                                                         MaterialPageRoute(
                                                           builder: (context) =>
@@ -363,6 +363,17 @@ class TripScreen extends StatelessWidget {
                                                             isVideoReview:
                                                                 true, // For video review
                                                           ),
+                                                        ),
+                                                      ); */
+                                                      // If voucher is active
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              "Stay tuned!"),
+                                                          duration: Duration(
+                                                              seconds: 2),
                                                         ),
                                                       );
                                                     },

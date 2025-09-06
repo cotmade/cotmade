@@ -1186,6 +1186,7 @@ class _CotmindChatState extends State<CotmindChat> {
                         color: Colors.black,
                       ),
                       softWrap: true,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),

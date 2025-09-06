@@ -21,6 +21,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   String? firstName;
   String? lastName;
   String? bio;
+  String? alias;
   MemoryImage? displayImage;
 
   @override
@@ -49,6 +50,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       firstName = snapshot["firstName"] ?? "";
       lastName = snapshot['lastName'] ?? "";
       bio = snapshot['bio'] ?? "";
+      alias = snapshot['alias'] ?? "";
     });
   }
 
@@ -181,7 +183,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         Row(
                           children: [
                             Text(
-                              firstName ?? '...loading',
+                              alias != null && alias!.isNotEmpty
+                                  ? alias! // Show alias if it exists
+                                  : firstName ?? '...loading',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
@@ -190,13 +194,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             SizedBox(
                               width: 5,
                             ),
-                            Text(
-                              lastName ?? '...loading',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
+                            // Show last name only if alias is null
+                            if (alias == null || alias!.isEmpty)
+                              Text(
+                                lastName ?? '...loading',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         Row(
