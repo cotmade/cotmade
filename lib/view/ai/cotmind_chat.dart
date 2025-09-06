@@ -21,6 +21,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:cotmade/view/webview_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class ChatMessage {
   final String message;
@@ -28,6 +30,7 @@ class ChatMessage {
   final String? videoUrl;
   final PostingModel? posting;
   final File? imageFile;
+  final int? premium;
 
   ChatMessage({
     required this.message,
@@ -35,6 +38,7 @@ class ChatMessage {
     this.videoUrl,
     this.posting,
     this.imageFile,
+    this.premium,
   });
 }
 
@@ -1096,6 +1100,7 @@ class _CotmindChatState extends State<CotmindChat> {
         caption: msg.message,
         posting: msg.posting!,
         postId: msg.posting!.id ?? '', // Pass postId here
+        premium: msg.premium!,
       ),
     );
   }
@@ -1249,12 +1254,14 @@ class VideoPreviewCard extends StatefulWidget {
   final PostingModel
       posting; // Adding PostingModel for passing to ViewPostingScreen
   final String postId; // Add this field
+  final int premium; // Add the premium rating
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
     required this.posting, // Accept PostingModel as a parameter
     required this.postId,
+    required this.premium,
   });
 
   @override
@@ -1328,6 +1335,21 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
     }
   }
 
+  void _handleLink(BuildContext context, String linkUrl) async {
+    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
+      // Open URL in internal WebView
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewScreen(
+            url: linkUrl,
+            title: "",
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -1363,35 +1385,73 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
             padding:
                 const EdgeInsets.only(top: 8.0), // Optional margin for button
             child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  // Navigate to ViewPostingScreen when tapped
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ViewPostingScreen(posting: widget.posting),
+              child: Column(children: [
+                // Check if premium is 5 or 6 and show a special button
+                if (widget.premium == 5 || widget.premium == 6)
+                  GestureDetector(
+                    onTap: () async {
+                      // Assuming that the URL is stored in the collection with the post
+                      final docRef = FirebaseFirestore.instance
+                          .collection('reels')
+                          .doc(widget.postId);
+                      final docSnapshot = await docRef.get();
+                      final linkUrl = docSnapshot['linkUrl'];
+
+                      if (linkUrl != null) {
+                        // Open the link in the browser
+                        _handleLink(context, linkUrl);
+                      }
+                    },
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.pinkAccent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Book Now',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
-                  );
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.pinkAccent,
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    'Book Now',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                // Standard button for other cases
+                if (widget.premium != 5 && widget.premium != 6)
+                  GestureDetector(
+                    onTap: () {
+                      // Navigate to ViewPostingScreen when tapped
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ViewPostingScreen(posting: widget.posting),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.pinkAccent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Book Now',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+              ]),
             ),
-          ),
+          )
         ],
       ),
     );
