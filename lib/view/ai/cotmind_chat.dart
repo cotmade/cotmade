@@ -1251,15 +1251,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 class VideoPreviewCard extends StatefulWidget {
   final String videoUrl;
   final String caption;
-  final PostingModel
-      posting; // Adding PostingModel for passing to ViewPostingScreen
-  final String postId; // Add this field
-  final int premium; // Add the premium rating
+  final PostingModel posting;
+  final String postId;
+  final int premium;
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
-    required this.posting, // Accept PostingModel as a parameter
+    required this.posting,
     required this.postId,
     required this.premium,
   });
@@ -1276,11 +1275,9 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.network(widget.videoUrl)
-      ..setVolume(0.0) // 👈 Mute the video
+      ..setVolume(0.0)
       ..initialize().then((_) {
-        setState(() {
-          _initialized = true;
-        });
+        setState(() => _initialized = true);
       });
   }
 
@@ -1290,22 +1287,21 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
     super.dispose();
   }
 
-  // Method to open the full-screen video
   void _openFullVideo() {
     _incrementVideoViews();
     showDialog(
       context: context,
-      barrierDismissible: true, // <-- allow tapping outside to dismiss
+      barrierDismissible: true,
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         child: GestureDetector(
-          behavior: HitTestBehavior.opaque, // <-- ensures all taps are detected
-          onTap: () => Navigator.pop(context), // Close dialog when tapped
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.pop(context),
           child: Center(
             child: AspectRatio(
               aspectRatio: _controller.value.aspectRatio,
               child: _initialized
-                  ? VideoPlayer(_controller) // Play video in full-screen
+                  ? VideoPlayer(_controller)
                   : Container(
                       color: Colors.grey[300],
                       child: Center(child: CircularProgressIndicator()),
@@ -1315,50 +1311,97 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
         ),
       ),
     );
-
-    // Play the video when the modal opens
     _controller.play();
   }
 
   void _incrementVideoViews() async {
     try {
-      final docRef =
-          FirebaseFirestore.instance.collection('reels').doc(widget.postId);
-
-      await docRef.update({
-        'views': FieldValue.increment(1),
-      });
-
-      print("✅ Incremented view count for ${widget.postId}");
+      await FirebaseFirestore.instance
+          .collection('reels')
+          .doc(widget.postId)
+          .update({'views': FieldValue.increment(1)});
     } catch (e) {
       print("❌ Failed to increment views: $e");
     }
   }
 
-  void _handleLink(BuildContext context, String linkUrl) async {
+  void _handleLink(BuildContext context, String linkUrl) {
     if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
-      // Open URL in internal WebView
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => WebViewScreen(
-            url: linkUrl,
-            title: "",
-          ),
+          builder: (context) => WebViewScreen(url: linkUrl, title: ""),
         ),
       );
     }
   }
 
+  Widget _buildBookNowButton() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.pinkAccent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Book Now',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumButton() {
+    return GestureDetector(
+      onTap: () async {
+        try {
+          final docSnapshot = await FirebaseFirestore.instance
+              .collection('reels')
+              .doc(widget.postId)
+              .get();
+
+          final linkUrl = docSnapshot.data()?['linkUrl'] ?? '';
+          if (linkUrl.isNotEmpty) {
+            _handleLink(context, linkUrl);
+          } else {
+            print("❌ No linkUrl found for premium ${widget.premium}");
+          }
+        } catch (e) {
+          print("❌ Error fetching linkUrl: $e");
+        }
+      },
+      child: _buildBookNowButton(),
+    );
+  }
+
+  Widget _buildStandardButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ViewPostingScreen(posting: widget.posting),
+          ),
+        );
+      },
+      child: _buildBookNowButton(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _openFullVideo, // Open full-screen video on tap
+      onTap: _openFullVideo,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
+            aspectRatio: _controller.value.isInitialized
+                ? _controller.value.aspectRatio
+                : 16 / 9,
             child: _initialized
                 ? Stack(
                     alignment: Alignment.center,
@@ -1377,81 +1420,12 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
                     child: Center(child: CircularProgressIndicator()),
                   ),
           ),
-          SizedBox(height: 2),
-          //  Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
-
-          // "Book Now" Button at the bottom center
-          Padding(
-            padding:
-                const EdgeInsets.only(top: 8.0), // Optional margin for button
-            child: Center(
-              child: Column(children: [
-                // Check if premium is 5 or 6 and show a special button
-                if (widget.premium == 5 || widget.premium == 6)
-                  GestureDetector(
-                    onTap: () async {
-                      // Assuming that the URL is stored in the collection with the post
-                      final docRef = FirebaseFirestore.instance
-                          .collection('reels')
-                          .doc(widget.postId);
-                      final docSnapshot = await docRef.get();
-                      final linkUrl = docSnapshot['linkUrl'];
-
-                      if (linkUrl != null) {
-                        // Open the link in the browser
-                        _handleLink(context, linkUrl);
-                      }
-                    },
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.pinkAccent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Book Now',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                // Standard button for other cases
-                if (widget.premium != 5 && widget.premium != 6)
-                  GestureDetector(
-                    onTap: () {
-                      // Navigate to ViewPostingScreen when tapped
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ViewPostingScreen(posting: widget.posting),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.pinkAccent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Book Now',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-              ]),
-            ),
-          )
+          SizedBox(height: 8),
+          Center(
+            child: (widget.premium == 5 || widget.premium == 6)
+                ? _buildPremiumButton()
+                : _buildStandardButton(),
+          ),
         ],
       ),
     );

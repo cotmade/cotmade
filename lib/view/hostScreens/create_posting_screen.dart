@@ -14,6 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cotmade/view/hostScreens/create_promo_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/view/hostScreens/my_postings_screen.dart';
+import 'package:cotmade/view_model/posting_view_model.dart';
 
 class CreatePostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -29,6 +30,7 @@ class CreatePostingScreen extends StatefulWidget {
 
 class _CreatePostingScreenState extends State<CreatePostingScreen> {
   final formKey = GlobalKey<FormState>();
+  final postingViewModel = Get.find<PostingViewModel>();
   TextEditingController _countrySearchController = TextEditingController();
   TextEditingController _nameTextEditingController = TextEditingController();
   TextEditingController _priceTextEditingController = TextEditingController();
@@ -531,100 +533,102 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
           leading: Column(
             children: [
               IconButton(
-                onPressed: userViewModel.isSubmitting.value
-                    ? null // Disable button during submit
+                onPressed: postingViewModel.isSubmitting.value
+                    ? null
                     : () async {
-                        if (!formKey.currentState!.validate()) {
-                          return;
-                        }
+                        if (!formKey.currentState!.validate()) return;
+                        if (residenceTypeSelected == "") return;
+                        if (_imagesList!.isEmpty) return;
 
-                        if (residenceTypeSelected == "") {
-                          return;
-                        }
+                        try {
+                          // Set submitting to true
+                          postingViewModel.isSubmitting.value = true;
 
-                        if (_imagesList!.isEmpty) {
-                          return;
-                        }
+                          postingModel.name = _nameTextEditingController.text;
+                          postingModel.price =
+                              double.parse(_priceTextEditingController.text);
+                          postingModel.caution =
+                              double.parse(_cautionTextEditingController.text);
+                          postingModel.description =
+                              _descriptionTextEditingController.text;
+                          postingModel.address =
+                              _addressTextEditingController.text;
+                          postingModel.city =
+                              selectedCity ?? _cityTextEditingController.text;
+                          postingModel.country = selectedCountry ??
+                              _countryTextEditingController.text;
+                          postingModel.amenities =
+                              _amenitiesTextEditingController.text.split(",");
+                          postingModel.type = residenceTypeSelected;
+                          postingModel.beds = _beds;
+                          postingModel.bathrooms = _bathrooms;
+                          postingModel.displayImages = _imagesList;
+                          postingModel.currency = selectedCurrency;
+                          postingModel.checkInTime = _checkInTime != null
+                              ? _formatTime(_checkInTime!)
+                              : "";
+                          postingModel.checkOutTime = _checkOutTime != null
+                              ? _formatTime(_checkOutTime!)
+                              : "";
 
-                        postingModel.name = _nameTextEditingController.text;
-                        postingModel.price =
-                            double.parse(_priceTextEditingController.text);
-                        postingModel.caution =
-                            double.parse(_cautionTextEditingController.text);
-                        postingModel.description =
-                            _descriptionTextEditingController.text;
-                        postingModel.address =
-                            _addressTextEditingController.text;
-                        postingModel.city =
-                            selectedCity ?? _cityTextEditingController.text;
-                        postingModel.country = selectedCountry ??
-                            _countryTextEditingController.text;
-                        postingModel.amenities =
-                            _amenitiesTextEditingController.text.split(",");
-                        postingModel.type = residenceTypeSelected;
-                        postingModel.beds = _beds;
-                        postingModel.bathrooms = _bathrooms;
-                        postingModel.displayImages = _imagesList;
-                        postingModel.currency = selectedCurrency;
-                        postingModel.checkInTime = _checkInTime != null
-                            ? _formatTime(_checkInTime!)
-                            : "";
-                        postingModel.checkOutTime = _checkOutTime != null
-                            ? _formatTime(_checkOutTime!)
-                            : "";
+                          postingModel.host =
+                              AppConstants.currentUser.createUserFromContact();
 
-                        postingModel.host =
-                            AppConstants.currentUser.createUserFromContact();
+                          postingModel.setImagesNames();
 
-                        postingModel.setImagesNames();
+                          if (widget.posting == null) {
+                            // New posting
+                            postingModel.rating = 3.5;
+                            postingModel.bookings = [];
+                            postingModel.reviews = [];
 
-                        // if this is new post or old post
-                        if (widget.posting == null) {
-                          postingModel.rating = 3.5;
-                          postingModel.bookings = [];
-                          postingModel.reviews = [];
+                            await postingViewModel.addListingInfoToFirestore();
+                            await postingViewModel.addImagesToFirebaseStorage();
 
-                          await postingViewModel.addListingInfoToFirestore();
+                            Get.snackbar("New Listing",
+                                "Your new listing is uploaded successfully.");
+                          } else {
+                            // Update existing posting
+                            postingModel.rating = widget.posting!.rating;
+                            postingModel.bookings = widget.posting!.bookings;
+                            postingModel.reviews = widget.posting!.reviews;
+                            postingModel.id = widget.posting!.id;
 
-                          await postingViewModel.addImagesToFirebaseStorage();
-
-                          Get.snackbar("New Listing",
-                              "your new listing is uploaded successfully.");
-                        } else {
-                          postingModel.rating = widget.posting!.rating;
-                          postingModel.bookings = widget.posting!.bookings;
-                          postingModel.reviews = widget.posting!.reviews;
-                          postingModel.id = widget.posting!.id;
-
-                          for (int i = 0;
-                              i < AppConstants.currentUser.myPostings!.length;
-                              i++) {
-                            if (AppConstants.currentUser.myPostings![i].id ==
-                                postingModel.id) {
-                              AppConstants.currentUser.myPostings![i] =
-                                  postingModel;
-                              break;
+                            for (int i = 0;
+                                i < AppConstants.currentUser.myPostings!.length;
+                                i++) {
+                              if (AppConstants.currentUser.myPostings![i].id ==
+                                  postingModel.id) {
+                                AppConstants.currentUser.myPostings![i] =
+                                    postingModel;
+                                break;
+                              }
                             }
+
+                            await postingViewModel
+                                .updatePostingInfoToFirestore();
+                            await postingViewModel.addImagesToFirebaseStorage();
+
+                            Get.snackbar("Updated",
+                                "Your listing has updated successfully.");
                           }
 
-                          await postingViewModel.updatePostingInfoToFirestore();
-                          await postingViewModel.addImagesToFirebaseStorage();
+                          // Clear model
+                          postingModel = PostingModel();
 
-                          Get.snackbar("Updated",
-                              "your listing has updated successfully.");
+                          Get.to(HostHomeScreen());
+                        } catch (e) {
+                          Get.snackbar("Error", "Submission failed: $e");
+                        } finally {
+                          // Set submitting to false no matter what
+                          postingViewModel.isSubmitting.value = false;
                         }
-
-                        // clear posting model
-                        postingModel = PostingModel();
-
-                        Get.to(HostHomeScreen());
                       },
                 icon: const Icon(Icons.upload, size: 20, color: Colors.black),
-                tooltip: 'submit',
               ),
               Obx(() {
                 // Use Obx to observe changes to isSubmitting
-                return userViewModel.isSubmitting.value
+                return postingViewModel.isSubmitting.value
                     ? CircularProgressIndicator(
                         color: Colors
                             .white) // Show loading indicator when submitting
