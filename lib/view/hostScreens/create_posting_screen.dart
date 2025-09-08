@@ -30,7 +30,6 @@ class CreatePostingScreen extends StatefulWidget {
 
 class _CreatePostingScreenState extends State<CreatePostingScreen> {
   final formKey = GlobalKey<FormState>();
-  final postingViewModel = Get.find<PostingViewModel>();
   TextEditingController _countrySearchController = TextEditingController();
   TextEditingController _nameTextEditingController = TextEditingController();
   TextEditingController _priceTextEditingController = TextEditingController();

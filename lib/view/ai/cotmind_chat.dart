@@ -1399,9 +1399,7 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AspectRatio(
-            aspectRatio: _controller.value.isInitialized
-                ? _controller.value.aspectRatio
-                : 16 / 9,
+            aspectRatio: _initialized ? _controller.value.aspectRatio : 16 / 9,
             child: _initialized
                 ? Stack(
                     alignment: Alignment.center,
