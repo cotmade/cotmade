@@ -588,12 +588,12 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             }),
             if (post['shouldSuggestPromo'])
               _buildActionButton('Promote Listing', Icons.campaign, () {
-                Navigator.push(
+              /*  Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            BoostPropertyPage(postingId: post['id'])));
-              }),
+                          //  BoostPropertyPage(postingId: post['id']))); */
+              }), 
           ],
         ),
         if (post['shouldSuggestBoost'])
