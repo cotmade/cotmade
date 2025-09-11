@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-
 import 'package:cotmade/model/app_constants.dart';
 import 'package:cotmade/model/user_model.dart';
 import 'package:cotmade/view/data/exception.dart';
@@ -14,68 +13,102 @@ import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/hostScreens/withdraw_screen.dart';
 import 'package:cotmade/view/resetpassword_successful.dart';
-//import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/suspended_account_screen.dart';
-import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/api/firebase_api.dart';
 
 class UserViewModel {
-  RxBool isSubmitting = false.obs;  // Add isSubmitting to track the state
+  RxBool isSubmitting = false.obs;
   UserModel userModel = UserModel();
 
-  signUp(email, password, firstName, lastName, country, state, mobileNumber,
-      bio, imageFileOfUser) async {
-    //  var connectivityResult = await Connectivity().checkConnectivity();
+  /// Generate unique referral code
+  String generateReferralCode(String userId) {
+    final random = Random();
+    return "COT${userId.substring(0, 4)}${random.nextInt(9999).toString().padLeft(4, '0')}";
+  }
+
+  /// Sign up user
+  Future<void> signUp(
+    String email,
+    String password,
+    String firstName,
+    String lastName,
+    String country,
+    String state,
+    String mobileNumber,
+    String bio,
+    File imageFileOfUser, {
+    String? enteredReferralCode, // optional
+  }) async {
     isSubmitting.value = true;
     Get.snackbar("Please wait", "your account is being created");
 
     try {
-      await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      final result = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
-      )
-          .then((result) async {
-        String currentUserID = result.user!.uid;
+      );
 
-        AppConstants.currentUser.id = currentUserID;
-        AppConstants.currentUser.firstName = firstName;
-        AppConstants.currentUser.lastName = lastName;
-        AppConstants.currentUser.country = country;
-        AppConstants.currentUser.state = state;
-        AppConstants.currentUser.mobileNumber = mobileNumber;
-        AppConstants.currentUser.bio = bio;
-        AppConstants.currentUser.email = email;
-        AppConstants.currentUser.password = password;
+      String currentUserID = result.user!.uid;
 
-        await saveUserToFirestore(bio, mobileNumber, country, state, email,
-                firstName, lastName, currentUserID)
-            .whenComplete(() async {
-          await addImageToFirebaseStorage(imageFileOfUser, currentUserID);
-        });
+      // Generate unique referral code
+      String myReferralCode = generateReferralCode(currentUserID);
 
-        await FirebaseApi().uploadPendingFcmToken(currentUserID);
+      AppConstants.currentUser.id = currentUserID;
+      AppConstants.currentUser.firstName = firstName;
+      AppConstants.currentUser.lastName = lastName;
+      AppConstants.currentUser.country = country;
+      AppConstants.currentUser.state = state;
+      AppConstants.currentUser.mobileNumber = mobileNumber;
+      AppConstants.currentUser.bio = bio;
+      AppConstants.currentUser.email = email;
+      AppConstants.currentUser.password = password;
 
-        // Call sendWelcomeEmail after account is created
-        await sendWelcomeEmail(
-            email, firstName, mobileNumber, state, country, bio);
-
-        Get.to(VideoReelsPage());
-        Get.snackbar("Congratulations", "your account has been created");
+      // Save to Firestore
+      await saveUserToFirestore(
+        bio,
+        mobileNumber,
+        country,
+        state,
+        email,
+        firstName,
+        lastName,
+        currentUserID,
+        referralCode: myReferralCode,
+        usedReferralCode: enteredReferralCode,
+      ).whenComplete(() async {
+        await addImageToFirebaseStorage(imageFileOfUser, currentUserID);
       });
+
+      await FirebaseApi().uploadPendingFcmToken(currentUserID);
+
+      // Send welcome email
+      await sendWelcomeEmail(
+          email, firstName, mobileNumber, state, country, bio);
+
+      Get.to(VideoReelsPage());
+      Get.snackbar("Congratulations", "your account has been created");
     } catch (e) {
       Get.snackbar("Error", e.toString());
-    }
-    finally {
-      // Set isSubmitting to false after the process is done
+    } finally {
       isSubmitting.value = false;
     }
   }
 
+  /// Save user in Firestore
   Future<void> saveUserToFirestore(
-      bio, mobileNumber, country, state, email, firstName, lastName, id) async {
+    bio,
+    mobileNumber,
+    country,
+    state,
+    email,
+    firstName,
+    lastName,
+    id, {
+    required String referralCode,
+    String? usedReferralCode,
+  }) async {
     Map<String, dynamic> dataMap = {
       "bio": bio,
       "mobileNumber": mobileNumber,
@@ -89,17 +122,23 @@ class UserViewModel {
       "myPostingIDs": [],
       "savedPostingIDs": [],
       "earnings": 0,
+      "referralCode": referralCode, // ✅ always unique
     };
+
+    if (usedReferralCode != null && usedReferralCode.isNotEmpty) {
+      dataMap["usedReferralCode"] = usedReferralCode; // ✅ optional
+    }
 
     await FirebaseFirestore.instance.collection("users").doc(id).set(dataMap);
   }
 
+  /// Upload user image
   addImageToFirebaseStorage(File imageFileOfUser, currentUserID) async {
     Reference referenceStorage = FirebaseStorage.instance
         .ref()
         .child("userImages")
         .child(currentUserID)
-        .child(currentUserID + ".png");
+        .child("$currentUserID.png");
 
     await referenceStorage.putFile(imageFileOfUser).whenComplete(() {});
 
@@ -107,6 +146,7 @@ class UserViewModel {
         MemoryImage(imageFileOfUser.readAsBytesSync());
   }
 
+  /// Send welcome email
   Future<void> sendWelcomeEmail(String email, String firstName,
       String mobileNumber, String state, String country, String bio) async {
     final url = Uri.parse("https://cotmade.com/app/send_email.php");
@@ -127,48 +167,40 @@ class UserViewModel {
     }
   }
 
-  //log in process
+  /// Log in user
   login(String email, String password) async {
+    isSubmitting.value = true;
     Get.snackbar("Please wait", "Checking your credentials...");
 
     try {
-      // Try signing in with Firebase
       final result = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // If successful, get the current user's ID and save it to the app's constants
       String currentUserID = result.user!.uid;
       AppConstants.currentUser.id = currentUserID;
 
-      // Fetch user data (user info, image, and postings)
       await getUserInfoFromFirestore(currentUserID);
       await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
-      // Check if the user's status is 0 (suspended)
       if (AppConstants.currentUser.status == 0) {
-        // Redirect to the "Suspended Account" screen
-        Get.to(() =>
-            SuspendedAccountScreen()); // Create a new screen for suspended accounts
-        return; // Exit early if account is suspended
+        Get.to(() => SuspendedAccountScreen());
+        return;
       }
 
       await getImageFromStorage(currentUserID);
       await AppConstants.currentUser.getMyPostingsFromFirestore();
 
-      // Notify the user of a successful login
       Get.snackbar("Logged-In", "You are logged in successfully.");
-
-      // Navigate to the home screen after login
       Get.to(VideoReelsPage());
     } on FirebaseAuthException catch (e) {
-      // Handle Firebase authentication errors specifically
       String errorMessage = _handleAuthError(e);
       Get.snackbar("Login Failed", errorMessage);
     } catch (e) {
-      // Handle any other unexpected errors
-      Get.snackbar("Error", "An unexpected error occurred: ${e.toString()}");
+      Get.snackbar("Error", "Unexpected error: ${e.toString()}");
+    } finally {
+      isSubmitting.value = false;
     }
   }
 
@@ -187,22 +219,21 @@ class UserViewModel {
     }
   }
 
+  /// Forgot password
   forgotpassword(email) async {
     QuerySnapshot query = await FirebaseFirestore.instance
         .collection('users')
         .where('email', isEqualTo: email)
         .get();
-    if (query.docs.length == 0) {
+    if (query.docs.isEmpty) {
       Get.snackbar("Error", "Email does not exist");
-      //Go to the sign up screen
     } else {
-      // Get.snackbar("Please wait", "checking your credentials....");
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       Get.to(ResetPasswordScreen());
-      //Go to the login screen
     }
   }
 
+  /// Get user info
   getUserInfoFromFirestore(userID) async {
     DocumentSnapshot snapshot =
         await FirebaseFirestore.instance.collection('users').doc(userID).get();
@@ -219,6 +250,7 @@ class UserViewModel {
     AppConstants.currentUser.status = snapshot['status'].toDouble() ?? 1.0;
   }
 
+  /// Get user image
   getImageFromStorage(userID) async {
     if (AppConstants.currentUser.displayImage != null) {
       return AppConstants.currentUser.displayImage;
@@ -228,7 +260,7 @@ class UserViewModel {
         .ref()
         .child("userImages")
         .child(userID)
-        .child(userID + ".png")
+        .child("$userID.png")
         .getData(5 * 1024 * 1024);
 
     AppConstants.currentUser.displayImage = MemoryImage(imageDataInBytes!);
@@ -236,16 +268,15 @@ class UserViewModel {
     return AppConstants.currentUser.displayImage;
   }
 
+  /// Update balance
   updateBalance(double earnings, String userID) async {
     await userModel.updateBalance(earnings, userID);
   }
 
+  /// Become host
   becomeHost(String userID) async {
     userModel.isHost = true;
-
-    Map<String, dynamic> dataMap = {
-      "isHost": true,
-    };
+    Map<String, dynamic> dataMap = {"isHost": true};
     await FirebaseFirestore.instance
         .collection("users")
         .doc(userID)

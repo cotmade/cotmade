@@ -529,9 +529,9 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
             "Create/Update a Listing",
             style: TextStyle(color: Colors.black),
           ),
-          leading: Column(
-            children: [
-              IconButton(
+          leading: Column(children: [
+            Obx(() {
+              return IconButton(
                 onPressed: postingViewModel.isSubmitting.value
                     ? null
                     : () async {
@@ -543,6 +543,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                           // Set submitting to true
                           postingViewModel.isSubmitting.value = true;
 
+                          // Fill posting model
                           postingModel.name = _nameTextEditingController.text;
                           postingModel.price =
                               double.parse(_priceTextEditingController.text);
@@ -569,10 +570,8 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                           postingModel.checkOutTime = _checkOutTime != null
                               ? _formatTime(_checkOutTime!)
                               : "";
-
                           postingModel.host =
                               AppConstants.currentUser.createUserFromContact();
-
                           postingModel.setImagesNames();
 
                           if (widget.posting == null) {
@@ -623,19 +622,17 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
                           postingViewModel.isSubmitting.value = false;
                         }
                       },
-                icon: const Icon(Icons.upload, size: 20, color: Colors.black),
-              ),
-              Obx(() {
-                // Use Obx to observe changes to isSubmitting
-                return postingViewModel.isSubmitting.value
-                    ? CircularProgressIndicator(
-                        color: Colors
-                            .white) // Show loading indicator when submitting
-                    : const Text('submit',
-                        style: TextStyle(color: Colors.black, fontSize: 8));
-              })
-            ],
-          )),
+                icon: postingViewModel.isSubmitting.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload, size: 20, color: Colors.black),
+              );
+            }),
+          ])),
       body: Center(
         child: SingleChildScrollView(
           child: Padding(

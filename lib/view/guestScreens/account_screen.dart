@@ -29,6 +29,7 @@ import 'package:cotmade/view/webview_screen.dart';
 import 'dart:convert';
 import 'package:cotmade/view_model/user_view_model.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -389,6 +390,65 @@ class _AccountScreenState extends State<AccountScreen> {
                                       return Text('Points: $points',
                                           style: TextStyle(fontSize: 15));
                                     },
+                                  );
+                                },
+                              ),
+                              FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(AppConstants.currentUser.id)
+                                    .get(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox(); // or small loader
+                                  }
+
+                                  if (snapshot.hasError ||
+                                      !snapshot.hasData ||
+                                      snapshot.data == null) {
+                                    return SizedBox(); // don't show anything
+                                  }
+
+                                  final data = snapshot.data!.data()
+                                      as Map<String, dynamic>?;
+
+                                  final referralCode = data?['referralCode'];
+
+                                  if (referralCode == null ||
+                                      referralCode.isEmpty) {
+                                    return SizedBox(); // don't show anything if null/empty
+                                  }
+
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        "Referral:",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.normal,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        referralCode,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          Clipboard.setData(ClipboardData(
+                                              text: referralCode));
+                                          Get.snackbar("Copied",
+                                              "Referral code copied to clipboard");
+                                        },
+                                        child: Icon(Icons.copy, size: 20),
+                                      ),
+                                    ],
                                   );
                                 },
                               ),

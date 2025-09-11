@@ -26,6 +26,8 @@ class _SignupScreenState extends State<SignupScreen> {
   // Country and State Variables
   String? selectedCountry;
   String? selectedState;
+  final TextEditingController referralCodeTextController =
+      TextEditingController();
 
   // TextEditingController for search input
   TextEditingController _countrySearchController = TextEditingController();
@@ -1171,6 +1173,39 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(top: 26.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      enabled: !_isSubmitting,
+                      decoration: InputDecoration(
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        labelText:
+                            'Referral Code (optional)', // 👈 make it clear in UI
+                        labelStyle: TextStyle(
+                          color: Colors.black,
+                          fontSize: 15,
+                        ),
+                        prefixIcon: Icon(Icons.code_rounded),
+                      ),
+                      controller: referralCodeTextController,
+                      textCapitalization:
+                          TextCapitalization.characters, // 👈 better for codes
+                    ),
+                  ],
+                ),
+              ),
               GestureDetector(
                 onTap: () async {
                   var imageFile = await ImagePicker()
@@ -1255,11 +1290,15 @@ class _SignupScreenState extends State<SignupScreen> {
                               _passwordTextController.text.trim(),
                               _firstNameTextController.text.trim(),
                               _lastNameTextController.text.trim(),
-                              selectedCountry,
-                              selectedState,
+                              selectedCountry!,
+                              selectedState!,
                               _mobileNumberTextController.text.trim(),
                               _bioTextController.text.trim(),
-                              imageFileOfUser,
+                              imageFileOfUser!,
+                              enteredReferralCode:
+                                  referralCodeTextController.text.isEmpty
+                                      ? null
+                                      : referralCodeTextController.text,
                             );
                           },
                     style: ElevatedButton.styleFrom(

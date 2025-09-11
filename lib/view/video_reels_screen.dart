@@ -560,7 +560,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
   Widget _buildNoResults() {
     return Center(
       child: Text(
-        'No videos found for your search',
+        '',
         style: TextStyle(fontSize: 14, color: Colors.white),
       ),
     );
