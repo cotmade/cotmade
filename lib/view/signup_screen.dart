@@ -1172,40 +1172,36 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
               Padding(
-                padding: const EdgeInsets.only(top: 26.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextFormField(
-                      enabled: !_isSubmitting,
-                      decoration: InputDecoration(
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          borderSide: BorderSide(color: Colors.black),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        labelText:
-                            'Referral Code (optional)', // 👈 make it clear in UI
-                        labelStyle: TextStyle(
-                          color: Colors.black,
-                          fontSize: 15,
-                        ),
-                        prefixIcon: Icon(Icons.code_rounded),
-                      ),
-                      controller: referralCodeTextController,
-                      textCapitalization:
-                          TextCapitalization.characters, // 👈 better for codes
+                padding: const EdgeInsets.only(
+                    top: 26.0,
+                    left: 16.0,
+                    right: 16.0), // 👈 added horizontal padding
+                child: TextFormField(
+                  enabled: !_isSubmitting,
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(color: Colors.black),
                     ),
-                  ],
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20.0),
+                      borderSide: BorderSide(color: Colors.black),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    labelText: 'Referral Code (optional)',
+                    labelStyle: TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                    ),
+                    prefixIcon: Icon(Icons.code_rounded),
+                  ),
+                  controller: referralCodeTextController,
+                  textCapitalization: TextCapitalization.characters,
                 ),
               ),
+              const SizedBox(height: 7),
               GestureDetector(
                 onTap: () async {
                   var imageFile = await ImagePicker()

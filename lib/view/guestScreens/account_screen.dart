@@ -427,7 +427,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                         "Referral:",
                                         style: const TextStyle(
                                           fontWeight: FontWeight.normal,
-                                          fontSize: 20,
+                                          fontSize: 15,
                                         ),
                                       ),
                                       SizedBox(width: 4),
@@ -435,7 +435,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                         referralCode,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 20,
+                                          fontSize: 15,
                                         ),
                                       ),
                                       SizedBox(width: 8),
@@ -446,7 +446,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                           Get.snackbar("Copied",
                                               "Referral code copied to clipboard");
                                         },
-                                        child: Icon(Icons.copy, size: 20),
+                                        child: Icon(Icons.copy, size: 15),
                                       ),
                                     ],
                                   );

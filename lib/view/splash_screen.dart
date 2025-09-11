@@ -209,7 +209,7 @@ await FirebaseApi().uploadPendingFcmToken(userId);
               const Padding(
                 padding: EdgeInsets.only(top: 2.0),
                 child: Text(
-                  "version 1.2.4", // Text on splash screen
+                  "version 2.0.0", // Text on splash screen
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.normal,

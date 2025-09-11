@@ -30,7 +30,8 @@ class ChatMessage {
   final String? videoUrl;
   final PostingModel? posting;
   final File? imageFile;
-  final int? premium;
+  final int? premium; // 👈 add this
+  final String? linkUrl;
 
   ChatMessage({
     required this.message,
@@ -39,6 +40,7 @@ class ChatMessage {
     this.posting,
     this.imageFile,
     this.premium,
+    this.linkUrl,
   });
 }
 
@@ -895,13 +897,31 @@ class _CotmindChatState extends State<CotmindChat> {
       PostingModel postingModel = PostingModel(id: postingId);
       postingModel.getPostingInfoFromSnapshot(postingSnapshot);
 
+      // Normalize premium (might be int/double/null in Firestore)
+      int? premiumVal;
+      final rawPremium = video['premium'] ?? postingSnapshot.data()?['premium'];
+      if (rawPremium != null) {
+        if (rawPremium is num) {
+          premiumVal = (rawPremium).toInt();
+        } else {
+          premiumVal = int.tryParse(rawPremium.toString());
+        }
+      }
+
+      // linkUrl fallback: prefer video map, else posting document
+      final link =
+          (video['linkUrl'] ?? (postingSnapshot.data()?['linkUrl'] ?? ''))
+              .toString();
+
       // After fetching the posting data, add it to messages
       setState(() {
         _messages.add(ChatMessage(
           message: video['caption'] ?? 'Suggested Video',
           isUser: false,
           videoUrl: video['reelsVideo'],
-          posting: postingModel, // Pass the PostingModel
+          posting: postingModel,
+          premium: premiumVal,
+          linkUrl: link.isNotEmpty ? link : null,
         ));
       });
     } catch (e) {
@@ -1100,7 +1120,8 @@ class _CotmindChatState extends State<CotmindChat> {
         caption: msg.message,
         posting: msg.posting!,
         postId: msg.posting!.id ?? '', // Pass postId here
-        premium: msg.premium!,
+        premium: msg.premium, // 👈 pass premium
+        linkUrl: msg.linkUrl,
       ),
     );
   }
@@ -1183,16 +1204,13 @@ class _CotmindChatState extends State<CotmindChat> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0), // 16px left & right
-                  child: Center(
-                    child: Text(
-                      "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black,
-                      ),
-                      softWrap: true,
-                      textAlign: TextAlign.center,
+                  child: Text(
+                    "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.black,
                     ),
+                    softWrap: true,
                   ),
                 ),
               ),
@@ -1251,16 +1269,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 class VideoPreviewCard extends StatefulWidget {
   final String videoUrl;
   final String caption;
-  final PostingModel posting;
-  final String postId;
-  final int premium;
+  final PostingModel
+      posting; // Adding PostingModel for passing to ViewPostingScreen
+  final String postId; // Add this field
+  final int? premium; // 👈 add this
+  final String? linkUrl;
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
-    required this.posting,
+    required this.posting, // Accept PostingModel as a parameter
     required this.postId,
-    required this.premium,
+    this.premium,
+    this.linkUrl,
   });
 
   @override
@@ -1275,9 +1296,11 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.network(widget.videoUrl)
-      ..setVolume(0.0)
+      ..setVolume(0.0) // 👈 Mute the video
       ..initialize().then((_) {
-        setState(() => _initialized = true);
+        setState(() {
+          _initialized = true;
+        });
       });
   }
 
@@ -1287,21 +1310,22 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
     super.dispose();
   }
 
+  // Method to open the full-screen video
   void _openFullVideo() {
     _incrementVideoViews();
     showDialog(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: true, // <-- allow tapping outside to dismiss
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.pop(context),
+          behavior: HitTestBehavior.opaque, // <-- ensures all taps are detected
+          onTap: () => Navigator.pop(context), // Close dialog when tapped
           child: Center(
             child: AspectRatio(
               aspectRatio: _controller.value.aspectRatio,
               child: _initialized
-                  ? VideoPlayer(_controller)
+                  ? VideoPlayer(_controller) // Play video in full-screen
                   : Container(
                       color: Colors.grey[300],
                       child: Center(child: CircularProgressIndicator()),
@@ -1311,95 +1335,35 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
         ),
       ),
     );
+
+    // Play the video when the modal opens
     _controller.play();
   }
 
   void _incrementVideoViews() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('reels')
-          .doc(widget.postId)
-          .update({'views': FieldValue.increment(1)});
+      final docRef =
+          FirebaseFirestore.instance.collection('reels').doc(widget.postId);
+
+      await docRef.update({
+        'views': FieldValue.increment(1),
+      });
+
+      print("✅ Incremented view count for ${widget.postId}");
     } catch (e) {
       print("❌ Failed to increment views: $e");
     }
   }
 
-  void _handleLink(BuildContext context, String linkUrl) {
-    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => WebViewScreen(url: linkUrl, title: ""),
-        ),
-      );
-    }
-  }
-
-  Widget _buildBookNowButton() {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.pinkAccent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        'Book Now',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPremiumButton() {
-    return GestureDetector(
-      onTap: () async {
-        try {
-          final docSnapshot = await FirebaseFirestore.instance
-              .collection('reels')
-              .doc(widget.postId)
-              .get();
-
-          final linkUrl = docSnapshot.data()?['linkUrl'] ?? '';
-          if (linkUrl.isNotEmpty) {
-            _handleLink(context, linkUrl);
-          } else {
-            print("❌ No linkUrl found for premium ${widget.premium}");
-          }
-        } catch (e) {
-          print("❌ Error fetching linkUrl: $e");
-        }
-      },
-      child: _buildBookNowButton(),
-    );
-  }
-
-  Widget _buildStandardButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ViewPostingScreen(posting: widget.posting),
-          ),
-        );
-      },
-      child: _buildBookNowButton(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _openFullVideo,
+      onTap: _openFullVideo, // Open full-screen video on tap
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AspectRatio(
-            aspectRatio: _initialized ? _controller.value.aspectRatio : 16 / 9,
+            aspectRatio: _controller.value.aspectRatio,
             child: _initialized
                 ? Stack(
                     alignment: Alignment.center,
@@ -1418,11 +1382,58 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
                     child: Center(child: CircularProgressIndicator()),
                   ),
           ),
-          SizedBox(height: 8),
-          Center(
-            child: (widget.premium == 5 || widget.premium == 6)
-                ? _buildPremiumButton()
-                : _buildStandardButton(),
+          SizedBox(height: 2),
+          //  Text(widget.caption, style: TextStyle(fontWeight: FontWeight.bold)),
+
+          // "Book Now" Button at the bottom center
+          Padding(
+            padding:
+                const EdgeInsets.only(top: 8.0), // Optional margin for button
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (widget.premium == 5 || widget.premium == 6) {
+                    if (widget.linkUrl != null && widget.linkUrl!.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WebViewScreen(
+                              url: widget.linkUrl!,
+                              title: ""), // 👈 open webview
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("No booking link available")),
+                      );
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ViewPostingScreen(posting: widget.posting),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.pinkAccent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Book Now',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
