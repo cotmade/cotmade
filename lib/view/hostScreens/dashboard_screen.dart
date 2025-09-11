@@ -162,30 +162,42 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
     List<Map<String, dynamic>> tempPostings = [];
 
     for (var postingId in postingIds) {
-      // Get the bookings count from the bookings subcollection
-      int bookingsCount = await _getBookingsCountForPosting(postingId);
-
       DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
           .collection('postings')
           .doc(postingId)
           .get();
 
+      int bookingsCount = await _getBookingsCountForPosting(postingId);
+
+      // Safe access to fields
+      Timestamp createdAtTs = postingSnapshot['createdAt'] ?? Timestamp.now();
+      DateTime createdAt = createdAtTs.toDate();
+
+      double premium = postingSnapshot['premium'] != null
+          ? postingSnapshot['premium'].toDouble()
+          : 1.0;
+
+      // Cast data to Map to safely use containsKey
+      final data = postingSnapshot.data() as Map<String, dynamic>?;
+
+      List<dynamic> reviewsList = [];
+      if (data != null && data.containsKey('reviews')) {
+        reviewsList = List.from(data['reviews']);
+      }
+
+      // Suggestion flags
       bool shouldSuggestBoost = bookingsCount < 7 &&
-          DateTime.now()
-                  .difference(postingSnapshot['createdAt'].toDate())
-                  .inDays >=
-              15;
-      bool shouldSuggestReview =
-          List<String>.from(postingSnapshot['reviews'] ?? []).length < 3;
-      bool shouldSuggestPromo = postingSnapshot['premium'] != 2;
+          DateTime.now().difference(createdAt).inDays >= 15;
+      bool shouldSuggestReview = reviewsList.isEmpty || reviewsList.length < 3;
+      bool shouldSuggestPromo = premium != 2;
 
       tempPostings.add({
         'id': postingId,
-        'name': postingSnapshot['name'],
-        'createdAt': postingSnapshot['createdAt'].toDate(),
+        'name': postingSnapshot['name'] ?? 'Unknown',
+        'createdAt': createdAt,
         'bookings': bookingsCount,
-        'premium': postingSnapshot['premium'] ?? 1,
-        'reviews': List<String>.from(postingSnapshot['reviews'] ?? []),
+        'premium': premium,
+        'reviews': reviewsList,
         'shouldSuggestBoost': shouldSuggestBoost,
         'shouldSuggestReview': shouldSuggestReview,
         'shouldSuggestPromo': shouldSuggestPromo,
@@ -195,6 +207,63 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
     setState(() {
       postings = tempPostings;
     });
+  }
+
+  Future<void> _editReelCaptionDialog(
+      String reelId, String currentCaption) async {
+    TextEditingController captionController =
+        TextEditingController(text: currentCaption);
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Edit Caption'),
+          content: TextField(
+            controller: captionController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Enter new caption',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                String newCaption = captionController.text.trim();
+                if (newCaption.isNotEmpty) {
+                  await FirebaseFirestore.instance
+                      .collection('reels')
+                      .doc(reelId)
+                      .update({'caption': newCaption});
+
+                  setState(() {
+                    int index =
+                        reels.indexWhere((reel) => reel['id'] == reelId);
+                    if (index != -1) {
+                      reels[index]['caption'] = newCaption;
+                    }
+                  });
+
+                  Navigator.of(context).pop(); // Close dialog
+
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Caption updated successfully'),
+                  ));
+                }
+              },
+              child: Text('Save', style: TextStyle(color: Colors.pinkAccent)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
 // Function to get the number of bookings for a posting by querying the bookings subcollection
@@ -446,14 +515,31 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                         SizedBox(height: 8),
 
                         // Delete Button
-                        Align(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.pinkAccent),
+                              onPressed: () => _editReelCaptionDialog(
+                                  reel['id'], reel['caption']),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.redAccent),
+                              onPressed: () =>
+                                  _showDeleteConfirmationDialog(reel['id']),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 8),
+                        /*  Align(
                           alignment: Alignment.centerRight,
                           child: IconButton(
                             icon: Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () =>
                                 _showDeleteConfirmationDialog(reel['id']),
                           ),
-                        ),
+                        ), */
                       ],
                     ),
                   ),

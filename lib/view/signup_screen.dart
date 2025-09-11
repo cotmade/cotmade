@@ -1151,7 +1151,6 @@ class _SignupScreenState extends State<SignupScreen> {
                               },
                               textCapitalization: TextCapitalization.words,
                             ),
-                            const SizedBox(height: 2),
                             Row(
                               children: const [
                                 Icon(Icons.info_outline,
@@ -1173,6 +1172,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 2),
               Padding(
                 padding: const EdgeInsets.only(top: 26.0),
                 child: Column(

@@ -828,11 +828,12 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
   }
 
 // Call PHP backend to send push notification
-  Future<void> sendLikePushNotification(String token, String reelId) async {
+  Future<void> sendLikePushNotification(String token, String message) async {
     final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
 
     // Compose notification title and body
-    final url = Uri.parse('$phpUrl?token=$token');
+    final url = Uri.parse(
+        '$phpUrl?token=$token&message=${Uri.encodeComponent(message)}');
 
     try {
       final response = await http.get(url);
@@ -877,7 +878,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
         try {
           // Fetch reel owner user ID from reel document
           final reelSnapshot = await reelRef.get();
-          final ownerId = reelSnapshot.data()?['postingId'];
+          final ownerId = reelSnapshot.data()?['uid'];
 
           if (ownerId != null) {
             // Fetch owner's FCM token

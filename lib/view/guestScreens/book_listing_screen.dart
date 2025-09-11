@@ -160,92 +160,95 @@ class _BookListingScreenState extends State<BookListingScreen> {
     }
   }
 
- Future<double> _fetchConversionRate(String fromCurrency, String toCurrency) async {
-  return await _fetchWithRetry(
-    fromCurrency,
-    toCurrency,
-    maxRetries: 3,
-    delayBetweenRetries: Duration(seconds: 2),
-  );
-}
+  Future<double> _fetchConversionRate(
+      String fromCurrency, String toCurrency) async {
+    return await _fetchWithRetry(
+      fromCurrency,
+      toCurrency,
+      maxRetries: 3,
+      delayBetweenRetries: Duration(seconds: 2),
+    );
+  }
 
-Future<double> _fetchWithRetry(
-  String fromCurrency,
-  String toCurrency, {
-  int maxRetries = 3,
-  Duration delayBetweenRetries = const Duration(seconds: 1),
-}) async {
-  int attempt = 0;
+  Future<double> _fetchWithRetry(
+    String fromCurrency,
+    String toCurrency, {
+    int maxRetries = 3,
+    Duration delayBetweenRetries = const Duration(seconds: 1),
+  }) async {
+    int attempt = 0;
 
-  while (attempt < maxRetries) {
-    attempt++;
+    while (attempt < maxRetries) {
+      attempt++;
 
-    try {
-      final url = Uri.parse(
-        'https://v6.exchangerate-api.com/v6/65ecc5642a4b0653f9777381/latest/$fromCurrency',
-      );
+      try {
+        final url = Uri.parse(
+          'https://v6.exchangerate-api.com/v6/65ecc5642a4b0653f9777381/latest/$fromCurrency',
+        );
 
-      final response = await http.get(url);
+        final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
 
-        if (data['result'] == 'success' &&
-            data['conversion_rates'] != null &&
-            data['conversion_rates'][toCurrency] != null) {
-          final rate = data['conversion_rates'][toCurrency];
+          if (data['result'] == 'success' &&
+              data['conversion_rates'] != null &&
+              data['conversion_rates'][toCurrency] != null) {
+            final rate = data['conversion_rates'][toCurrency];
 
-          if (rate is num && rate > 0) {
-            final double finalRate = rate.toDouble();
+            if (rate is num && rate > 0) {
+              final double finalRate = rate.toDouble();
 
-            // ❗ Only reject if rate is 1.0 or too low (e.g. < 0.0001)
-            if (finalRate == 1.0 || _isRateSuspicious(finalRate)) {
-              debugPrint('⚠️ Suspicious low rate $finalRate, retrying... ($attempt/$maxRetries)');
-              if (attempt < maxRetries) {
-                await Future.delayed(delayBetweenRetries);
-                continue;
-              } else {
-                throw Exception("Suspicious or fallback rate after $attempt attempts: $finalRate");
+              // ❗ Only reject if rate is 1.0 or too low (e.g. < 0.0001)
+              if (finalRate == 1.0 || _isRateSuspicious(finalRate)) {
+                debugPrint(
+                    '⚠️ Suspicious low rate $finalRate, retrying... ($attempt/$maxRetries)');
+                if (attempt < maxRetries) {
+                  await Future.delayed(delayBetweenRetries);
+                  continue;
+                } else {
+                  throw Exception(
+                      "Suspicious or fallback rate after $attempt attempts: $finalRate");
+                }
               }
-            }
 
-            return finalRate;
+              return finalRate;
+            } else {
+              throw Exception("Invalid exchange rate value: $rate");
+            }
           } else {
-            throw Exception("Invalid exchange rate value: $rate");
+            throw Exception("Invalid API response structure");
           }
         } else {
-          throw Exception("Invalid API response structure");
+          debugPrint(
+              '❌ API error ${response.statusCode}, retrying... ($attempt/$maxRetries)');
+          if (attempt < maxRetries) {
+            await Future.delayed(delayBetweenRetries);
+            continue;
+          } else {
+            throw Exception("API error after $attempt attempts");
+          }
         }
-      } else {
-        debugPrint('❌ API error ${response.statusCode}, retrying... ($attempt/$maxRetries)');
+      } catch (e) {
+        debugPrint('❌ Exception: $e, retrying... ($attempt/$maxRetries)');
         if (attempt < maxRetries) {
           await Future.delayed(delayBetweenRetries);
           continue;
         } else {
-          throw Exception("API error after $attempt attempts");
+          rethrow;
         }
       }
-    } catch (e) {
-      debugPrint('❌ Exception: $e, retrying... ($attempt/$maxRetries)');
-      if (attempt < maxRetries) {
-        await Future.delayed(delayBetweenRetries);
-        continue;
-      } else {
-        rethrow;
-      }
     }
+
+    throw Exception("Failed to fetch exchange rate after $maxRetries attempts");
   }
 
-  throw Exception("Failed to fetch exchange rate after $maxRetries attempts");
-}
-
 // ✅ Only detects too-low rates
-bool _isRateSuspicious(double rate) {
-  return rate < 0.0001; // You can adjust threshold as needed
-}
+  bool _isRateSuspicious(double rate) {
+    return rate < 0.0001; // You can adjust threshold as needed
+  }
 
-
- /* // Fetch conversion rate from ExchangeRate-API
+  /* // Fetch conversion rate from ExchangeRate-API
   Future<double> _fetchConversionRate(
       String fromCurrency, String toCurrency) async {
     final url = Uri.parse(
@@ -308,7 +311,8 @@ bool _isRateSuspicious(double rate) {
       totality = selectedDates.length * (posting!.price ?? 0) * discountAmount;
       totalPriceBeforeConversion =
           selectedDates.length * (posting!.price ?? 0) - totality;
-      totalPrice = totalPriceBeforeConversion * 0.02;
+      totalPrice = totalPriceBeforeConversion *
+          0.00; //add 0.02 to make it 2% service charge
       totalPricep =
           totalPriceBeforeConversion + totalPrice + (posting!.caution ?? 0);
     }
@@ -387,7 +391,7 @@ bool _isRateSuspicious(double rate) {
     double totalPriceForAll = totaloo - tota;
 
     double price = totalPriceForAllNights * conversionRate;
-    double priced = price * 0.02;
+    double priced = price * 0.00; //add 0.02 to make it 2% service charge
     double pricedd = priced + price;
 
     String currency = selectedCurrency;
