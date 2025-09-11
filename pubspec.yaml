@@ -48,7 +48,7 @@ dependencies:
   file_picker:
   permission_handler:
   flutter_animate:
-  share_plus:
+  share_plus: ^11.1.0
   upgrader:
   flutter_sound:
   flutter_cache_manager:
