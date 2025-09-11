@@ -1173,10 +1173,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(
-                    top: 26.0,
-                    left: 16.0,
-                    right: 16.0), // 👈 added horizontal padding
+                padding: const EdgeInsets.all(30.0), // 👈 added horizontal padding
                 child: TextFormField(
                   enabled: !_isSubmitting,
                   decoration: InputDecoration(
@@ -1201,7 +1198,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   textCapitalization: TextCapitalization.characters,
                 ),
               ),
-              const SizedBox(height: 7),
+            //  const SizedBox(height: 9),
               GestureDetector(
                 onTap: () async {
                   var imageFile = await ImagePicker()

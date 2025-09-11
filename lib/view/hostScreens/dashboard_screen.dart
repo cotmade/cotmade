@@ -150,64 +150,72 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   }
 
   Future<void> _fetchPostings() async {
-    String userId = AppConstants.currentUser.id.toString();
-    DocumentSnapshot userSnapshot =
-        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+  String userId = AppConstants.currentUser.id.toString();
+  DocumentSnapshot userSnapshot =
+      await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
-    List<String> postingIds =
-        List<String>.from(userSnapshot['myPostingIDs'] ?? []);
+  List<String> postingIds =
+      List<String>.from(userSnapshot['myPostingIDs'] ?? []);
 
-    if (postingIds.isEmpty) return;
+  if (postingIds.isEmpty) return;
 
-    List<Map<String, dynamic>> tempPostings = [];
+  List<Map<String, dynamic>> tempPostings = [];
 
-    for (var postingId in postingIds) {
-      DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
-          .collection('postings')
-          .doc(postingId)
-          .get();
+  for (var postingId in postingIds) {
+    DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .doc(postingId)
+        .get();
 
-      int bookingsCount = await _getBookingsCountForPosting(postingId);
+    // Get bookings count safely
+    int bookingsCount = await _getBookingsCountForPosting(postingId);
 
-      // Safe access to fields
-      Timestamp createdAtTs = postingSnapshot['createdAt'] ?? Timestamp.now();
-      DateTime createdAt = createdAtTs.toDate();
+    // Safe access to fields
+    final data = postingSnapshot.data() as Map<String, dynamic>? ?? {};
 
-      double premium = postingSnapshot['premium'] != null
-          ? postingSnapshot['premium'].toDouble()
-          : 1.0;
+    // createdAt fallback to 15 days ago to prevent accidental early suggestion
+    DateTime createdAt = (data['createdAt'] as Timestamp?)?.toDate() ??
+        DateTime.now().subtract(Duration(days: 15));
 
-      // Cast data to Map to safely use containsKey
-      final data = postingSnapshot.data() as Map<String, dynamic>?;
+    // Ensure premium is double
+    double premium = (data['premium'] != null)
+        ? double.tryParse(data['premium'].toString()) ?? 1.0
+        : 1.0;
 
-      List<dynamic> reviewsList = [];
-      if (data != null && data.containsKey('reviews')) {
-        reviewsList = List.from(data['reviews']);
-      }
-
-      // Suggestion flags
-      bool shouldSuggestBoost = bookingsCount < 7 &&
-          DateTime.now().difference(createdAt).inDays >= 15;
-      bool shouldSuggestReview = reviewsList.isEmpty || reviewsList.length < 3;
-      bool shouldSuggestPromo = premium != 2;
-
-      tempPostings.add({
-        'id': postingId,
-        'name': postingSnapshot['name'] ?? 'Unknown',
-        'createdAt': createdAt,
-        'bookings': bookingsCount,
-        'premium': premium,
-        'reviews': reviewsList,
-        'shouldSuggestBoost': shouldSuggestBoost,
-        'shouldSuggestReview': shouldSuggestReview,
-        'shouldSuggestPromo': shouldSuggestPromo,
-      });
+    // Reviews list safely
+    List<dynamic> reviewsList = [];
+    if (data.containsKey('reviews') && data['reviews'] is List) {
+      reviewsList = List.from(data['reviews']);
     }
 
-    setState(() {
-      postings = tempPostings;
+    // Suggestion flags
+    bool shouldSuggestBoost =
+        bookingsCount < 7 && DateTime.now().difference(createdAt).inDays >= 15;
+    bool shouldSuggestReview = reviewsList.isEmpty || reviewsList.length < 3;
+    bool shouldSuggestPromo = premium != 2;
+
+    tempPostings.add({
+      'id': postingId,
+      'name': data['name'] ?? 'Unknown',
+      'createdAt': createdAt,
+      'bookings': bookingsCount,
+      'premium': premium,
+      'reviews': reviewsList,
+      'shouldSuggestBoost': shouldSuggestBoost,
+      'shouldSuggestReview': shouldSuggestReview,
+      'shouldSuggestPromo': shouldSuggestPromo,
     });
+
+    // Debug print
+    print(
+        'Posting $postingId | createdAt: $createdAt | bookings: $bookingsCount | shouldSuggestBoost: $shouldSuggestBoost');
   }
+
+  setState(() {
+    postings = tempPostings;
+  });
+}
+
 
   Future<void> _editReelCaptionDialog(
       String reelId, String currentCaption) async {
