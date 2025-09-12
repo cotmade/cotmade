@@ -316,78 +316,19 @@ class TripScreen extends StatelessWidget {
                                   if (!hideReviewButton)
                                     ElevatedButton(
                                       onPressed: () {
-                                        // Show an AlertDialog with two options: Text Review and Video Review
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: Text('Write a Review'),
-                                            content: Text(
-                                                'Choose the type of review you want to leave:'),
-                                            actions: [
-                                              // Row with buttons in the middle
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment
-                                                    .center, // Center the buttons
-                                                children: [
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      // Navigate to WriteReviewScreen with isVideoReview set to false
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              WriteReviewScreen(
-                                                            postingID:
-                                                                posting.id,
-                                                            isVideoReview:
-                                                                false, // For text review
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                    child: Text('Text Review'),
-                                                  ),
-                                                  SizedBox(
-                                                      width:
-                                                          20), // Add space between the buttons
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      // Navigate to WriteReviewScreen with isVideoReview set to true
-                                                      /* Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              WriteReviewScreen(
-                                                            postingID:
-                                                                posting.id,
-                                                            isVideoReview:
-                                                                true, // For video review
-                                                          ),
-                                                        ),
-                                                      ); */
-                                                      // If voucher is active
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                              "Stay tuned!"),
-                                                          duration: Duration(
-                                                              seconds: 2),
-                                                        ),
-                                                      );
-                                                    },
-                                                    child: Text('Video Review'),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
+                                        // Pass postingID to the WriteReviewScreen
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                WriteReviewScreen(
+                                                    postingID: posting
+                                                        .id), // Pass posting ID
                                           ),
                                         );
                                       },
                                       child: Text('Write a review'),
                                     ),
-
                                   Row(
                                     children: [
                                       ElevatedButton.icon(

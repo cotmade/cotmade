@@ -173,6 +173,7 @@ class UserViewModel {
     Get.snackbar("Please wait", "Checking your credentials...");
 
     try {
+      // 1️⃣ Sign in with Firebase
       final result = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -181,24 +182,40 @@ class UserViewModel {
       String currentUserID = result.user!.uid;
       AppConstants.currentUser.id = currentUserID;
 
+      // 2️⃣ Fetch minimal user info immediately (for suspension check)
       await getUserInfoFromFirestore(currentUserID);
-      await FirebaseApi().uploadPendingFcmToken(currentUserID);
 
+      // 3️⃣ Check suspension before letting user in
       if (AppConstants.currentUser.status == 0) {
         Get.to(() => SuspendedAccountScreen());
         return;
       }
 
-      await getImageFromStorage(currentUserID);
-      await AppConstants.currentUser.getMyPostingsFromFirestore();
-
+      // 4️⃣ Navigate to home screen instantly
       Get.snackbar("Logged-In", "You are logged in successfully.");
       Get.to(VideoReelsPage());
+
+      // 5️⃣ Background tasks (load progressively)
+      Future.microtask(() async {
+        try {
+          // Load profile image
+          await getImageFromStorage(currentUserID);
+
+          // Load postings
+          await AppConstants.currentUser.getMyPostingsFromFirestore();
+
+          // Upload FCM token
+          await FirebaseApi().uploadPendingFcmToken(currentUserID);
+
+          debugPrint("User data loaded in background successfully");
+        } catch (e) {
+          debugPrint("Background data load failed: $e");
+        }
+      });
     } on FirebaseAuthException catch (e) {
-      String errorMessage = _handleAuthError(e);
-      Get.snackbar("Login Failed", errorMessage);
+      Get.snackbar("Login Failed", _handleAuthError(e));
     } catch (e) {
-      Get.snackbar("Error", "Unexpected error: ${e.toString()}");
+      Get.snackbar("Error", "Unexpected error occurred: $e");
     } finally {
       isSubmitting.value = false;
     }
