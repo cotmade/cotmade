@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore packa
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:cotmade/view/guestScreens/user_profile_page.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geocoding/geocoding.dart';
 
 class ViewPostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -31,6 +34,8 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   bool isPromoValid = false; // Flag to track promo validity
   String promoCode = ""; // Promo code string
   List<Map<String, dynamic>> reviews = []; // To store the reviews
+  LatLng? postingLatLng;
+  bool isLoadingLocation = true; // Track loading
 
   // Fetch reviews from Firestore
   _getReviews() async {
@@ -80,13 +85,15 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   @override
   void initState() {
     super.initState();
+
+    _loadCoordinates();
     posting = widget.posting;
     getRequiredInfo();
     //   _getUserLocation();
     _getReviews(); // Fetch the reviews when the screen is initialized
   }
 
- /* /// Convert address string -> LatLng
+  /// Convert address string -> LatLng
   Future<void> _loadCoordinates() async {
     if (widget.posting?.address == null) {
       setState(() => isLoadingLocation = false);
@@ -108,7 +115,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
       debugPrint("Geocoding failed: $e");
       setState(() => isLoadingLocation = false);
     }
-  } */
+  }
 
   // Function to format only the price (without affecting currency)
   String formatPrice(double price) {
@@ -612,7 +619,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                       ),
                     ),
 
-                 /*   if (postingLatLng == null)
+                    if (postingLatLng == null)
                       const Center(child: CircularProgressIndicator())
                     else
                       Container(
@@ -642,7 +649,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                             ),
                           ],
                         ),
-                      ),   */
+                      ),
 
                     SizedBox(height: 20),
                     // Reviews Section
