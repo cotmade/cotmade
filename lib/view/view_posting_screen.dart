@@ -4,12 +4,13 @@ import 'package:cotmade/view/guestScreens/book_listing_screen.dart';
 import 'package:cotmade/view/widgets/posting_info_tile_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-//import 'package:google_maps_flutter/google_maps_flutter.dart';
-// import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore package
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:cotmade/view/guestScreens/user_profile_page.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geocoding/geocoding.dart';
 
 class ViewPostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -33,6 +34,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   bool isPromoValid = false; // Flag to track promo validity
   String promoCode = ""; // Promo code string
   List<Map<String, dynamic>> reviews = []; // To store the reviews
+  LatLng? postingLatLng;
 
   // Fetch reviews from Firestore
   _getReviews() async {
@@ -79,42 +81,31 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
         .get();
   }
 
-  // void _onMapCreated(GoogleMapController controller) {
-  //  mapController = controller;
-  // }
-
-  // _getUserLocation() async {
-  //   bool serviceEnabled;
-  //  LocationPermission permission;
-  //   serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  //   if (!serviceEnabled) {
-  //     return;
-  //  }
-  //   permission = await Geolocator.checkPermission();
-  //   if (permission == LocationPermission.deniedForever) {
-  //     return;
-  //  }
-  //   if (permission == LocationPermission.denied) {
-  //    permission = await Geolocator.requestPermission();
-  //    if (permission != LocationPermission.whileInUse &&
-  //        permission != LocationPermission.always) {
-  //     return;
-  //   }
-  //  }
-  //   _currentPosition = await Geolocator.getCurrentPosition();
-  //   setState(() {
-  //    _center = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
-  //  });
-  // }
-
   @override
   void initState() {
     super.initState();
 
+    if (posting?.address != null && posting!.address!.isNotEmpty) {
+      _getCoordinatesFromAddress(posting!.address!);
+    }
     posting = widget.posting;
     getRequiredInfo();
     //   _getUserLocation();
     _getReviews(); // Fetch the reviews when the screen is initialized
+  }
+
+  /// Convert address string -> LatLng
+  Future<void> _getCoordinatesFromAddress(String address) async {
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        setState(() {
+          postingLatLng = LatLng(locations[0].latitude, locations[0].longitude);
+        });
+      }
+    } catch (e) {
+      print("Error getting coordinates: $e");
+    }
   }
 
   // Function to format only the price (without affecting currency)
@@ -581,50 +572,76 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                         fontSize: 19,
                       ),
                     ),
+
                     Padding(
                       padding: const EdgeInsets.only(top: 2.0, bottom: 8),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment
-                            .start, // Ensures text stays aligned properly
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.location_on,
                             color: Colors.black,
                             size: 19.0,
                           ),
-                          SizedBox(width: 10),
-                          Flexible(
-                            // Wrap Text widget with Flexible to allow line wrapping
+                          const SizedBox(width: 10),
+                          Expanded(
                             child: Text(
                               posting!.getFullAddress(),
                               style: const TextStyle(
                                 fontSize: 19,
                               ),
-                              softWrap:
-                                  true, // Allows the text to wrap onto the next line
+                              softWrap: true,
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy,
+                                size: 19.0, color: Colors.black),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(
+                                  text: posting!.getFullAddress()));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text("Address copied to clipboard")),
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
-                    //  _center == null
-                    //      ? const Center(child: CircularProgressIndicator())
-                    //      : SizedBox(
-                    //          height: double.infinity,
-                    //          child: GoogleMap(
-                    //              onMapCreated: _onMapCreated,
-                    //              initialCameraPosition: CameraPosition(
-                    //               target: _center!,
-                    //                zoom: 15.0,
-                    //              ),
-                    //              markers: {
-                    //               Marker(
-                    //                 markerId: const MarkerId('user_location'),
-                    //                 position: _center!,
-                    //                 infoWindow:
-                    //                     const InfoWindow(title: 'Address'),
-                    //             )
-                    //           })),
+
+                    if (postingLatLng != null)
+                      Container(
+                        height: 250,
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: postingLatLng!,
+                            initialZoom: 15,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                              userAgentPackageName: 'com.cotmade.cotmade',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: postingLatLng!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(Icons.location_pin,
+                                      color: Colors.red, size: 40),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const Text("Address not available"),
+
                     SizedBox(height: 20),
                     // Reviews Section
 
