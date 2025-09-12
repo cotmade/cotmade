@@ -35,6 +35,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   String promoCode = ""; // Promo code string
   List<Map<String, dynamic>> reviews = []; // To store the reviews
   LatLng? postingLatLng;
+  bool isLoadingLocation = true; // Track loading
 
   // Fetch reviews from Firestore
   _getReviews() async {
@@ -85,9 +86,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   void initState() {
     super.initState();
 
-    if (posting?.address != null && posting!.address!.isNotEmpty) {
-      _getCoordinatesFromAddress(posting!.address!);
-    }
+    _loadCoordinates();
     posting = widget.posting;
     getRequiredInfo();
     //   _getUserLocation();
@@ -95,16 +94,26 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
   }
 
   /// Convert address string -> LatLng
-  Future<void> _getCoordinatesFromAddress(String address) async {
+  Future<void> _loadCoordinates() async {
+    if (widget.posting?.address == null) {
+      setState(() => isLoadingLocation = false);
+      return;
+    }
+
     try {
-      List<Location> locations = await locationFromAddress(address);
+      final locations = await locationFromAddress(widget.posting!.address!);
       if (locations.isNotEmpty) {
         setState(() {
-          postingLatLng = LatLng(locations[0].latitude, locations[0].longitude);
+          postingLatLng = LatLng(
+            locations.first.latitude,
+            locations.first.longitude,
+          );
+          isLoadingLocation = false;
         });
       }
     } catch (e) {
-      print("Error getting coordinates: $e");
+      debugPrint("Geocoding failed: $e");
+      setState(() => isLoadingLocation = false);
     }
   }
 
@@ -610,7 +619,9 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                       ),
                     ),
 
-                    if (postingLatLng != null)
+                    if (postingLatLng == null)
+                      const Center(child: CircularProgressIndicator())
+                    else
                       Container(
                         height: 250,
                         margin: const EdgeInsets.symmetric(vertical: 10),
@@ -638,9 +649,7 @@ class _ViewPostingScreenState extends State<ViewPostingScreen> {
                             ),
                           ],
                         ),
-                      )
-                    else
-                      const Text("Address not available"),
+                      ),
 
                     SizedBox(height: 20),
                     // Reviews Section
