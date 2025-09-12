@@ -60,9 +60,6 @@ dependencies:
   image:
   speech_to_text:
   tflite_flutter:
-  flutter_map:
-  latlong2:
-  geocoding:
 
 dev_dependencies:
   flutter_test:
