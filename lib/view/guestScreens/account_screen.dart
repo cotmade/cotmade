@@ -27,6 +27,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:cotmade/view/webview_screen.dart';
 import 'dart:convert';
+import 'package:cotmade/view_model/user_view_model.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -37,6 +40,7 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   // Default button title
+  String? _aliasName;
   String _hostingTitle = 'List your Property';
   bool _isLoading = true; // Loading flag
   String? _documentStatus; // To store document status fetched from Firestore
@@ -80,12 +84,14 @@ class _AccountScreenState extends State<AccountScreen> {
         bool isHost = userDoc['isHost'] ?? false;
         bool isCurrentlyHosting = userDoc['isCurrentlyHosting'] ?? false;
         String documentStatus = userDoc['documentStatus'] ?? 'pending';
+        String? alias = userDoc['alias'];
 
         // Update the AppConstants and local state
         setState(() {
           AppConstants.currentUser.isHost = isHost;
           AppConstants.currentUser.isCurrentlyHosting = isCurrentlyHosting;
           _documentStatus = documentStatus;
+          _aliasName = alias ?? '';
 
           // Update button text based on the fetched data
           if (isHost) {
@@ -164,17 +170,45 @@ class _AccountScreenState extends State<AccountScreen> {
                       child: Column(
                         children: [
                           // Profile image button
-                          MaterialButton(
-                            onPressed: () {},
-                            child: CircleAvatar(
-                              backgroundColor: Colors.black,
-                              radius: 50,
-                              child: CircleAvatar(
-                                backgroundImage:
-                                    AppConstants.currentUser.displayImage,
-                                radius: 49,
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.black,
+                                radius: 50,
+                                child: CircleAvatar(
+                                  backgroundImage:
+                                      AppConstants.currentUser.displayImage,
+                                  radius: 49,
+                                ),
                               ),
-                            ),
+                              Positioned(
+                                bottom: 0,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    final pickedImage =
+                                        await ImagePicker().pickImage(
+                                      source: ImageSource.gallery,
+                                      imageQuality: 75,
+                                    );
+                                    if (pickedImage != null) {
+                                      await UserViewModel()
+                                          .addImageToFirebaseStorage(
+                                        File(pickedImage.path),
+                                        FirebaseAuth.instance.currentUser!.uid,
+                                      );
+                                      setState(() {}); // Refresh UI
+                                    }
+                                  },
+                                  child: CircleAvatar(
+                                    radius: 15,
+                                    backgroundColor: Colors.white,
+                                    child: Icon(Icons.edit,
+                                        size: 16, color: Colors.black),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 10),
                           // User name and email
@@ -188,6 +222,132 @@ class _AccountScreenState extends State<AccountScreen> {
                                   fontSize: 20,
                                 ),
                               ),
+                              // 🔹 Alias name (editable)
+                              GestureDetector(
+                                onTap: () async {
+                                  String? newAlias = await showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      TextEditingController controller =
+                                          TextEditingController(
+                                              text: _aliasName ??
+                                                  ''); // Populate with existing alias
+                                      return AlertDialog(
+                                        title: Text("Edit Alias Name"),
+                                        content: TextField(
+                                          controller: controller,
+                                          decoration: const InputDecoration(
+                                            hintText: "Enter alias name",
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, null),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(
+                                                context,
+                                                controller.text.trim()),
+                                            child: const Text("Save"),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (newAlias != null && newAlias.isNotEmpty) {
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(FirebaseAuth
+                                            .instance.currentUser!.uid)
+                                        .update({'alias': newAlias});
+
+                                    setState(() {
+                                      _aliasName =
+                                          newAlias; // Update the alias in the state
+                                    });
+                                  }
+                                },
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Text(
+                                      (_aliasName != null &&
+                                              _aliasName!.isNotEmpty)
+                                          ? _aliasName!
+                                          : "Add alias name",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.pinkAccent,
+                                        fontStyle: FontStyle.normal,
+                                      ),
+                                    ),
+                                    if (_aliasName != null &&
+                                        _aliasName!.isNotEmpty)
+                                      IconButton(
+                                        onPressed: () async {
+                                          String? newAlias = await showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              TextEditingController controller =
+                                                  TextEditingController(
+                                                      text: _aliasName ?? '');
+                                              return AlertDialog(
+                                                title: Text("Edit Alias Name"),
+                                                content: TextField(
+                                                  controller: controller,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    hintText:
+                                                        "Enter alias name",
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, null),
+                                                    child: const Text("Cancel"),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context,
+                                                            controller.text
+                                                                .trim()),
+                                                    child: const Text("Save"),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+
+                                          if (newAlias != null &&
+                                              newAlias.isNotEmpty) {
+                                            await FirebaseFirestore.instance
+                                                .collection('users')
+                                                .doc(FirebaseAuth
+                                                    .instance.currentUser!.uid)
+                                                .update({'alias': newAlias});
+
+                                            setState(() {
+                                              _aliasName =
+                                                  newAlias; // Update the alias in the state
+                                            });
+                                          }
+                                        },
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.pinkAccent,
+                                          size: 20,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+
                               Text(
                                 AppConstants.currentUser.email.toString(),
                                 style: const TextStyle(fontSize: 15),
@@ -230,6 +390,65 @@ class _AccountScreenState extends State<AccountScreen> {
                                       return Text('Points: $points',
                                           style: TextStyle(fontSize: 15));
                                     },
+                                  );
+                                },
+                              ),
+                              FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(AppConstants.currentUser.id)
+                                    .get(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox(); // or small loader
+                                  }
+
+                                  if (snapshot.hasError ||
+                                      !snapshot.hasData ||
+                                      snapshot.data == null) {
+                                    return SizedBox(); // don't show anything
+                                  }
+
+                                  final data = snapshot.data!.data()
+                                      as Map<String, dynamic>?;
+
+                                  final referralCode = data?['referralCode'];
+
+                                  if (referralCode == null ||
+                                      referralCode.isEmpty) {
+                                    return SizedBox(); // don't show anything if null/empty
+                                  }
+
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        "Referral:",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.normal,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        referralCode,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          Clipboard.setData(ClipboardData(
+                                              text: referralCode));
+                                          Get.snackbar("Copied",
+                                              "Referral code copied to clipboard");
+                                        },
+                                        child: Icon(Icons.copy, size: 15),
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
@@ -428,7 +647,6 @@ class _AccountScreenState extends State<AccountScreen> {
                                               : "Enter",
                                           style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 12,
                                           ),
                                         ),
                                       ),
@@ -439,7 +657,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             );
                           },
                         ),
-                      /*  StreamBuilder<DocumentSnapshot>(
+                        StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('apps')
                               .doc('dMB1JZPopW807a9yur4A')
@@ -507,7 +725,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             return SizedBox
                                 .shrink(); // Hide if advert is not true or document missing
                           },
-                        ), */
+                        ),
                       ],
                     ),
                   ),
@@ -611,3 +829,4 @@ class _AccountScreenState extends State<AccountScreen> {
           );
   }
 }
+//ok

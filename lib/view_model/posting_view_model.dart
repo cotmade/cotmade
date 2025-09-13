@@ -7,7 +7,9 @@ import '../model/app_constants.dart';
 import 'package:http/http.dart' as http;
 
 class PostingViewModel {
+  RxBool isSubmitting = false.obs;
   addListingInfoToFirestore() async {
+    isSubmitting.value = true;
     Get.snackbar("Wait", "your listing is uploading");
     postingModel.setImagesNames();
 
@@ -34,23 +36,28 @@ class PostingViewModel {
       "type": postingModel.type,
     };
 
-    DocumentReference ref =
-        await FirebaseFirestore.instance.collection("postings").add(dataMap);
-    postingModel.id = ref.id;
+    try {
+      DocumentReference ref =
+          await FirebaseFirestore.instance.collection("postings").add(dataMap);
+      postingModel.id = ref.id;
 
-    // Now send the email using data and posting ID
-    await sendWelcomeEmail(
-      hostID: AppConstants.currentUser.id.toString(),
-      description: postingModel.description ?? '',
-      address: postingModel.address ?? '',
-      name: postingModel.name ?? '',
-      city: postingModel.city ?? '',
-      country: postingModel.country ??
-          '', // replace with your actual value or variable
-      postingID: postingModel.id!,
-    );
+      // Send welcome email
+      await sendWelcomeEmail(
+        hostID: AppConstants.currentUser.id.toString(),
+        description: postingModel.description ?? '',
+        address: postingModel.address ?? '',
+        name: postingModel.name ?? '',
+        city: postingModel.city ?? '',
+        country: postingModel.country ?? '',
+        postingID: postingModel.id!,
+      );
 
-    await AppConstants.currentUser.addPostingToMyPostings(postingModel);
+      await AppConstants.currentUser.addPostingToMyPostings(postingModel);
+    } catch (e) {
+      Get.snackbar("Error", "Failed to add listing: ${e.toString()}");
+    } finally {
+      isSubmitting.value = false; // Ensure this is always reset
+    }
   }
 
   Future<void> sendWelcomeEmail({
@@ -83,91 +90,89 @@ class PostingViewModel {
   }
 
   updatePostingInfoToFirestore() async {
+    isSubmitting.value = true;
     Get.snackbar("Wait", "Your listing is being updated");
 
     postingModel.setImagesNames();
 
-    // Fetch the current posting document to retain old values if not provided
-    DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
-        .collection("postings")
-        .doc(postingModel.id)
-        .get();
+    try {
+      // Fetch current posting document from Firestore
+      DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
+          .collection("postings")
+          .doc(postingModel.id)
+          .get();
 
-    // Get the current values of checkInTime, checkOutTime, and caution from Firestore
-    String? currentCheckInTime = postingSnapshot['checkInTime'];
-    String? currentCheckOutTime = postingSnapshot['checkOutTime'];
-    double? currentCaution = postingSnapshot['caution'];
-    double? currentPremium = postingSnapshot['premium'];
-    double? currentStatus = postingSnapshot['status'];
+      // Fetch existing data to keep if not provided
+      String? currentCheckInTime = postingSnapshot['checkInTime'];
+      String? currentCheckOutTime = postingSnapshot['checkOutTime'];
+      double? currentCaution = postingSnapshot['caution'];
+      double? currentPremium = postingSnapshot['premium'];
+      double? currentStatus = postingSnapshot['status'];
 
-    // Prepare the data map for updating the posting
-    Map<String, dynamic> dataMap = {
-      "address": postingModel.address,
-      "amenities": postingModel.amenities,
-      "bathrooms": postingModel.bathrooms,
-      "description": postingModel.description,
-      "beds": postingModel.beds,
-      "city": postingModel.city,
-      "country": postingModel.country,
-      "currency": postingModel.currency,
-      "hostID": AppConstants.currentUser.id,
-      "imageNames": postingModel.imageNames,
-      "name": postingModel.name,
-      "price": postingModel.price,
-      "createdAt": FieldValue.serverTimestamp(),
-      "rating": 3.5,
-      "premium": currentPremium,
-      "status": currentStatus,
-      "type": postingModel.type,
-    };
+      // Prepare data for update
+      Map<String, dynamic> dataMap = {
+        "address": postingModel.address,
+        "amenities": postingModel.amenities,
+        "bathrooms": postingModel.bathrooms,
+        "description": postingModel.description,
+        "beds": postingModel.beds,
+        "city": postingModel.city,
+        "country": postingModel.country,
+        "currency": postingModel.currency,
+        "hostID": AppConstants.currentUser.id,
+        "imageNames": postingModel.imageNames,
+        "name": postingModel.name,
+        "price": postingModel.price,
+        "createdAt": FieldValue.serverTimestamp(),
+        "rating": 3.5,
+        "premium": currentPremium,
+        "status": currentStatus,
+        "type": postingModel.type,
+      };
 
-    // Now send the email using data and posting ID
-    await sendWelcomeEmaill(
-      hostID: AppConstants.currentUser.id.toString(),
-      description: postingModel.description ?? '',
-      address: postingModel.address ?? '',
-      name: postingModel.name ?? '',
-      city: postingModel.city ?? '',
-      country: postingModel.country ??
-          '', // replace with your actual value or variable
-      postingID: postingModel.id!,
-    );
+      // Send email after the update
+      await sendWelcomeEmail(
+        hostID: AppConstants.currentUser.id.toString(),
+        description: postingModel.description ?? '',
+        address: postingModel.address ?? '',
+        name: postingModel.name ?? '',
+        city: postingModel.city ?? '',
+        country: postingModel.country ?? '',
+        postingID: postingModel.id!,
+      );
 
-    // Update caution and premium only if the user has provided a new value, otherwise retain the old value
-    if (postingModel.caution != null) {
-      dataMap["caution"] = postingModel.caution;
-    } else if (currentCaution != null) {
-      dataMap["caution"] = currentCaution;
+      // Handle caution, check-in and check-out time updates
+      if (postingModel.caution != null) {
+        dataMap["caution"] = postingModel.caution;
+      } else if (currentCaution != null) {
+        dataMap["caution"] = currentCaution;
+      }
+
+      if (postingModel.checkInTime != null) {
+        dataMap["checkInTime"] = postingModel.checkInTime;
+      } else if (currentCheckInTime != null) {
+        dataMap["checkInTime"] = currentCheckInTime;
+      }
+
+      if (postingModel.checkOutTime != null) {
+        dataMap["checkOutTime"] = postingModel.checkOutTime;
+      } else if (currentCheckOutTime != null) {
+        dataMap["checkOutTime"] = currentCheckOutTime;
+      }
+
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection("postings")
+          .doc(postingModel.id)
+          .update(dataMap);
+
+      // Upload images to Firebase Storage
+      await addImagesToFirebaseStorage();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to update listing: ${e.toString()}");
+    } finally {
+      isSubmitting.value = false; // Always reset submitting state
     }
-
-    // Check if the user has filled in the 'caution' field during edi
-
-    if (postingModel.checkInTime != null) {
-      // If user has provided a new premium value, use it
-      dataMap["checkInTime"] = postingModel.checkInTime;
-    } else if (currentCheckInTime != null) {
-      // If user has NOT provided a new premium value, retain the old premium value from the database
-      dataMap["checkInTime"] =
-          currentCheckInTime; // Use the original value from the database
-    }
-
-    if (postingModel.checkOutTime != null) {
-      // If user has provided a new premium value, use it
-      dataMap["checkOutTime"] = postingModel.checkOutTime;
-    } else if (currentCheckOutTime != null) {
-      // If user has NOT provided a new premium value, retain the old premium value from the database
-      dataMap["checkOutTime"] =
-          currentCheckOutTime; // Use the original value from the database
-    }
-
-    // Update Firestore with the new data
-    FirebaseFirestore.instance
-        .collection("postings")
-        .doc(postingModel.id)
-        .update(dataMap);
-
-    // Upload new or updated images to Firebase Storage
-    await addImagesToFirebaseStorage();
   }
 
   Future<void> sendWelcomeEmaill({

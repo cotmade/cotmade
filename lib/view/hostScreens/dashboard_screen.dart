@@ -150,51 +150,128 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   }
 
   Future<void> _fetchPostings() async {
-    String userId = AppConstants.currentUser.id.toString();
-    DocumentSnapshot userSnapshot =
-        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+  String userId = AppConstants.currentUser.id.toString();
+  DocumentSnapshot userSnapshot =
+      await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
-    List<String> postingIds =
-        List<String>.from(userSnapshot['myPostingIDs'] ?? []);
+  List<String> postingIds =
+      List<String>.from(userSnapshot['myPostingIDs'] ?? []);
 
-    if (postingIds.isEmpty) return;
+  if (postingIds.isEmpty) return;
 
-    List<Map<String, dynamic>> tempPostings = [];
+  List<Map<String, dynamic>> tempPostings = [];
 
-    for (var postingId in postingIds) {
-      // Get the bookings count from the bookings subcollection
-      int bookingsCount = await _getBookingsCountForPosting(postingId);
+  for (var postingId in postingIds) {
+    DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
+        .collection('postings')
+        .doc(postingId)
+        .get();
 
-      DocumentSnapshot postingSnapshot = await FirebaseFirestore.instance
-          .collection('postings')
-          .doc(postingId)
-          .get();
+    // Get bookings count safely
+    int bookingsCount = await _getBookingsCountForPosting(postingId);
 
-      bool shouldSuggestBoost = bookingsCount < 7 &&
-          DateTime.now()
-                  .difference(postingSnapshot['createdAt'].toDate())
-                  .inDays >=
-              15;
-      bool shouldSuggestReview =
-          List<String>.from(postingSnapshot['reviews'] ?? []).length < 3;
-      bool shouldSuggestPromo = postingSnapshot['premium'] != 2;
+    // Safe access to fields
+    final data = postingSnapshot.data() as Map<String, dynamic>? ?? {};
 
-      tempPostings.add({
-        'id': postingId,
-        'name': postingSnapshot['name'],
-        'createdAt': postingSnapshot['createdAt'].toDate(),
-        'bookings': bookingsCount,
-        'premium': postingSnapshot['premium'] ?? 1,
-        'reviews': List<String>.from(postingSnapshot['reviews'] ?? []),
-        'shouldSuggestBoost': shouldSuggestBoost,
-        'shouldSuggestReview': shouldSuggestReview,
-        'shouldSuggestPromo': shouldSuggestPromo,
-      });
+    // createdAt fallback to 15 days ago to prevent accidental early suggestion
+    DateTime createdAt = (data['createdAt'] as Timestamp?)?.toDate() ??
+        DateTime.now().subtract(Duration(days: 15));
+
+    // Ensure premium is double
+    double premium = (data['premium'] != null)
+        ? double.tryParse(data['premium'].toString()) ?? 1.0
+        : 1.0;
+
+    // Reviews list safely
+    List<dynamic> reviewsList = [];
+    if (data.containsKey('reviews') && data['reviews'] is List) {
+      reviewsList = List.from(data['reviews']);
     }
 
-    setState(() {
-      postings = tempPostings;
+    // Suggestion flags
+    bool shouldSuggestBoost =
+        bookingsCount < 7 && DateTime.now().difference(createdAt).inDays >= 15;
+    bool shouldSuggestReview = reviewsList.isEmpty || reviewsList.length < 3;
+    bool shouldSuggestPromo = premium != 2;
+
+    tempPostings.add({
+      'id': postingId,
+      'name': data['name'] ?? 'Unknown',
+      'createdAt': createdAt,
+      'bookings': bookingsCount,
+      'premium': premium,
+      'reviews': reviewsList,
+      'shouldSuggestBoost': shouldSuggestBoost,
+      'shouldSuggestReview': shouldSuggestReview,
+      'shouldSuggestPromo': shouldSuggestPromo,
     });
+
+    // Debug print
+    print(
+        'Posting $postingId | createdAt: $createdAt | bookings: $bookingsCount | shouldSuggestBoost: $shouldSuggestBoost');
+  }
+
+  setState(() {
+    postings = tempPostings;
+  });
+}
+
+
+  Future<void> _editReelCaptionDialog(
+      String reelId, String currentCaption) async {
+    TextEditingController captionController =
+        TextEditingController(text: currentCaption);
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Edit Caption'),
+          content: TextField(
+            controller: captionController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Enter new caption',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                String newCaption = captionController.text.trim();
+                if (newCaption.isNotEmpty) {
+                  await FirebaseFirestore.instance
+                      .collection('reels')
+                      .doc(reelId)
+                      .update({'caption': newCaption});
+
+                  setState(() {
+                    int index =
+                        reels.indexWhere((reel) => reel['id'] == reelId);
+                    if (index != -1) {
+                      reels[index]['caption'] = newCaption;
+                    }
+                  });
+
+                  Navigator.of(context).pop(); // Close dialog
+
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Caption updated successfully'),
+                  ));
+                }
+              },
+              child: Text('Save', style: TextStyle(color: Colors.pinkAccent)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
 // Function to get the number of bookings for a posting by querying the bookings subcollection
@@ -446,14 +523,31 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                         SizedBox(height: 8),
 
                         // Delete Button
-                        Align(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.pinkAccent),
+                              onPressed: () => _editReelCaptionDialog(
+                                  reel['id'], reel['caption']),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.redAccent),
+                              onPressed: () =>
+                                  _showDeleteConfirmationDialog(reel['id']),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 8),
+                        /*  Align(
                           alignment: Alignment.centerRight,
                           child: IconButton(
                             icon: Icon(Icons.delete, color: Colors.redAccent),
                             onPressed: () =>
                                 _showDeleteConfirmationDialog(reel['id']),
                           ),
-                        ),
+                        ), */
                       ],
                     ),
                   ),
@@ -494,12 +588,12 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             }),
             if (post['shouldSuggestPromo'])
               _buildActionButton('Promote Listing', Icons.campaign, () {
-                Navigator.push(
+              /*  Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            BoostPropertyPage(postingId: post['id'])));
-              }),
+                          //  BoostPropertyPage(postingId: post['id']))); */
+              }), 
           ],
         ),
         if (post['shouldSuggestBoost'])

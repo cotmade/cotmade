@@ -14,6 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cotmade/view/hostScreens/create_promo_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cotmade/view/hostScreens/my_postings_screen.dart';
+import 'package:cotmade/view_model/posting_view_model.dart';
 
 class CreatePostingScreen extends StatefulWidget {
   PostingModel? posting;
@@ -48,6 +49,7 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
 
   TimeOfDay? _checkInTime;
   TimeOfDay? _checkOutTime;
+  bool _isSubmitting = false;
 
   final List<String> residenceTypes = [
     'Detatched House',
@@ -527,97 +529,110 @@ class _CreatePostingScreenState extends State<CreatePostingScreen> {
             "Create/Update a Listing",
             style: TextStyle(color: Colors.black),
           ),
-          leading: Column(
-            children: [
-              IconButton(
-                onPressed: () async {
-                  if (!formKey.currentState!.validate()) {
-                    return;
-                  }
+          leading: Column(children: [
+            Obx(() {
+              return IconButton(
+                onPressed: postingViewModel.isSubmitting.value
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        if (residenceTypeSelected == "") return;
+                        if (_imagesList!.isEmpty) return;
 
-                  if (residenceTypeSelected == "") {
-                    return;
-                  }
+                        try {
+                          // Set submitting to true
+                          postingViewModel.isSubmitting.value = true;
 
-                  if (_imagesList!.isEmpty) {
-                    return;
-                  }
+                          // Fill posting model
+                          postingModel.name = _nameTextEditingController.text;
+                          postingModel.price =
+                              double.parse(_priceTextEditingController.text);
+                          postingModel.caution =
+                              double.parse(_cautionTextEditingController.text);
+                          postingModel.description =
+                              _descriptionTextEditingController.text;
+                          postingModel.address =
+                              _addressTextEditingController.text;
+                          postingModel.city =
+                              selectedCity ?? _cityTextEditingController.text;
+                          postingModel.country = selectedCountry ??
+                              _countryTextEditingController.text;
+                          postingModel.amenities =
+                              _amenitiesTextEditingController.text.split(",");
+                          postingModel.type = residenceTypeSelected;
+                          postingModel.beds = _beds;
+                          postingModel.bathrooms = _bathrooms;
+                          postingModel.displayImages = _imagesList;
+                          postingModel.currency = selectedCurrency;
+                          postingModel.checkInTime = _checkInTime != null
+                              ? _formatTime(_checkInTime!)
+                              : "";
+                          postingModel.checkOutTime = _checkOutTime != null
+                              ? _formatTime(_checkOutTime!)
+                              : "";
+                          postingModel.host =
+                              AppConstants.currentUser.createUserFromContact();
+                          postingModel.setImagesNames();
 
-                  postingModel.name = _nameTextEditingController.text;
-                  postingModel.price =
-                      double.parse(_priceTextEditingController.text);
-                  postingModel.caution =
-                      double.parse(_cautionTextEditingController.text);
-                  postingModel.description =
-                      _descriptionTextEditingController.text;
-                  postingModel.address = _addressTextEditingController.text;
-                  postingModel.city =
-                      selectedCity ?? _cityTextEditingController.text;
-                  postingModel.country =
-                      selectedCountry ?? _countryTextEditingController.text;
-                  postingModel.amenities =
-                      _amenitiesTextEditingController.text.split(",");
-                  postingModel.type = residenceTypeSelected;
-                  postingModel.beds = _beds;
-                  postingModel.bathrooms = _bathrooms;
-                  postingModel.displayImages = _imagesList;
-                  postingModel.currency = selectedCurrency;
-                  postingModel.checkInTime =
-                      _checkInTime != null ? _formatTime(_checkInTime!) : "";
-                  postingModel.checkOutTime =
-                      _checkOutTime != null ? _formatTime(_checkOutTime!) : "";
+                          if (widget.posting == null) {
+                            // New posting
+                            postingModel.rating = 3.5;
+                            postingModel.bookings = [];
+                            postingModel.reviews = [];
 
-                  postingModel.host =
-                      AppConstants.currentUser.createUserFromContact();
+                            await postingViewModel.addListingInfoToFirestore();
+                            await postingViewModel.addImagesToFirebaseStorage();
 
-                  postingModel.setImagesNames();
+                            Get.snackbar("New Listing",
+                                "Your new listing is uploaded successfully.");
+                          } else {
+                            // Update existing posting
+                            postingModel.rating = widget.posting!.rating;
+                            postingModel.bookings = widget.posting!.bookings;
+                            postingModel.reviews = widget.posting!.reviews;
+                            postingModel.id = widget.posting!.id;
 
-                  // if this is new post or old post
-                  if (widget.posting == null) {
-                    postingModel.rating = 3.5;
-                    postingModel.bookings = [];
-                    postingModel.reviews = [];
+                            for (int i = 0;
+                                i < AppConstants.currentUser.myPostings!.length;
+                                i++) {
+                              if (AppConstants.currentUser.myPostings![i].id ==
+                                  postingModel.id) {
+                                AppConstants.currentUser.myPostings![i] =
+                                    postingModel;
+                                break;
+                              }
+                            }
 
-                    await postingViewModel.addListingInfoToFirestore();
+                            await postingViewModel
+                                .updatePostingInfoToFirestore();
+                            await postingViewModel.addImagesToFirebaseStorage();
 
-                    await postingViewModel.addImagesToFirebaseStorage();
+                            Get.snackbar("Updated",
+                                "Your listing has updated successfully.");
+                          }
 
-                    Get.snackbar("New Listing",
-                        "your new listing is uploaded successfully.");
-                  } else {
-                    postingModel.rating = widget.posting!.rating;
-                    postingModel.bookings = widget.posting!.bookings;
-                    postingModel.reviews = widget.posting!.reviews;
-                    postingModel.id = widget.posting!.id;
+                          // Clear model
+                          postingModel = PostingModel();
 
-                    for (int i = 0;
-                        i < AppConstants.currentUser.myPostings!.length;
-                        i++) {
-                      if (AppConstants.currentUser.myPostings![i].id ==
-                          postingModel.id) {
-                        AppConstants.currentUser.myPostings![i] = postingModel;
-                        break;
-                      }
-                    }
-
-                    await postingViewModel.updatePostingInfoToFirestore();
-                    await postingViewModel.addImagesToFirebaseStorage();
-
-                    Get.snackbar(
-                        "Updated", "your listing has updated successfully.");
-                  }
-
-                  // clear posting model
-                  postingModel = PostingModel();
-
-                  Get.to(HostHomeScreen());
-                },
-                icon: const Icon(Icons.upload, size: 20, color: Colors.black),
-                tooltip: 'submit',
-              ),
-              Text('submit', style: TextStyle(color: Colors.black, fontSize: 8))
-            ],
-          )),
+                          Get.to(HostHomeScreen());
+                        } catch (e) {
+                          Get.snackbar("Error", "Submission failed: $e");
+                        } finally {
+                          // Set submitting to false no matter what
+                          postingViewModel.isSubmitting.value = false;
+                        }
+                      },
+                icon: postingViewModel.isSubmitting.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload, size: 20, color: Colors.black),
+              );
+            }),
+          ])),
       body: Center(
         child: SingleChildScrollView(
           child: Padding(

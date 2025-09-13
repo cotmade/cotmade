@@ -13,6 +13,7 @@ import 'package:cotmade/view/onboarding_screen.dart';
 import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/api/firebase_api.dart';
+import 'dart:typed_data';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -27,112 +28,98 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
 
     // Wait for a brief moment before navigating
-      Future.delayed(const Duration(seconds: 3), checkAuthStatus);
+    Future.delayed(const Duration(seconds: 2), _checkAuthStatus);
   }
 
   // Function to check authentication status
-  Future<void> checkAuthStatus() async {
+  void _checkAuthStatus() async {
     try {
-      // Show loading dialog
-      Get.dialog(
-        const Center(child: CircularProgressIndicator()),
-        barrierDismissible: false,
-      );
-
-      // Check current Firebase user
-      await FirebaseAuth.instance.authStateChanges().first;
-User? user = FirebaseAuth.instance.currentUser;
-
+      User? user = FirebaseAuth.instance.currentUser;
 
       if (user != null) {
-        final userId = user.uid;
-        AppConstants.currentUser.id = userId;
+        AppConstants.currentUser.id = user.uid;
 
-        print("✅ User logged in: $userId");
+        // ✅ Navigate immediately
+        Get.offAll(() => const VideoReelsPage());
 
-        // Fetch Firestore user info
-        await getUserInfoFromFirestore(userId);
-
-        // If account is suspended
-        if (AppConstants.currentUser.status == 0) {
-          await FirebaseAuth.instance.signOut();
-          Get.back(); // Close loading dialog
-
-          // Show snackbar message
-          Get.snackbar(
-            "Account Suspended",
-            "Your account has been suspended. You've been logged out.",
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.red.shade100,
-            colorText: Colors.black,
-            duration: Duration(seconds: 4),
-          );
-
-          Get.offAll(() => SuspendedAccountScreen());
-          return;
-        }
-
-        // Load user image and posts
-        // Load user image and posts
-await getImageFromStorage(userId);
-await AppConstants.currentUser.getMyPostingsFromFirestore();
-
-// 🔥 Make sure to initialize token (required to retrieve or refresh FCM token)
-await FirebaseApi().initNotifications();
-
-// Upload any pending FCM token (if stored before login)
-await FirebaseApi().uploadPendingFcmToken(userId);
-
-
-        // Navigate to home after loading
-        Get.back();
-        print("🚀 Navigating to VideoReelsPage");
-        Get.offAll(() => VideoReelsPage());
+        // 🔄 Load user data in the background
+        _loadUserData(user.uid);
       } else {
-        // No user logged in
-        Get.back();
-        print("👤 No user found, going to FirstScreen");
-        Get.offAll(() => FirstScreen());
+        // No user -> go to login
+        Get.offAll(() => const FirstScreen());
       }
     } catch (e, stack) {
-      // On error, close loader and navigate safely
-      print("❌ Error in SplashScreen: $e\n$stack");
-      Get.back();
+      print("❌ SplashScreen error: $e\n$stack");
       Get.snackbar("Error", "Something went wrong. Please try again.");
-      Get.offAll(() => FirstScreen());
+      Get.offAll(() => const FirstScreen());
     }
   }
 
-  getUserInfoFromFirestore(userID) async {
-    DocumentSnapshot snapshot =
-        await FirebaseFirestore.instance.collection('users').doc(userID).get();
+  Future<void> _loadUserData(String userId) async {
+    try {
+      // Parallel fetch Firestore and Storage image
+      final userDocFuture =
+          FirebaseFirestore.instance.collection('users').doc(userId).get();
 
-    AppConstants.currentUser.snapshot = snapshot;
-    AppConstants.currentUser.firstName = snapshot["firstName"] ?? "";
-    AppConstants.currentUser.lastName = snapshot['lastName'] ?? "";
-    AppConstants.currentUser.email = snapshot['email'] ?? "";
-    AppConstants.currentUser.bio = snapshot['bio'] ?? "";
-    AppConstants.currentUser.country = snapshot['country'] ?? "";
-    AppConstants.currentUser.state = snapshot['state'] ?? "";
-    AppConstants.currentUser.earnings = snapshot['earnings'].toDouble() ?? 0.0;
-    AppConstants.currentUser.isHost = snapshot['isHost'] ?? false;
-  }
+      final imageFuture = AppConstants.currentUser.displayImage == null
+          ? FirebaseStorage.instance
+              .ref()
+              .child("userImages/$userId/$userId.png")
+              .getData(5 * 1024 * 1024)
+          : Future.value(null);
 
-  getImageFromStorage(userID) async {
-    if (AppConstants.currentUser.displayImage != null) {
-      return AppConstants.currentUser.displayImage;
+      // Wait for Firestore + image
+      final results = await Future.wait([userDocFuture, imageFuture]);
+
+      DocumentSnapshot snapshot = results[0] as DocumentSnapshot;
+      final imageDataInBytes = results[1] as Uint8List?;
+
+      // Populate user info
+      AppConstants.currentUser.snapshot = snapshot;
+      AppConstants.currentUser.firstName = snapshot["firstName"] ?? "";
+      AppConstants.currentUser.lastName = snapshot['lastName'] ?? "";
+      AppConstants.currentUser.email = snapshot['email'] ?? "";
+      AppConstants.currentUser.bio = snapshot['bio'] ?? "";
+      AppConstants.currentUser.country = snapshot['country'] ?? "";
+      AppConstants.currentUser.state = snapshot['state'] ?? "";
+      AppConstants.currentUser.earnings =
+          (snapshot['earnings'] ?? 0.0).toDouble();
+      AppConstants.currentUser.isHost = snapshot['isHost'] ?? false;
+
+      // Set image if fetched
+      if (imageDataInBytes != null) {
+        AppConstants.currentUser.displayImage = MemoryImage(imageDataInBytes);
+      }
+
+      // Fetch posts in background without blocking
+      AppConstants.currentUser.getMyPostingsFromFirestore().catchError((e) {
+        print("❌ Error fetching postings: $e");
+      });
+
+      // Initialize notifications & upload FCM token in background
+      FirebaseApi().initNotifications().catchError((e) {
+        print("❌ Error initializing notifications: $e");
+      });
+      FirebaseApi().uploadPendingFcmToken(userId).catchError((e) {
+        print("❌ Error uploading FCM token: $e");
+      });
+
+      // Check account status
+      if (AppConstants.currentUser.status == 0) {
+        await FirebaseAuth.instance.signOut();
+        Get.snackbar(
+          "Account Suspended",
+          "Your account has been suspended. You've been logged out.",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade100,
+          colorText: Colors.black,
+          duration: Duration(seconds: 4),
+        );
+        Get.offAll(() => SuspendedAccountScreen());
+      }
+    } catch (e) {
+      print("❌ Error loading user data in background: $e");
     }
-
-    final imageDataInBytes = await FirebaseStorage.instance
-        .ref()
-        .child("userImages")
-        .child(userID)
-        .child(userID + ".png")
-        .getData(5 * 1024 * 1024);
-
-    AppConstants.currentUser.displayImage = MemoryImage(imageDataInBytes!);
-
-    return AppConstants.currentUser.displayImage;
   }
 
   @override
@@ -196,7 +183,7 @@ await FirebaseApi().uploadPendingFcmToken(userId);
               const Padding(
                 padding: EdgeInsets.only(top: 2.0),
                 child: Text(
-                  "version 1.2.4", // Text on splash screen
+                  "version 2.0.0", // Text on splash screen
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.normal,
@@ -212,3 +199,4 @@ await FirebaseApi().uploadPendingFcmToken(userId);
     );
   }
 }
+//ok

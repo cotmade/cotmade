@@ -4,20 +4,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:cotmade/view/component/square_tile.dart';
 import 'package:cotmade/global.dart';
-//import 'package:nestcrib/view/components/my_buttom.dart';
-//import 'package:nestcrib/view/components/my_textfield.dart';
-//import 'package:nestcrib/view/components/square_tile.dart';
-//import 'package:nestcrib/view/services/auth_service.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:cotmade/view/component/auth_service.dart';
 import 'package:cotmade/view/signup_screen.dart';
-//import 'package:nestcrib/view_model/user_view_model.dart';
 import 'package:flutter/src/widgets/basic.dart';
 import 'package:flutter/services.dart';
-//import 'package:alarmplayer/alarmplayer.dart';
 import 'package:cotmade/view/reset_password_screen.dart';
 import 'package:cotmade/view/firebase_exceptions.dart';
+import 'package:get/get.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -31,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController _emailTextController = TextEditingController();
   TextEditingController _passwordTextController = TextEditingController();
 
+  bool _isSubmitting = false;
   String password = ''; // Initialize the password variable
   bool showPassword = false; // Initialize the showPassword flag
 
@@ -159,37 +155,40 @@ class _LoginScreenState extends State<LoginScreen> {
                   //sign in button
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: Container(
-                      width: 360,
-                      height: 55,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            await userViewModel.login(
-                              _emailTextController.text.trim(),
-                              _passwordTextController.text.trim(),
-                            )
-                                ? CircularProgressIndicator()
-                                : Text('Login');
-                          } else {}
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                        ),
-                        child: const Text(
-                          "Login",
-                          style: TextStyle(
-                            fontWeight: FontWeight.normal,
-                            fontSize: 22.0,
-                            color: Colors.white,
+                    child: Obx(() {
+                      return SizedBox(
+                        width: 360,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: userViewModel.isSubmitting.value
+                              ? null
+                              : () {
+                                  if (_formKey.currentState!.validate()) {
+                                    userViewModel.login(
+                                      _emailTextController.text.trim(),
+                                      _passwordTextController.text.trim(),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            disabledBackgroundColor: Colors.grey,
                           ),
+                          child: userViewModel.isSubmitting.value
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  "Login",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.normal,
+                                    fontSize: 22.0,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ),
 
                   const SizedBox(height: 20),
@@ -281,9 +280,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   //   ),
                   //   ],
                   //  ),
-                //  const SizedBox(
-                //    height: 20,
-                //  ),
+                  //  const SizedBox(
+                  //    height: 20,
+                  //  ),
 
                   // not a memeber ? register now
 
@@ -303,8 +302,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Sign up now',
                             style: TextStyle(
                                 color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 17),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17),
                           ),
                         ),
                       )
