@@ -1093,7 +1093,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               child: SizedBox(
                 width: widget.controller!.value.size.width,
                 height: widget.controller!.value.size.height,
-                child: VideoPlayer(widget.controller!),
+                child: CachedVideoPlayer(widget.controller!),
               ),
             ),
           ),
