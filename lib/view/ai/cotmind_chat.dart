@@ -15,18 +15,32 @@ import 'package:cotmade/model/app_constants.dart';
 import 'dart:math';
 import 'package:cotmade/view/ai/api_config.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:cotmade/view/webview_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class ChatMessage {
   final String message;
   final bool isUser;
   final String? videoUrl;
   final PostingModel? posting;
+  final File? imageFile;
+  final int? premium; // 👈 add this
+  final String? linkUrl;
 
   ChatMessage({
     required this.message,
     required this.isUser,
     this.videoUrl,
     this.posting,
+    this.imageFile,
+    this.premium,
+    this.linkUrl,
   });
 }
 
@@ -38,7 +52,7 @@ class CotmindBot {
     final trimmedInput = input.trim();
 
     if (trimmedInput.isEmpty) {
-      return "❌ Input empty or whitespace only.";
+      return "❌ Input is empty or whitespace only.";
     }
 
     final apiKey = await ApiConfig.getApiKey();
@@ -369,15 +383,193 @@ class _CotmindChatState extends State<CotmindChat> {
   int _followUpCount = 0;
   bool _awaitingMoreConfirmation = false;
   bool _showRecordingIndicator = false;
+  File? _selectedImage;
+  bool _isAwaitingLocation = false;
+  bool _isAwaitingFilters = false;
+  String? _userLocation;
+  String? _userFilters;
+  String? _lastImageClassification;
+  late Interpreter _interpreter;
+  late List<String> _labels;
 
   @override
   void initState() {
     super.initState();
+    _loadTFLiteModel();
     _speech = stt.SpeechToText();
 
     // Add greeting message from the bot
     final greeting = _generateGreeting();
     _messages.add(ChatMessage(message: greeting, isUser: false));
+  }
+
+  Future<void> _handleImageUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final image = File(picked.path);
+    setState(() {
+      _selectedImage = image;
+    });
+
+    // Classify image and get label
+    String detectedLabel = await _classifyImageAndReturnLabel(image);
+
+    // Fallback to generic message if no label
+    if (detectedLabel.isEmpty) {
+      detectedLabel = "an image";
+    }
+
+    setState(() {
+      _messages.add(ChatMessage(
+        message: "📷 You uploaded a photo of $detectedLabel.",
+        isUser: true,
+        imageFile: image,
+      ));
+    });
+
+    _classifyImage(image);
+  }
+
+  /// This version of classifyImage just returns the top label
+  Future<String> _classifyImageAndReturnLabel(File imageFile) async {
+    final rawBytes = await imageFile.readAsBytes();
+    final rawImage = img.decodeImage(rawBytes);
+
+    if (rawImage == null) return "";
+
+    const inputSize = 224;
+    final resizedImage =
+        img.copyResize(rawImage, width: inputSize, height: inputSize);
+
+    final input = Float32List(inputSize * inputSize * 3);
+    final bytes = resizedImage.getBytes();
+
+    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 4) {
+      final r = bytes[i].toDouble();
+      final g = bytes[i + 1].toDouble();
+      final b = bytes[i + 2].toDouble();
+
+      input[pixelIndex++] = (r - 127.5) / 127.5;
+      input[pixelIndex++] = (g - 127.5) / 127.5;
+      input[pixelIndex++] = (b - 127.5) / 127.5;
+    }
+
+    final outputTensor = _interpreter.getOutputTensor(0);
+    final outputShape = outputTensor.shape;
+    final outputSize = outputShape.reduce((a, b) => a * b);
+    final output = List.filled(outputSize, 0.0).reshape(outputShape);
+
+    _interpreter.run(input.reshape([1, 224, 224, 3]), output);
+
+    final results =
+        List.generate(output[0].length, (i) => MapEntry(i, output[0][i]))
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (results.isEmpty) return "";
+
+    final top = results.first;
+    return top.key < _labels.length ? _labels[top.key] : "Unknown";
+  }
+
+  Future<void> _classifyImage(File imageFile) async {
+    // Decode the image from file
+    final rawBytes = await imageFile.readAsBytes();
+    final rawImage = img.decodeImage(rawBytes);
+
+    if (rawImage == null) {
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "❌ Failed to decode the image.",
+          isUser: false,
+        ));
+      });
+      return;
+    }
+
+    const inputSize = 224; // MobileNet expects 224x224 input
+    final resizedImage = img.copyResize(
+      rawImage,
+      width: inputSize,
+      height: inputSize,
+      interpolation: img.Interpolation.linear,
+    );
+
+    // Convert resized image to normalized Float32List input
+    final input = Float32List(inputSize * inputSize * 3);
+    final bytes = resizedImage.getBytes(); // Usually RGBA
+
+    for (int i = 0, pixelIndex = 0; i < bytes.length; i += 4) {
+      final r = bytes[i].toDouble();
+      final g = bytes[i + 1].toDouble();
+      final b = bytes[i + 2].toDouble();
+
+      input[pixelIndex++] = (r - 127.5) / 127.5;
+      input[pixelIndex++] = (g - 127.5) / 127.5;
+      input[pixelIndex++] = (b - 127.5) / 127.5;
+    }
+
+    // Prepare output tensor based on model's output shape
+    final outputTensor = _interpreter.getOutputTensor(0);
+    final outputShape = outputTensor.shape;
+    final outputSize = outputShape.reduce((a, b) => a * b);
+    final output = List.filled(outputSize, 0.0).reshape(outputShape);
+
+    // Run inference
+    _interpreter.run(input.reshape([1, 224, 224, 3]), output);
+
+    // Process top 3 predictions
+    final results = List.generate(
+      output[0].length,
+      (i) => MapEntry(i, output[0][i]),
+    )..sort((a, b) => b.value.compareTo(a.value));
+
+    final topResults = results.take(3).toList();
+
+    if (topResults.isEmpty) {
+      setState(() {
+        _messages.add(ChatMessage(
+          message: "❌ Couldn't classify the image.",
+          isUser: false,
+        ));
+      });
+      return;
+    }
+
+    final labelsStr = topResults.map((e) {
+      final label = e.key < _labels.length ? _labels[e.key] : "Unknown";
+      return "$label (${(e.value * 100).toStringAsFixed(1)}%)";
+    }).join(", ");
+
+    // Store classification
+    _lastImageClassification = topResults.map((e) => _labels[e.key]).join(" ");
+
+    // Prompt user for location
+    setState(() {
+      _messages.add(ChatMessage(
+        message:
+            "📷 Detected: $labelsStr\n📍 What location are you looking at?",
+        isUser: false,
+      ));
+      _isAwaitingLocation = true;
+    });
+  }
+
+  Future<void> _loadTFLiteModel() async {
+    try {
+      _interpreter = await Interpreter.fromAsset(
+        'tflite/housing_model.tflite',
+        options: InterpreterOptions()..threads = 2,
+      );
+
+      final labelData = await rootBundle.loadString('tflite/label.txt');
+      _labels = labelData.split('\n');
+
+      print("✅ Model and labels loaded.");
+    } catch (e) {
+      print("❌ Error loading model: $e");
+    }
   }
 
   String _generateGreeting() {
@@ -505,25 +697,93 @@ class _CotmindChatState extends State<CotmindChat> {
     if (input.trim().isEmpty) return;
 
     final trimmedInput = input.trim();
-    final isFollowUp = _isFollowUpRequest(trimmedInput);
 
-    setState(() {
-      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
-      _isBotTyping = true;
-    });
+    // 1. Handle Location Input
+    if (_isAwaitingLocation) {
+      _userLocation = trimmedInput;
+      _isAwaitingLocation = false;
 
-    _controller.clear();
-    _scrollToBottom();
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+        _messages.add(ChatMessage(
+          message:
+              "🛏️ Great! Any price range, listing type, or amenities you're looking for?",
+          isUser: false,
+        ));
+      });
 
+      _isAwaitingFilters = true;
+      _controller.clear();
+      return;
+    }
+
+    // 2. Handle Filters Input
+    if (_isAwaitingFilters) {
+      _userFilters = trimmedInput;
+      _isAwaitingFilters = false;
+
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+        _isBotTyping = true;
+      });
+
+      final searchQuery = [
+        if (_lastImageClassification!.isNotEmpty) _lastImageClassification,
+        if (_userLocation!.isNotEmpty) "in $_userLocation",
+        if (_userFilters!.isNotEmpty) "with $_userFilters"
+      ].join(" ");
+
+      final videoResult = await CotmindBot.fetchVideosBySearch(searchQuery);
+      final List<Map<String, dynamic>> videoSuggestions =
+          videoResult['results'];
+      final bool usedFallback = videoResult['usedFallback'];
+
+      setState(() {
+        _isBotTyping = false;
+        _lastQuery = searchQuery;
+        _seenVideoUrls.clear();
+
+        if (usedFallback && videoSuggestions.isNotEmpty) {
+          _messages.add(ChatMessage(
+            message: _getRandomFallbackMessage(),
+            isUser: false,
+          ));
+        }
+
+        for (var video in videoSuggestions) {
+          _seenVideoUrls.add(video['reelsVideo']);
+          final postingId = video['postingId'];
+          _addPostingData(postingId, video);
+        }
+
+        if (videoSuggestions.length == 2) {
+          _messages.add(ChatMessage(
+            message: _getMorePromptMessage(),
+            isUser: false,
+          ));
+          _awaitingMoreConfirmation = true;
+          _scrollToBottom();
+        }
+      });
+
+      _controller.clear();
+      return;
+    }
+
+    // 3. User is responding to "Want to see more?" prompt
     if (_awaitingMoreConfirmation) {
       _awaitingMoreConfirmation = false;
+      final isPositive = _isPositiveResponse(trimmedInput);
 
-      if (_isPositiveResponse(trimmedInput)) {
+      setState(() {
+        _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      });
+
+      if (isPositive) {
         _followUpCount++;
 
         if (_followUpCount >= 2) {
           setState(() {
-            _isBotTyping = false;
             _messages.add(ChatMessage(
               message: _getRefinementPrompt(),
               isUser: false,
@@ -556,23 +816,18 @@ class _CotmindChatState extends State<CotmindChat> {
             final postingId = video['postingId'];
             _addPostingData(postingId, video);
           }
-        });
 
-        if (videoSuggestions.length == 2) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _messages.add(ChatMessage(
-                message: _getMorePromptMessage(),
-                isUser: false,
-              ));
-              _awaitingMoreConfirmation = true;
-              _scrollToBottom();
-            });
-          });
-        }
+          if (videoSuggestions.length == 2) {
+            _messages.add(ChatMessage(
+              message: _getMorePromptMessage(),
+              isUser: false,
+            ));
+            _awaitingMoreConfirmation = true;
+            _scrollToBottom();
+          }
+        });
       } else {
         setState(() {
-          _isBotTyping = false;
           _messages.add(ChatMessage(
             message: _getRefinementPrompt(),
             isUser: false,
@@ -580,25 +835,25 @@ class _CotmindChatState extends State<CotmindChat> {
         });
       }
 
+      _controller.clear();
       return;
     }
 
-    // Fresh search
+    // 4. Fresh User Query (No state awaiting input)
+    setState(() {
+      _messages.add(ChatMessage(message: trimmedInput, isUser: true));
+      _isBotTyping = true;
+    });
+
+    _controller.clear();
+    _scrollToBottom();
+
     _lastQuery = trimmedInput;
     _followUpCount = 0;
     _seenVideoUrls.clear();
 
     final botReply = await CotmindBot.getAIResponse(trimmedInput);
-    setState(() {
-      //  _messages.add(ChatMessage(message: botReply, isUser: false));
-      _isBotTyping = false;
-    });
-
-    if (_isCasualGreeting(trimmedInput)) return;
-
-// Continue with video search only if not a casual message
     final videoResult = await CotmindBot.fetchVideosBySearch(trimmedInput);
-
     final List<Map<String, dynamic>> videoSuggestions = videoResult['results'];
     final bool usedFallback = videoResult['usedFallback'];
 
@@ -618,20 +873,16 @@ class _CotmindChatState extends State<CotmindChat> {
         final postingId = video['postingId'];
         _addPostingData(postingId, video);
       }
-    });
 
-    if (videoSuggestions.length == 2) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _messages.add(ChatMessage(
-            message: _getMorePromptMessage(),
-            isUser: false,
-          ));
-          _awaitingMoreConfirmation = true;
-          _scrollToBottom();
-        });
-      });
-    }
+      if (videoSuggestions.length == 2) {
+        _messages.add(ChatMessage(
+          message: _getMorePromptMessage(),
+          isUser: false,
+        ));
+        _awaitingMoreConfirmation = true;
+        _scrollToBottom();
+      }
+    });
   }
 
   Future<void> _addPostingData(
@@ -646,13 +897,31 @@ class _CotmindChatState extends State<CotmindChat> {
       PostingModel postingModel = PostingModel(id: postingId);
       postingModel.getPostingInfoFromSnapshot(postingSnapshot);
 
+      // Normalize premium (might be int/double/null in Firestore)
+      int? premiumVal;
+      final rawPremium = video['premium'] ?? postingSnapshot.data()?['premium'];
+      if (rawPremium != null) {
+        if (rawPremium is num) {
+          premiumVal = (rawPremium).toInt();
+        } else {
+          premiumVal = int.tryParse(rawPremium.toString());
+        }
+      }
+
+      // linkUrl fallback: prefer video map, else posting document
+      final link =
+          (video['linkUrl'] ?? (postingSnapshot.data()?['linkUrl'] ?? ''))
+              .toString();
+
       // After fetching the posting data, add it to messages
       setState(() {
         _messages.add(ChatMessage(
           message: video['caption'] ?? 'Suggested Video',
           isUser: false,
           videoUrl: video['reelsVideo'],
-          posting: postingModel, // Pass the PostingModel
+          posting: postingModel,
+          premium: premiumVal,
+          linkUrl: link.isNotEmpty ? link : null,
         ));
       });
     } catch (e) {
@@ -725,6 +994,7 @@ class _CotmindChatState extends State<CotmindChat> {
 
   @override
   void dispose() {
+    _interpreter.close();
     _messages.clear();
     _speech.stop();
     super.dispose();
@@ -804,6 +1074,7 @@ class _CotmindChatState extends State<CotmindChat> {
                     ),
                   ),
                 ),
+                if (msg.imageFile != null) _buildImageBubble(msg.imageFile!),
                 if (msg.videoUrl != null) _buildVideoCard(msg),
               ],
             ),
@@ -826,6 +1097,20 @@ class _CotmindChatState extends State<CotmindChat> {
     );
   }
 
+  Widget _buildImageBubble(File imageFile) {
+    return Container(
+      margin: EdgeInsets.only(top: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          imageFile,
+          width: 200,
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
   Widget _buildVideoCard(ChatMessage msg) {
     return Container(
       margin: EdgeInsets.only(top: 6),
@@ -835,6 +1120,8 @@ class _CotmindChatState extends State<CotmindChat> {
         caption: msg.message,
         posting: msg.posting!,
         postId: msg.posting!.id ?? '', // Pass postId here
+        premium: msg.premium, // 👈 pass premium
+        linkUrl: msg.linkUrl,
       ),
     );
   }
@@ -873,6 +1160,11 @@ class _CotmindChatState extends State<CotmindChat> {
           Row(
             children: [
               IconButton(
+                icon: Icon(Icons.image),
+                onPressed: _handleImageUpload,
+              ),
+              SizedBox(width: 1),
+              IconButton(
                 icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
                 onPressed: _isListening ? _stopListening : _startListening,
                 color: _isListening ? Colors.redAccent : null,
@@ -899,7 +1191,7 @@ class _CotmindChatState extends State<CotmindChat> {
             children: [
               Center(
                 child: Text(
-                  "cotmind 1.0 – beta phase",
+                  "cotmind 2.0 – beta phase",
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.black,
@@ -909,11 +1201,16 @@ class _CotmindChatState extends State<CotmindChat> {
               ),
               SizedBox(height: 2),
               Center(
-                child: Text(
-                  "Tip: Ask about rentals, listings, areas, amenities or price/night",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.black,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0), // 16px left & right
+                  child: Text(
+                    "Tip: Ask about rentals, listings, areas, amenities, price/night or upload an image",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.black,
+                    ),
+                    softWrap: true,
                   ),
                 ),
               ),
@@ -975,12 +1272,16 @@ class VideoPreviewCard extends StatefulWidget {
   final PostingModel
       posting; // Adding PostingModel for passing to ViewPostingScreen
   final String postId; // Add this field
+  final int? premium; // 👈 add this
+  final String? linkUrl;
 
   const VideoPreviewCard({
     required this.videoUrl,
     required this.caption,
     required this.posting, // Accept PostingModel as a parameter
     required this.postId,
+    this.premium,
+    this.linkUrl,
   });
 
   @override
@@ -1091,14 +1392,30 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  // Navigate to ViewPostingScreen when tapped
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ViewPostingScreen(posting: widget.posting),
-                    ),
-                  );
+                  if (widget.premium == 5 || widget.premium == 6) {
+                    if (widget.linkUrl != null && widget.linkUrl!.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WebViewScreen(
+                              url: widget.linkUrl!,
+                              title: ""), // 👈 open webview
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("No booking link available")),
+                      );
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ViewPostingScreen(posting: widget.posting),
+                      ),
+                    );
+                  }
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -1123,3 +1440,4 @@ class _VideoPreviewCardState extends State<VideoPreviewCard> {
     );
   }
 }
+//ok
