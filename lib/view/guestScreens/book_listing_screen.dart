@@ -312,7 +312,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
       totalPriceBeforeConversion =
           selectedDates.length * (posting!.price ?? 0) - totality;
       totalPrice = totalPriceBeforeConversion *
-          0.00; //add 0.02 to make it 2% service charge
+          0.00; //change back to 0.02 for guest charge
       totalPricep =
           totalPriceBeforeConversion + totalPrice + (posting!.caution ?? 0);
     }
@@ -391,7 +391,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
     double totalPriceForAll = totaloo - tota;
 
     double price = totalPriceForAllNights * conversionRate;
-    double priced = price * 0.00; //add 0.02 to make it 2% service charge
+    double priced = price * 0.00; //change back to 0.02 for guest charge
     double pricedd = priced + price;
 
     String currency = selectedCurrency;
@@ -402,6 +402,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
         phoneNumber: AppConstants.currentUser.mobileNumber.toString());
 
     Flutterwave flutterwave = Flutterwave(
+      context: context,
       publicKey: "FLWPUBK-5075e726729201f3c2b77df72b4a8da5-X",
       currency: currency,
       redirectUrl: 'https://cotmade.com',
@@ -413,7 +414,7 @@ class _BookListingScreenState extends State<BookListingScreen> {
       isTestMode: false,
     );
 
-    final ChargeResponse response = await flutterwave.charge(context);
+    final ChargeResponse response = await flutterwave.charge();
     showLoading(response.toString());
     print("Response: ${response.toJson()}");
     print("Status: ${response.status}");
