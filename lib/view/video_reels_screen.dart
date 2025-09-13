@@ -818,7 +818,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
     }
   }
 
-  // Call PHP backend to send push notification
+// Call PHP backend to send push notification
   Future<void> sendLikePushNotification(String token, String message) async {
     final String phpUrl = 'https://cotmade.com/fire/send_fcm2.php';
 
@@ -869,7 +869,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
         try {
           // Fetch reel owner user ID from reel document
           final reelSnapshot = await reelRef.get();
-          final ownerId = reelSnapshot.data()?['postingId'];
+          final ownerId = reelSnapshot.data()?['uid'];
 
           if (ownerId != null) {
             // Fetch owner's FCM token
@@ -1086,16 +1086,19 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Background Video or Image
           Positioned.fill(
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
                 width: widget.controller!.value.size.width,
                 height: widget.controller!.value.size.height,
-                child: CachedVideoPlayer(widget.controller!),
+                child: VideoPlayer(widget.controller!),
               ),
             ),
           ),
+
+          // Caption Text
           Positioned(
             top: 70, // Adjust position as necessary
             left: 16,
@@ -1103,7 +1106,7 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width *
                     0.6, // 60% of screen width
-              ), // Adjust max width as needed
+              ),
               child: Text(
                 widget.audioName.split('.')[0],
                 style: TextStyle(
@@ -1111,13 +1114,17 @@ class _VideoReelsItemState extends State<VideoReelsItem> {
                   fontWeight: FontWeight.normal,
                   fontSize: 13,
                 ),
-                overflow: TextOverflow.ellipsis, // Show "..." if too long
-                maxLines: 1, // Keep it to one line
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 softWrap: false,
               ),
             ),
           ),
+
+          // Heart icon only when "liked" (or based on condition)
           if (showHeart) Icon(Icons.favorite, color: Colors.red, size: 100),
+
+          // User Profile and Price / City Details
           Positioned(
             bottom: 60,
             left: 16,
