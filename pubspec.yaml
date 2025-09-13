@@ -76,6 +76,10 @@ dependencies:
   webview_flutter: ^4.7.0
   image: ^4.3.0
   speech_to_text: ^6.6.0
+  tflite_flutter:
+  flutter_map:
+  latlong2:
+  geocoding:
 
 
 dev_dependencies:
