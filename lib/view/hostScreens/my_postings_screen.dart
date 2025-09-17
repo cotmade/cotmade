@@ -14,42 +14,20 @@ class MyPostingsScreen extends StatefulWidget {
 }
 
 class _MyPostingsScreenState extends State<MyPostingsScreen> {
-  List<PostingModel> _postings = []; // List to hold the actual postings
-  Map<String, bool> _loadingStatus = {}; // Map to track loading state of each posting
+  late List<PostingModel> _postings;
 
   @override
   void initState() {
     super.initState();
-    _loadPostings();
-  }
-
-  Future<void> _loadPostings() async {
-    var filteredPostings = AppConstants.currentUser.myPostings!
+    _postings = AppConstants.currentUser.myPostings!
         .where((posting) =>
             posting.status != 0) // Only show postings with status != 0.0
         .toList();
+  }
 
-    // Remove duplicates based on posting ID
-    var uniquePostings = <PostingModel>[];
-    var seenIds = <String>{};
-
-    for (var posting in filteredPostings) {
-      if (!seenIds.contains(posting.id)) {
-        seenIds.add(posting.id!);
-        uniquePostings.add(posting);
-      }
-    }
-
-    // Load postings asynchronously, showing them one by one
-    for (var posting in uniquePostings) {
-      _loadingStatus[posting.id!] = true; // Mark as loading
-      await posting.getPostingInfoFromFirestore();
-      await posting.getAllImagesFromStorage();
-      setState(() {
-        _postings.add(posting); // Add posting once it's loaded
-        _loadingStatus[posting.id!] = false; // Mark as not loading
-      });
-    }
+  Future<void> _loadPostingsData(PostingModel posting) async {
+    await posting.getPostingInfoFromFirestore();
+    await posting.getAllImagesFromStorage();
   }
 
   @override
@@ -57,7 +35,8 @@ class _MyPostingsScreenState extends State<MyPostingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 25),
       child: ListView.builder(
-        itemCount: _postings.length + 1, // Add one for the "Create Posting" button
+        itemCount:
+            _postings.length + 1, // Add one for the "Create Posting" button
         itemBuilder: (context, index) {
           // If index is 0, display the "Create Posting" button
           if (index == 0) {
@@ -80,9 +59,7 @@ class _MyPostingsScreenState extends State<MyPostingsScreen> {
             );
           }
 
-          // For other indices, show the filtered postings
           var posting = _postings[index - 1]; // Adjust index for the postings
-          bool isLoading = _loadingStatus[posting.id!] ?? false;
 
           return Padding(
             padding: const EdgeInsets.fromLTRB(26, 0, 26, 26),
@@ -97,11 +74,27 @@ class _MyPostingsScreenState extends State<MyPostingsScreen> {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.black,
                 ),
-                child: isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(), // Show progress indicator while loading
-                      )
-                    : PostingListTileUI(posting: posting), // Show actual posting when ready
+                child: FutureBuilder(
+                  future: _loadPostingsData(posting),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child:
+                            CircularProgressIndicator(), // Show loading indicator
+                      );
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error loading posting',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      );
+                    } else {
+                      // Once data is loaded, display the actual UI
+                      return PostingListTileUI(posting: posting);
+                    }
+                  },
+                ),
               ),
             ),
           );
