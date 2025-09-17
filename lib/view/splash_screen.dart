@@ -14,6 +14,7 @@ import 'package:cotmade/view/suspended_account_screen.dart';
 import 'package:cotmade/view/video_reels_screen.dart';
 import 'package:cotmade/api/firebase_api.dart';
 import 'dart:typed_data';
+import 'package:cotmade/view/hostScreens/postings_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
