@@ -114,6 +114,9 @@ class _SplashScreenState extends State<SplashScreen> {
         print("❌ Error uploading FCM token: $e");
       });
 
+      await PostingsManager().initializeUser();
+      await PostingsManager().initializePostings();
+
       // Check account status
       if (AppConstants.currentUser.status == 0) {
         await FirebaseAuth.instance.signOut();
