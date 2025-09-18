@@ -15,7 +15,7 @@ dependencies:
   firebase_auth:
   cloud_firestore:
   firebase_storage:
-  #google_sign_in: ^6.3.0
+  google_sign_in: ^6.2.2
   image_picker:
   flutter_svg:
   timeago:
@@ -54,7 +54,7 @@ dependencies:
   flutter_cache_manager:
   audioplayers:
   just_audio:
-  flutter_local_notifications: ^19.4.1
+  flutter_local_notifications: ^19.3.1
   webview_flutter:
   url_launcher:
   image:
@@ -65,7 +65,7 @@ dependencies:
   geocoding:
   device_info_plus: ^11.5.0
   package_info_plus: ^8.3.1
-  fluttertoast: ^8.2.10
+  fluttertoast: ^8.2.8
 
 dev_dependencies:
   flutter_test:
