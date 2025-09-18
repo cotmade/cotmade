@@ -54,7 +54,7 @@ dependencies:
   flutter_cache_manager:
   audioplayers:
   just_audio:
-  flutter_local_notifications:
+  flutter_local_notifications: ^19.4.1
   webview_flutter:
   url_launcher:
   image:
@@ -65,6 +65,7 @@ dependencies:
   geocoding:
   device_info_plus: ^11.5.0
   package_info_plus: ^8.3.1
+  fluttertoast: ^8.2.12
 
 dev_dependencies:
   flutter_test:

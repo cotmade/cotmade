@@ -38,7 +38,8 @@ class _MyPostingsScreenState extends State<MyPostingsScreen> {
     await PostingsManager().initializeUser(); // Ensure the user is initialized
     await PostingsManager()
         .initializePostings(); // Fetch the postings for the current user
-    await PostingsManager().startPostingsListener(); // Start the listener for real-time updates
+    await PostingsManager()
+        .startPostingsListener(); // Start the listener for real-time updates
 
     setState(() {
       _postings = PostingsManager().postings; // Now we have the postings
@@ -47,10 +48,11 @@ class _MyPostingsScreenState extends State<MyPostingsScreen> {
   }
 
   @override
-void dispose() {
-  PostingsManager().stopPostingsListener(); // Stop the listener when the screen is disposed
-  super.dispose();
-}
+  void dispose() {
+    PostingsManager()
+        .stopPostingsListener(); // Stop the listener when the screen is disposed
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,27 +106,31 @@ void dispose() {
           // Since index 0 is for the Create Posting button, use index - 1 for postings
           return Padding(
             padding: const EdgeInsets.fromLTRB(26, 0, 26, 26),
-            child: InkResponse(
-              onTap: () {
-                // Navigate to Create Posting screen with the selected posting
-                Get.to(CreatePostingScreen(
-                  posting: uniquePostings[
-                      index - 1], // Adjust index for the postings
-                ));
-              },
-              child: Container(
-                width: 190,
-                height: 70,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.black,
-                ),
-                child: PostingListTileUI(
-                  posting: uniquePostings[
-                      index - 1], // Adjust index for the postings
-                ),
-              ),
-            ),
+            child: _isLoading
+                ? Center(
+                    child:
+                        CircularProgressIndicator()) // Show loading spinner when loading
+                : InkResponse(
+                    onTap: () {
+                      // Navigate to Create Posting screen with the selected posting
+                      Get.to(CreatePostingScreen(
+                        posting: uniquePostings[
+                            index - 1], // Adjust index for the postings
+                      ));
+                    },
+                    child: Container(
+                      width: 190,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black,
+                      ),
+                      child: PostingListTileUI(
+                        posting: uniquePostings[
+                            index - 1], // Adjust index for the postings
+                      ),
+                    ),
+                  ),
           );
         },
       ),
