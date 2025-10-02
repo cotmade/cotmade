@@ -20,7 +20,7 @@ jobs:
           flutter-version: '3.22.0'  # put your exact version if needed
 
       - name: 🔨 Build Flutter Web
-        run: flutter build web --release
+        run: flutter build web --release --verbose
 
       - name: 📦 Zip Flutter Web Build
         run: zip -r cotmade-web.zip build/web
