@@ -1,0 +1,48 @@
+name: 🚀 Flutter Web Build & Upload
+
+on:
+  push:
+    branches:
+      - web-build   # 👈 runs only when pushing to this branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable   # 👈 Flutter stable channel
+          flutter-version: '3.22.0'  # put your exact version if needed
+
+      - name: 🔨 Build Flutter Web
+        run: flutter build web --release
+
+      - name: 📦 Zip Flutter Web Build
+        run: zip -r cotmade-web.zip build/web
+
+      - name: 📤 Upload Web Build via uppy.sh
+        run: |
+          file="cotmade-web.zip"
+          if [ -f "$file" ]; then
+            echo "📤 Uploading $file ..."
+            url=$(curl --upload-file "$file" "https://uppy.sh/$(basename "$file")")
+            echo "✅ Uploaded: $url"
+            echo "DOWNLOAD_URL=$url" >> $GITHUB_ENV
+          else
+            echo "❌ Not found: $file"
+            exit 1
+          fi
+
+      - name: 📎 Save Uppy.sh Link as Artifact
+        run: echo "$DOWNLOAD_URL" > uppy_link.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uppy-link
+          path: uppy_link.txt
+
