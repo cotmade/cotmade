@@ -1,3 +1,6 @@
+// lib/services/firebase_api_mobile.dart
+export '../stubs/firebase_api_stub.dart'
+    if (dart.library.io) 'firebase_api_mobile.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -19,19 +22,20 @@ class FirebaseApi {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  /// Initialize Firebase Messaging and Notifications for iOS
+  /// Initialize Firebase Messaging and Notifications for iOS/Android
   Future<void> initNotifications() async {
     try {
       // 🔹 Step 1: Request permission
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      NotificationSettings settings =
+          await _firebaseMessaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
 
-      debugPrint('📲 iOS User permission status: ${settings.authorizationStatus}');
+      debugPrint('📲 User permission status: ${settings.authorizationStatus}');
 
-      // 🔹 Step 2: Set foreground options (required for iOS foreground)
+      // 🔹 Step 2: Set foreground options
       await _firebaseMessaging.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
@@ -73,7 +77,7 @@ class FirebaseApi {
       // 🔹 Step 6: Foreground message handler
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         debugPrint('📩 Foreground message: ${message.notification?.title}');
-        await _showLocalNotification(message); // Fallback if iOS banner not shown
+        await _showLocalNotification(message);
       });
 
       // 🔹 Step 7: Handle taps on notifications
@@ -87,7 +91,7 @@ class FirebaseApi {
     }
   }
 
-  /// Show local notification manually (iOS fallback)
+  /// Show local notification manually
   Future<void> _showLocalNotification(RemoteMessage message) async {
     const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails();
 
@@ -112,7 +116,8 @@ class FirebaseApi {
 
   /// Initialize local notifications
   Future<void> _initLocalNotifications() async {
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
