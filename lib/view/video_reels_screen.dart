@@ -8,7 +8,6 @@ import 'package:cotmade/model/posting_model.dart';
 import 'package:cotmade/view/view_posting_screen.dart';
 import 'package:get/get.dart';
 import 'package:cotmade/view/guestScreens/feedback_screen.dart';
-import 'package:flutter_cached_video_player_plus/flutter_cached_video_player_plus.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cotmade/view/ai/cotmind_chat.dart';
@@ -27,7 +26,9 @@ class VideoReelsPage extends StatefulWidget {
 class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
   List<DocumentSnapshot> _videos = [];
-  Map<int, CachedVideoPlayerController> _controllers = {}; // ✅ unify type
+
+  /// Use only VideoPlayerController (works on Web + Mobile)
+  Map<int, VideoPlayerController> _controllers = {};
   Map<int, AudioPlayer> _audioPlayers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
@@ -56,23 +57,20 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 
   Future<void> _preloadVideo(int index) async {
     if (index < 0 || index >= _videos.length) return;
-    if (_controllers.containsKey(index)) return;
 
     final data = _videos[index].data() as Map<String, dynamic>;
     final url = data['reelsVideo'];
 
-    final controller = CachedVideoPlayerController.network(url); // ✅ always cached
+    if (_controllers.containsKey(index)) return;
+
+    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
     await controller.initialize();
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0 : 1);
 
-    setState(() {
-      _controllers[index] = controller;
-    });
+    setState(() => _controllers[index] = controller);
 
-    if (index == _currentIndex) {
-      controller.play();
-    }
+    if (index == _currentIndex) controller.play();
   }
 
   @override
@@ -102,7 +100,6 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                 _preloadVideo(index);
               },
               itemBuilder: (context, index) {
-                final data = _videos[index].data() as Map<String, dynamic>;
                 final controller = _controllers[index];
 
                 if (controller == null || !controller.value.isInitialized) {
@@ -114,9 +111,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     Center(
                       child: AspectRatio(
                         aspectRatio: controller.value.aspectRatio,
-                        child: kIsWeb
-                            ? VideoPlayer(controller) // ✅ plain video on web
-                            : CachedVideoPlayer(controller), // ✅ cached on mobile
+                        child: VideoPlayer(controller),
                       ),
                     ),
                     Positioned(
@@ -124,7 +119,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                       right: 16,
                       child: IconButton(
                         icon: Icon(
-                          Icons.volume_off,
+                          _isMuted ? Icons.volume_off : Icons.volume_up,
                           color: _isMuted ? Colors.red : Colors.white,
                         ),
                         onPressed: () {
@@ -144,7 +139,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 }
 
 class VideoReelsItem extends StatefulWidget {
-  final CachedVideoPlayerController? controller; // ✅ unified
+  final VideoPlayerController controller;
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final String documentId;
@@ -266,22 +261,18 @@ $linkUrl
   }
 
   void _pausePlayVideo() {
-    if (widget.controller != null) {
-      widget.controller!.value.isPlaying
-          ? widget.controller!.pause()
-          : widget.controller!.play();
+    if (widget.controller.value.isPlaying) {
+      widget.controller.pause();
+    } else {
+      widget.controller.play();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.controller == null || !widget.controller!.value.isInitialized) {
+    if (!widget.controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final videoWidget = kIsWeb
-        ? VideoPlayer(widget.controller!)
-        : CachedVideoPlayer(widget.controller!);
 
     return GestureDetector(
       onDoubleTap: _toggleLike,
@@ -290,7 +281,14 @@ $linkUrl
         alignment: Alignment.center,
         children: [
           Positioned.fill(
-            child: FittedBox(fit: BoxFit.cover, child: videoWidget),
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: widget.controller.value.size.width,
+                height: widget.controller.value.size.height,
+                child: VideoPlayer(widget.controller),
+              ),
+            ),
           ),
           if (showHeart)
             const Icon(Icons.favorite, color: Colors.red, size: 100),
