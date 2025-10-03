@@ -16,9 +16,6 @@ import 'package:cotmade/view/guest_home_screen.dart';
 import 'package:cotmade/model/app_constants.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-// ✅ On Web: use simple video player, skip cache/audio
-typedef UniversalVideoController = VideoPlayerController;
-
 class VideoReelsPage extends StatefulWidget {
   final String? reelId;
   const VideoReelsPage({this.reelId, Key? key}) : super(key: key);
@@ -30,7 +27,7 @@ class VideoReelsPage extends StatefulWidget {
 class _VideoReelsPageState extends State<VideoReelsPage> {
   late PageController _pageController;
   List<DocumentSnapshot> _videos = [];
-  Map<int, VideoPlayerController> _controllers = {};
+  Map<int, CachedVideoPlayerController> _controllers = {}; // ✅ unify type
   Map<int, AudioPlayer> _audioPlayers = {};
   int _currentIndex = 0;
   bool _isMuted = true;
@@ -64,13 +61,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
     final data = _videos[index].data() as Map<String, dynamic>;
     final url = data['reelsVideo'];
 
-    late VideoPlayerController controller;
-    if (kIsWeb) {
-      controller = VideoPlayerController.network(url);
-    } else {
-      controller = CachedVideoPlayerController.network(url);
-    }
-
+    final controller = CachedVideoPlayerController.network(url); // ✅ always cached
     await controller.initialize();
     controller.setLooping(true);
     controller.setVolume(_isMuted ? 0 : 1);
@@ -123,15 +114,19 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
                     Center(
                       child: AspectRatio(
                         aspectRatio: controller.value.aspectRatio,
-                        child: VideoPlayer(controller),
+                        child: kIsWeb
+                            ? VideoPlayer(controller) // ✅ plain video on web
+                            : CachedVideoPlayer(controller), // ✅ cached on mobile
                       ),
                     ),
                     Positioned(
                       top: 50,
                       right: 16,
                       child: IconButton(
-                        icon: Icon(Icons.volume_off,
-                            color: _isMuted ? Colors.red : Colors.white),
+                        icon: Icon(
+                          Icons.volume_off,
+                          color: _isMuted ? Colors.red : Colors.white,
+                        ),
                         onPressed: () {
                           setState(() {
                             _isMuted = !_isMuted;
@@ -149,7 +144,7 @@ class _VideoReelsPageState extends State<VideoReelsPage> {
 }
 
 class VideoReelsItem extends StatefulWidget {
-  final VideoPlayerController? controller;
+  final CachedVideoPlayerController? controller; // ✅ unified
   final Map<String, dynamic> videoData;
   final bool isMuted;
   final String documentId;
@@ -261,7 +256,6 @@ $linkUrl
       if (kIsWeb) {
         await Share.share("$caption\n\n$linkUrl");
       } else {
-        // mobile-only thumbnail generation + shareXFiles
         Share.share(message);
       }
     } catch (e) {
@@ -296,7 +290,8 @@ $linkUrl
         alignment: Alignment.center,
         children: [
           Positioned.fill(
-              child: FittedBox(fit: BoxFit.cover, child: videoWidget)),
+            child: FittedBox(fit: BoxFit.cover, child: videoWidget),
+          ),
           if (showHeart)
             const Icon(Icons.favorite, color: Colors.red, size: 100),
           Positioned(
@@ -321,7 +316,8 @@ $linkUrl
                       ),
                       onPressed: _toggleLike,
                     ),
-                    Text('$likes', style: const TextStyle(color: Colors.white)),
+                    Text('$likes',
+                        style: const TextStyle(color: Colors.white)),
                     IconButton(
                       icon: const Icon(Icons.share, color: Colors.white),
                       onPressed: _shareVideo,
